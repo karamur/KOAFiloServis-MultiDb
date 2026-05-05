@@ -536,7 +536,7 @@
         }
 
         <!-- İHALE HAZIRLIK -->
-        @if (HasMenuYetki("menu.fatura"))
+        @if (HasYetki("ihale.oku") || HasYetki("raporlar.oku"))
         {
             <div class="nav-section">
                 <div class="nav-section-header" @onclick="() => ToggleSection(14)" style="cursor: pointer;">
