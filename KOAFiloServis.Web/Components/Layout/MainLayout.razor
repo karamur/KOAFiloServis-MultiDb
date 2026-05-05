@@ -65,7 +65,7 @@
                             <div class="vr d-none d-md-block"></div>
                             <div class="text-muted d-none d-md-block">
                                 <i class="bi bi-calendar3 me-2"></i>
-                                @DateTime.Now.ToString("dd MMMM yyyy, dddd", new System.Globalization.CultureInfo("tr-TR"))
+                                @DateTime.Now.ToString("dd MMMM yyyy, dddd", TrCulture)
                             </div>
                             @if (kalanLisansGunu <= 30)
                             {
@@ -189,6 +189,8 @@
 </div>
 
 @code {
+    private static readonly System.Globalization.CultureInfo TrCulture = new("tr-TR");
+
     private KOAFiloServis.Shared.Entities.Kullanici? aktifKullanici;
     private bool isInitialized = false;
     private bool lisansGecerli = false;
@@ -353,7 +355,6 @@
         FirmaService.SetAktifFirma(firma.Id);
         aktifFirmaId = firma.Id;
         aktifFirmaAdi = firma.FirmaAdi;
-        StateHasChanged();
         Navigation.NavigateTo(Navigation.Uri, true);
     }
 
