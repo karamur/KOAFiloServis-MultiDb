@@ -314,3 +314,12 @@ h1:focus {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+/* Ödeme satır vurgu animasyonu */
+@keyframes odemeVurguFlash {
+  0%   { background-color: #fff3cd; }
+  50%  { background-color: #ffe69c; }
+  100% { background-color: transparent; }
+}
+.odeme-vurgu-flash > td {
+  animation: odemeVurguFlash 2.5s ease-out;
+}

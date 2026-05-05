@@ -171,6 +171,20 @@
         });
     }
 
+    function scrollToElementById(elementId) {
+        try {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('odeme-vurgu-flash');
+            setTimeout(function () {
+                el.classList.remove('odeme-vurgu-flash');
+            }, 2500);
+        } catch (e) {
+            console.warn('scrollToElementById:', e);
+        }
+    }
+
     // window scope'a açıkça bağla — Blazor IJSRuntime bu globalleri arar.
     window.downloadFile = downloadFile;
     window.downloadFileFromBase64 = downloadFileFromBase64;
@@ -182,4 +196,5 @@
     window.getLocalStorageItem = getLocalStorageItem;
     window.printBase64Pdf = printBase64Pdf;
     window.printDocumentFiles = printDocumentFiles;
+    window.scrollToElementById = scrollToElementById;
 })();

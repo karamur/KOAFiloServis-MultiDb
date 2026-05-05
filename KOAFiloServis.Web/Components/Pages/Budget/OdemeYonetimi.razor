@@ -250,7 +250,7 @@
                         <tbody>
                             @foreach (var odeme in filtrelenmisOdemeler)
                             {
-                                <tr class="@(odeme.Durum == OdemeDurum.Odendi ? "table-success" : odeme.Durum == OdemeDurum.KismiOdendi ? "table-warning" : odeme.Durum == OdemeDurum.Iptal ? "table-secondary" : "")">
+                                <tr id="odeme-row-@odeme.Id" class="@GetSatirClass(odeme)">
                                     <td>@odeme.OdemeTarihi.ToString("dd.MM.yyyy")</td>
                                     <td>
                                         <strong>@odeme.MasrafKalemi</strong>
@@ -881,6 +881,24 @@
 }
 
 @code {
+    [SupplyParameterFromQuery(Name = "odemeId")]
+    public int? VurguOdemeId { get; set; }
+
+    private int? sonVurgulananOdemeId;
+
+    private string GetSatirClass(BudgetOdeme odeme)
+    {
+        var temel = odeme.Durum == OdemeDurum.Odendi ? "table-success"
+            : odeme.Durum == OdemeDurum.KismiOdendi ? "table-warning"
+            : odeme.Durum == OdemeDurum.Iptal ? "table-secondary"
+            : "";
+        if (VurguOdemeId.HasValue && odeme.Id == VurguOdemeId.Value)
+        {
+            temel += " border border-2 border-primary";
+        }
+        return temel;
+    }
+
     private decimal GetBekleyenTutar(BudgetOdeme odeme) => odeme.Durum == OdemeDurum.KismiOdendi ? odeme.KalanTutar : odeme.Miktar;
     private decimal GetOdenenTutar(BudgetOdeme odeme) => odeme.Durum == OdemeDurum.KismiOdendi ? odeme.ToplamKismiOdenen : (odeme.OdenenTutar ?? odeme.Miktar);
     private decimal GetGorunenTutar(BudgetOdeme odeme) => odeme.Durum == OdemeDurum.KismiOdendi ? odeme.KalanTutar : odeme.Miktar;
@@ -952,7 +970,41 @@
         hesapBakiyeleri = await BankaHesapService.GetTumHesapBakiyeleriAsync();
         cariler = (await CariService.GetAllAsync()).Where(c => c.Aktif).OrderBy(c => c.Unvan).ToList();
         firmalar = (await FirmaService.GetAktifFirmalarAsync()).OrderBy(f => f.FirmaAdi).ToList();
+
+        if (VurguOdemeId.HasValue)
+        {
+            var hedef = await BudgetService.GetOdemeByIdAsync(VurguOdemeId.Value);
+            if (hedef != null)
+            {
+                filtreYil = hedef.OdemeYil;
+                filtreAy = 0;
+                filtreDurum = "";
+                filtreTip = "";
+                filtreFirmaId = 0;
+                filtreMasrafKalemi = "";
+                aramaMetni = "";
+                seciliAciklamalar.Clear();
+            }
+        }
+
         await LoadDataAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (VurguOdemeId.HasValue && VurguOdemeId.Value != sonVurgulananOdemeId &&
+            filtrelenmisOdemeler.Any(o => o.Id == VurguOdemeId.Value))
+        {
+            sonVurgulananOdemeId = VurguOdemeId.Value;
+            try
+            {
+                await JS.InvokeVoidAsync("scrollToElementById", $"odeme-row-{VurguOdemeId.Value}");
+            }
+            catch
+            {
+                // JS helper yoksa sessiz geç
+            }
+        }
     }
 
     private async Task ExportCsvAsync()
