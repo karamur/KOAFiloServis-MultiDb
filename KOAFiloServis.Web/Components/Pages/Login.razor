@@ -1,4 +1,4 @@
-@page "/login"
+﻿@page "/login"
 @layout EmptyLayout
 @attribute [AllowAnonymous]
 @using KOAFiloServis.Web.Services
@@ -12,6 +12,7 @@
 @inject NavigationManager Navigation
 @inject ProtectedLocalStorage LocalStorage
 @inject IJSRuntime JSRuntime
+@inject ILogger<Login> Logger
 
 <PageTitle>Giris - @(selectedProject?.Name ?? "Koa Filo Servis")</PageTitle>
 
@@ -793,9 +794,9 @@
                 await LocalStorage.DeleteAsync(REMEMBER_KEY);
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Local storage erisim hatasi - sessizce devam et
+            Logger.LogDebug(ex, "Login hatirlanan kullanici adi yuklenirken hata olustu");
         }
     }
 
@@ -816,9 +817,9 @@
                 await LocalStorage.DeleteAsync(REMEMBER_KEY);
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Local storage hatasi - kritik degil
+            Logger.LogDebug(ex, "Login hatirlama tercihi kaydedilirken hata olustu");
         }
     }
 
@@ -906,9 +907,9 @@
         {
             await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", makineKodu);
         }
-        catch
+        catch (Exception ex)
         {
-            // Clipboard erisim hatasi - sessizce devam et
+            Logger.LogDebug(ex, "Login makine kodu panoya kopyalanirken hata olustu");
         }
     }
 
