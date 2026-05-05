@@ -37,6 +37,9 @@ public class MaliAnalizService : IMaliAnalizService
         dashboard.TasimaTedarikciAnaliz = await GetTasimaTedarikciSegmentAnalizAsync(context, ayBaslangic, ayBitis);
 
         // Toplam hesaplamalar
+        // NOT: Tedarikçi araçları zaten Arac.SahiplikTipi üzerinden Ozmal/Kiralik/Komisyon
+        // segmentlerinden birinde sayılıyor. Çift sayımı önlemek için toplama eklenmez;
+        // tedarikçi kartı/grafiği bilgi amacıyla ayrı gösterilir.
         dashboard.ToplamGelir = dashboard.OzmalAracAnaliz.Gelir + 
                                 dashboard.KiralikAracAnaliz.Gelir + 
                                 dashboard.KomisyonAnaliz.Gelir;

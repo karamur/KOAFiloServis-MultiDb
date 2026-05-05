@@ -2,6 +2,8 @@
 @using KOAFiloServis.Web.Services
 @using Models = KOAFiloServis.Web.Models
 @inject IMaliAnalizService MaliAnalizService
+@inject IExcelService ExcelService
+@inject IJSRuntime JS
 @rendermode InteractiveServer
 
 <PageTitle>Taşıma Tedarikçisi Raporu</PageTitle>
@@ -22,6 +24,11 @@
                     <option value="@m">@(new DateTime(2024, m, 1).ToString("MMMM"))</option>
                 }
             </select>
+            <button type="button" class="btn btn-success"
+                    @onclick="ExcelExport"
+                    disabled="@(rapor == null || rapor.TedarikciDetaylari.Count == 0)">
+                <i class="bi bi-file-earmark-excel me-1"></i>Excel
+            </button>
             <a href="/mali-analiz" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left me-1"></i>Dashboard
             </a>
@@ -182,5 +189,65 @@
         {
             isLoading = false;
         }
+    }
+
+    private async Task ExcelExport()
+    {
+        if (rapor == null || rapor.TedarikciDetaylari.Count == 0)
+            return;
+
+        var headers = new[]
+        {
+            "Tedarikçi Kodu", "Tedarikçi Ünvanı",
+            "Araç Sayısı", "Personel Sayısı", "Aktif İş",
+            "Güzergah", "Müşteri", "Araç Plaka", "Şoför",
+            "Sefer", "Birim Fiyat", "Sefer Ücreti",
+            "Müşteriden Alınacak", "Tedarikçiye Ödenecek", "Kâr"
+        };
+
+        var rows = new List<object[]>();
+        foreach (var t in rapor.TedarikciDetaylari)
+        {
+            if (t.IsDetaylari.Count == 0)
+            {
+                rows.Add(new object[]
+                {
+                    t.TedarikciKodu, t.Unvan,
+                    t.AracSayisi, t.PersonelSayisi, t.AktifIsSayisi,
+                    "-", "-", "-", "-",
+                    0, 0m, 0m,
+                    0m, 0m, 0m
+                });
+                continue;
+            }
+
+            foreach (var i in t.IsDetaylari)
+            {
+                rows.Add(new object[]
+                {
+                    t.TedarikciKodu, t.Unvan,
+                    t.AracSayisi, t.PersonelSayisi, t.AktifIsSayisi,
+                    i.GuzergahAdi, i.MusteriUnvan, i.AracPlaka ?? "-", i.SoforAdSoyad ?? "-",
+                    i.SeferSayisi, i.BirimFiyat, i.SeferUcreti,
+                    i.MusteridenAlinacak, i.TedarikciyeOdenecek, i.Kar
+                });
+            }
+        }
+
+        // Toplam satırı
+        rows.Add(new object[]
+        {
+            "TOPLAM", "",
+            rapor.ToplamArac, rapor.ToplamPersonel, "",
+            "", "", "", "",
+            rapor.ToplamSefer, 0m, 0m,
+            rapor.ToplamMusteridenAlinacak, rapor.ToplamTedarikciyeOdenecek, rapor.NetKar
+        });
+
+        var bytes = ExcelService.CreateExcel(headers, rows, "Tedarikci Raporu");
+        var fileName = $"TasimaTedarikciRaporu_{secilenYil}_{secilenAy:D2}_{DateTime.Now:HHmmss}.xlsx";
+        var base64 = Convert.ToBase64String(bytes);
+        await JS.InvokeVoidAsync("downloadFile", fileName, base64,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     }
 }
