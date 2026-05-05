@@ -1,5 +1,7 @@
+﻿@using Microsoft.Extensions.Logging
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
+@inject ILogger<KlavyeKisayollari> Logger
 @implements IAsyncDisposable
 
 @if (goster)
@@ -66,7 +68,14 @@
         if (firstRender)
         {
             _ref = DotNetObjectReference.Create(this);
-            try { await JS.InvokeVoidAsync("keyboardShortcuts.init", _ref); } catch { }
+            try
+            {
+                await JS.InvokeVoidAsync("keyboardShortcuts.init", _ref);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "KlavyeKisayollari JS init basarisiz oldu");
+            }
         }
     }
 
@@ -95,7 +104,17 @@
 
     public async ValueTask DisposeAsync()
     {
-        try { await JS.InvokeVoidAsync("keyboardShortcuts.dispose"); } catch { }
+        try
+        {
+            await JS.InvokeVoidAsync("keyboardShortcuts.dispose");
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+        catch (Exception ex)
+        {
+            Logger.LogDebug(ex, "KlavyeKisayollari JS dispose sirasinda hata olustu");
+        }
         _ref?.Dispose();
     }
 }
