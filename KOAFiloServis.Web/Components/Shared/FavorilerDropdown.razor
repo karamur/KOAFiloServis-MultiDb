@@ -1,5 +1,7 @@
+﻿@using Microsoft.Extensions.Logging
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
+@inject ILogger<FavorilerDropdown> Logger
 
 <div class="dropdown">
     <button class="btn btn-sm btn-outline-secondary border" type="button"
@@ -65,7 +67,11 @@
             favoriler = result ?? new();
             StateHasChanged();
         }
-        catch { favoriler = new(); }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "FavorilerDropdown favoriler yuklenirken hata olustu");
+            favoriler = new();
+        }
     }
 
     private async Task FavoriyiEkle()
@@ -78,8 +84,12 @@
             title = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(title);
             var result = await JS.InvokeAsync<List<FavoriItem>>("favorites.add", uri, title, "bi-star-fill");
             favoriler = result ?? new();
+            StateHasChanged();
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "FavorilerDropdown favori eklenirken hata olustu");
+        }
     }
 
     private async Task FavoriyiKaldir(string url)
@@ -88,8 +98,12 @@
         {
             var result = await JS.InvokeAsync<List<FavoriItem>>("favorites.remove", url);
             favoriler = result ?? new();
+            StateHasChanged();
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "FavorilerDropdown favori kaldirilirken hata olustu (Url={Url})", url);
+        }
     }
 
     private class FavoriItem
