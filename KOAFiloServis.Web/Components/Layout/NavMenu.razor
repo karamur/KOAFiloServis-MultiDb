@@ -245,7 +245,7 @@
                             </div>
                         }
 
-                        <!-- YENİ EKLENEN FİLO KOMİSYON PUANTAJ LİSTESİ -->
+                        <!-- OPERASYON / FİLO YÖNETİMİ / HAKEDİŞ / PUANTAJ -->
                         @if (HasYetki("raporlar.oku"))
                         {
                             <div class="nav-item px-3 mt-2 pt-2 border-top text-muted small">
@@ -261,11 +261,7 @@
                                     <i class="bi bi-calendar2-range me-2 text-danger"></i> Günlük Operasyon Puantajı
                                 </NavLink>
                             </div>
-                        }
 
-                        <!-- FİLO OPERASYON YÖNETİMİ -->
-                        @if (HasYetki("raporlar.oku"))
-                        {
                             <div class="nav-item px-3 mt-2 pt-2 border-top text-muted small">
                                 <span><i class="bi bi-speedometer2 me-2"></i>Filo Yönetimi</span>
                             </div>
@@ -274,11 +270,7 @@
                                     <i class="bi bi-gear-wide-connected me-2 text-info"></i> <strong>Filo Operasyon</strong>
                                 </NavLink>
                             </div>
-                        }
 
-                        <!-- HAKEDİS/PUANTAJ SİSTEMİ -->
-                        @if (HasYetki("raporlar.oku"))
-                        {
                             <div class="nav-item px-3 mt-2 pt-2 border-top text-muted small">
                                 <span><i class="bi bi-cash-coin me-2"></i>Hakediş / Puantaj</span>
                             </div>
@@ -292,11 +284,7 @@
                                     <i class="bi bi-file-earmark-excel me-2 text-success"></i> Hakediş Excel Import
                                 </NavLink>
                             </div>
-                        }
 
-                        <!-- YENİ EKLENEN PUANTAJ LİSTESİ -->
-                        @if (HasYetki("raporlar.oku"))
-                        {
                             <div class="nav-item px-3">
                                 <NavLink class="nav-link" href="rapor/servis-puantaj">
                                     <i class="bi bi-calendar3 me-2 text-success"></i> Servis Puantaj Sistemi
