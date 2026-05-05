@@ -4,18 +4,16 @@ on:
   push:
     branches: [main]
   pull_request:
-    types: [opened, reopened, synchronize]
+    types: [opened, reopened, synchronize, edited]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 jobs:
   update_release_draft:
-    name: Sürüm Taslağı Güncelle
-    permissions:
-      contents: write
-      pull-requests: write
+    name: 🚀 Release Notu Güncelle
     runs-on: ubuntu-latest
     steps:
       - name: 📝 Draft Release

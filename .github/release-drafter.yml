@@ -1,115 +1,108 @@
-﻿# 📝 Release Drafter — sürüm notlarını PR'lardan otomatik üretir
-name-template: "v$RESOLVED_VERSION 🚀"
-tag-template: "v$RESOLVED_VERSION"
+﻿name-template: 'v$RESOLVED_VERSION 🚀'
+tag-template: 'v$RESOLVED_VERSION'
+tag-prefix: 'v'
 
 categories:
-  - title: "💥 Breaking Changes"
+  - title: '💥 Breaking Changes'
     labels:
-      - "breaking-change"
-  - title: "🛡️ Güvenlik"
+      - 'breaking-change'
+  - title: '✨ Yeni Özellikler'
     labels:
-      - "type: security"
-  - title: "✨ Yeni Özellikler"
+      - 'type: feature'
+      - 'type: enhancement'
+  - title: '🐛 Hata Düzeltmeleri'
     labels:
-      - "type: feature"
-  - title: "🚀 İyileştirmeler"
+      - 'type: bug'
+  - title: '⚡ Performans'
     labels:
-      - "type: enhancement"
-      - "type: performance"
-  - title: "🐛 Hata Düzeltmeleri"
+      - 'type: performance'
+  - title: '🛡️ Güvenlik'
     labels:
-      - "type: bug"
-  - title: "♻️ Refactor"
+      - 'type: security'
+  - title: '♻️ Refactor'
     labels:
-      - "type: refactor"
-  - title: "📝 Dokümantasyon"
+      - 'type: refactor'
+  - title: '📝 Dokümantasyon'
     labels:
-      - "type: docs"
-      - "area: docs"
-  - title: "🧪 Testler"
+      - 'type: docs'
+  - title: '🧪 Testler'
     labels:
-      - "type: test"
-      - "area: tests"
-  - title: "🔧 Bakım & CI"
+      - 'type: test'
+  - title: '🔧 Bakım & CI'
     labels:
-      - "type: chore"
-      - "area: ci"
-  - title: "📦 Bağımlılıklar"
+      - 'type: chore'
+      - 'github-actions'
+  - title: '📦 Bağımlılıklar'
     labels:
-      - "dependencies"
-      - "nuget"
-      - "github-actions"
+      - 'dependencies'
+      - 'nuget'
     collapse-after: 5
 
-change-template: "- $TITLE (#$NUMBER) @$AUTHOR"
+change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
 change-title-escapes: '\<*_&'
 
 version-resolver:
   major:
     labels:
-      - "breaking-change"
+      - 'breaking-change'
   minor:
     labels:
-      - "type: feature"
+      - 'type: feature'
+      - 'type: enhancement'
   patch:
     labels:
-      - "type: bug"
-      - "type: enhancement"
-      - "type: performance"
-      - "type: refactor"
-      - "type: docs"
-      - "type: test"
-      - "type: chore"
-      - "type: security"
-      - "dependencies"
+      - 'type: bug'
+      - 'type: performance'
+      - 'type: security'
+      - 'type: refactor'
+      - 'type: docs'
+      - 'type: chore'
+      - 'dependencies'
   default: patch
 
 exclude-labels:
-  - "stale"
-  - "status: duplicate"
-  - "status: wontfix"
+  - 'skip-changelog'
+  - 'status: duplicate'
+  - 'status: wontfix'
 
 autolabeler:
-  - label: "type: feature"
-    title:
-      - '/^feat(\(.+\))?:/i'
-  - label: "type: bug"
+  - label: 'type: bug'
     title:
       - '/^fix(\(.+\))?:/i'
-  - label: "type: docs"
+  - label: 'type: feature'
+    title:
+      - '/^feat(\(.+\))?:/i'
+  - label: 'type: docs'
     title:
       - '/^docs(\(.+\))?:/i'
-  - label: "type: refactor"
+  - label: 'type: refactor'
     title:
       - '/^refactor(\(.+\))?:/i'
-  - label: "type: test"
-    title:
-      - '/^test(\(.+\))?:/i'
-  - label: "type: performance"
+  - label: 'type: performance'
     title:
       - '/^perf(\(.+\))?:/i'
-  - label: "type: chore"
+  - label: 'type: test'
     title:
-      - '/^chore(\(.+\))?:/i'
-  - label: "type: security"
+      - '/^test(\(.+\))?:/i'
+  - label: 'type: chore'
+    title:
+      - '/^(chore|build|ci)(\(.+\))?:/i'
+  - label: 'type: security'
     title:
       - '/^security(\(.+\))?:/i'
-  - label: "breaking-change"
+  - label: 'breaking-change'
     title:
       - '/!:/'
-      - '/BREAKING CHANGE/i'
+      - '/BREAKING[ -]CHANGE/'
 
 template: |
   ## 🎉 KOAFiloServis $RESOLVED_VERSION
 
-  Bu sürümde aşağıdaki değişiklikler yer almaktadır:
-
   $CHANGES
-
-  **Tam değişiklik listesi**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
 
   ---
 
-  📥 **Kurulum:** [Releases sayfası](https://github.com/$OWNER/$REPOSITORY/releases) üzerinden `KOAFiloServisKurulum-$RESOLVED_VERSION.exe` dosyasını indirin.
-  📚 **Dokümantasyon:** [`README.md`](https://github.com/$OWNER/$REPOSITORY/blob/main/README.md)
-  🐛 **Hata bildirimi:** [Yeni issue aç](https://github.com/$OWNER/$REPOSITORY/issues/new/choose)
+  **📦 İndirme:** [Releases sayfası](https://github.com/karamur/KOAFiloServis/releases/tag/v$RESOLVED_VERSION)
+  **📋 Tam Changelog:** [v$PREVIOUS_TAG...v$RESOLVED_VERSION](https://github.com/karamur/KOAFiloServis/compare/v$PREVIOUS_TAG...v$RESOLVED_VERSION)
+
+  > 💡 Kurulum, güncelleme ve katkı bilgileri için [README](https://github.com/karamur/KOAFiloServis#readme) ve [CONTRIBUTING.md](https://github.com/karamur/KOAFiloServis/blob/main/CONTRIBUTING.md)'yi inceleyin.

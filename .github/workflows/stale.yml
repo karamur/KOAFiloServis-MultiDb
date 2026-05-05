@@ -1,8 +1,9 @@
-﻿name: 💤 Stale Issues & PRs
+﻿name: 🧹 Stale Issue & PR Bot
 
 on:
   schedule:
-    - cron: "0 3 * * *"
+    # Her gün 03:00 UTC (TR 06:00)
+    - cron: '0 3 * * *'
   workflow_dispatch:
 
 permissions:
@@ -11,43 +12,47 @@ permissions:
 
 jobs:
   stale:
-    name: Eski Issue & PR Temizliği
+    name: 🕸️ Atıl Issue/PR Tara
     runs-on: ubuntu-latest
     steps:
-      - name: 💤 Mark Stale
+      - name: 🧹 Stale
         uses: actions/stale@v9
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-          # Issue ayarları
+          # ─── Issue ayarları ───
           days-before-issue-stale: 60
           days-before-issue-close: 14
-          stale-issue-label: "stale"
-          exempt-issue-labels: "priority: critical,priority: high,status: in-progress,status: blocked,good first issue,help wanted,type: security"
+          stale-issue-label: 'stale'
           stale-issue-message: |
-            👋 Bu issue **60 gündür hareketsiz** durumda.
+            👋 Bu issue **60 gündür** aktivite görmediği için **stale** olarak işaretlendi.
 
-            Hâlâ geçerliyse lütfen bir yorum bırakın, aksi takdirde **14 gün içinde** otomatik olarak kapatılacaktır.
+            - 📌 Hâlâ geçerliyse bir yorum bırakın veya `stale` etiketini kaldırın.
+            - ⏳ 14 gün içinde yanıt gelmezse otomatik olarak kapatılacaktır.
 
-            Teşekkürler! 🙏
+            Anlayışınız için teşekkürler! 🙏
           close-issue-message: |
-            🔒 Bu issue uzun süreli hareketsizlik nedeniyle otomatik olarak kapatıldı.
+            🔒 Bu issue, uzun süredir aktivite olmadığı için otomatik olarak kapatıldı.
 
-            Sorun devam ediyorsa lütfen yeniden açın veya yeni bir issue oluşturun.
+            Sorun devam ediyorsa lütfen güncel bilgilerle yeni bir issue açın. Teşekkürler! 🚀
+          exempt-issue-labels: 'priority: critical,priority: high,status: confirmed,status: in-progress,help wanted,good first issue,type: security'
 
-          # PR ayarları
+          # ─── PR ayarları ───
           days-before-pr-stale: 30
           days-before-pr-close: 14
-          stale-pr-label: "stale"
-          exempt-pr-labels: "priority: critical,priority: high,status: in-progress,status: blocked,type: security"
+          stale-pr-label: 'stale'
           stale-pr-message: |
-            👋 Bu PR **30 gündür güncellenmedi**.
+            👋 Bu PR **30 gündür** aktivite görmedi ve **stale** olarak işaretlendi.
 
-            Çalışmaya devam ediliyorsa lütfen bir commit veya yorum ekleyin, aksi takdirde **14 gün içinde** kapatılacaktır.
+            - ✏️ Çalışmayı sürdürüyorsanız bir commit/yorum ekleyin.
+            - 🔒 14 gün içinde aktivite olmazsa kapatılacaktır.
+
+            Katkınız için teşekkürler! 💚
           close-pr-message: |
-            🔒 Bu PR hareketsizlik nedeniyle otomatik olarak kapatıldı. İhtiyaç olursa yeniden açabilirsiniz.
+            🔒 Bu PR uzun süredir aktivite olmadığı için kapatıldı. Tekrar açmaktan çekinmeyin.
+          exempt-pr-labels: 'priority: critical,priority: high,status: in-progress,work-in-progress,WIP'
 
-          # Genel
+          # ─── Genel ───
           operations-per-run: 100
           remove-stale-when-updated: true
           ascending: true
