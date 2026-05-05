@@ -18,7 +18,8 @@
 [![Repo Size](https://img.shields.io/github/repo-size/karamur/KOAFiloServis?style=flat-square&logo=github&color=8b5cf6)](https://github.com/karamur/KOAFiloServis)
 [![Code Size](https://img.shields.io/github/languages/code-size/karamur/KOAFiloServis?style=flat-square&logo=github&color=06b6d4)](https://github.com/karamur/KOAFiloServis)
 [![Top Language](https://img.shields.io/github/languages/top/karamur/KOAFiloServis?style=flat-square&logo=csharp&color=512BD4)](https://github.com/karamur/KOAFiloServis)
-[![License](https://img.shields.io/badge/Lisans-Ticari-dc2626?style=flat-square)](#-lisans)
+[![License](https://img.shields.io/badge/Lisans-Ticari-dc2626?style=flat-square)](LICENSE)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-7c3aed?style=flat-square)](CODE_OF_CONDUCT.md)
 
 <br/>
 
@@ -477,7 +478,9 @@ Canlı **PostgreSQL** verisini offline test PC'lere taşımak için:
 - 🧰 Data Protection anahtarları `AppStoragePaths.GetDataProtectionKeysRoot` altında saklanır — yedekleyin.
 - 📝 Tüm kullanıcı işlemleri audit log altyapısıyla kayıt altına alınır.
 
-Güvenlik açığı bildirmek için lütfen **özel** bir e-posta gönderin (issue açmayın).
+📖 Detaylı güvenlik politikası ve sorumlu ifşa süreci için: **[`SECURITY.md`](SECURITY.md)**
+
+> ⚠️ Güvenlik açıklarını **public issue olarak açmayın** — [GitHub Security Advisory](https://github.com/karamur/KOAFiloServis/security/advisories/new) kullanın.
 
 ---
 
@@ -518,6 +521,10 @@ git push origin feature/harika-ozellik
 - ✅ `.editorconfig` kurallarına uyulmalı
 - ✅ Commit mesajları **[Conventional Commits](https://www.conventionalcommits.org/)** formatında olmalı
 
+📚 **Detaylı katkı rehberi:** [`CONTRIBUTING.md`](CONTRIBUTING.md)  
+🤝 **Davranış kuralları:** [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)  
+🐛 **Hata bildirimi:** [Yeni Issue Aç](https://github.com/karamur/KOAFiloServis/issues/new/choose)
+
 ---
 
 ## 🌟 Star Geçmişi
@@ -534,7 +541,10 @@ git push origin feature/harika-ozellik
 
 ## 📄 Lisans
 
-Bu proje **Allbatros Global Teknoloji** tarafından geliştirilmektedir. Ticari kullanım **yazılı izne** tabidir.
+Bu proje **Allbatros Global Teknoloji** tarafından geliştirilmektedir.  
+Tüm hakları saklıdır © 2024–2026. Ticari kullanım **yazılı izne** tabidir.
+
+📜 Tam lisans metni: [`LICENSE`](LICENSE)
 
 Kullanılan üçüncü parti kütüphanelerin tamamı **MIT / Apache 2.0 / LGPL / BSD** gibi açık kaynak lisanslara sahiptir — herhangi bir ek lisans bedeli **gerekmez**.
 

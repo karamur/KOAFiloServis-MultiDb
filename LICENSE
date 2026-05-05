@@ -1,0 +1,93 @@
+﻿KOAFiloServis — Yazılım Lisans Sözleşmesi
+==========================================
+
+Telif Hakkı © 2024–2026 Allbatros Global Teknoloji
+Tüm hakları saklıdır. (All rights reserved.)
+
+Bu yazılım ("KOAFiloServis"), Allbatros Global Teknoloji'nin ("Lisans Veren")
+fikri ve sınai mülkiyetidir. Aşağıdaki şartları kabul etmediğiniz takdirde
+bu yazılımı indiremez, kuramaz, kopyalayamaz veya kullanamazsınız.
+
+────────────────────────────────────────────────────────────────────────
+1. KAPSAM
+────────────────────────────────────────────────────────────────────────
+Bu lisans; KOAFiloServis kaynak kodu, derlenmiş ikili dosyaları (binary),
+yapılandırma şablonları, dokümantasyon, görsel materyaller, kurulum
+betikleri ve ilgili tüm dijital varlıkları kapsar.
+
+────────────────────────────────────────────────────────────────────────
+2. İZİN VERİLEN KULLANIM
+────────────────────────────────────────────────────────────────────────
+a) İNCELEME: Bu depodaki kaynak kod yalnızca aşağıdaki amaçlarla, kişisel
+   ve ticari olmayan bir biçimde GÖRÜNTÜLENEBİLİR ve İNCELENEBİLİR:
+     - Eğitim, öğrenim ve referans amaçlı okuma
+     - Güvenlik açığı veya hata bildirimi hazırlama
+     - Topluluğa Pull Request (PR) yoluyla katkı sunma
+
+b) KATKI: PR / Issue yoluyla yapılan tüm katkılar, CONTRIBUTING.md'de
+   belirtilen kurallara tabidir ve Lisans Veren'e telifsiz, geri
+   alınamaz, dünya çapında bir kullanım hakkı verir.
+
+────────────────────────────────────────────────────────────────────────
+3. YASAKLI KULLANIMLAR (Yazılı İzin Olmaksızın)
+────────────────────────────────────────────────────────────────────────
+Lisans Veren'in ÖNCEDEN ALINMIŞ YAZILI İZNİ olmaksızın AŞAĞIDAKİLER
+KESİNLİKLE YASAKTIR:
+
+  ✗ Ticari amaçla kullanım, kurulum veya dağıtım
+  ✗ Üçüncü taraflara satış, kiralama, alt-lisanslama veya SaaS sunumu
+  ✗ Türev (derivative) çalışma yayınlama veya pazarlama
+  ✗ Markasızlaştırma (white-label) ve yeniden adlandırma
+  ✗ Lisans kontrol mekanizmasını (HWID, lisans.key) atlatma, tersine
+    mühendislik ile kırma veya devre dışı bırakma
+  ✗ Telif uyarılarını, marka işaretlerini ya da lisans dosyalarını
+    kaldırma veya değiştirme
+
+────────────────────────────────────────────────────────────────────────
+4. TİCARİ KULLANIM
+────────────────────────────────────────────────────────────────────────
+Ticari kullanım, üretim ortamına kurulum, müşteri sistemine dağıtım veya
+herhangi bir gelir getirici faaliyet, AYRI BİR TİCARİ LİSANS SÖZLEŞMESİ
+gerektirir. Lütfen bilgi@allbatros.com.tr adresinden iletişime geçin.
+
+────────────────────────────────────────────────────────────────────────
+5. ÜÇÜNCÜ TARAF BİLEŞENLER
+────────────────────────────────────────────────────────────────────────
+KOAFiloServis; MIT, Apache 2.0, BSD, LGPL ve benzeri açık kaynak
+lisanslarla dağıtılan üçüncü taraf bileşenler içerir. Bu bileşenler
+kendi orijinal lisanslarına tabidir ve bu sözleşmenin kapsamı dışındadır.
+NuGet paket lisansları için ilgili paketin resmi sayfasına başvurunuz.
+
+────────────────────────────────────────────────────────────────────────
+6. GARANTİ REDDİ
+────────────────────────────────────────────────────────────────────────
+BU YAZILIM "OLDUĞU GİBİ" (AS IS) SAĞLANIR. LİSANS VEREN; TİCARİ
+ELVERİŞLİLİK, BELİRLİ BİR AMACA UYGUNLUK VEYA İHLAL ETMEME DAHİL
+ANCAK BUNLARLA SINIRLI OLMAMAK ÜZERE AÇIK YA DA ZIMNİ HİÇBİR GARANTİ
+VERMEZ.
+
+────────────────────────────────────────────────────────────────────────
+7. SORUMLULUK SINIRLAMASI
+────────────────────────────────────────────────────────────────────────
+LİSANS VEREN, BU YAZILIMIN KULLANIMINDAN VEYA KULLANILAMAMASINDAN
+DOĞABİLECEK HİÇBİR DOĞRUDAN, DOLAYLI, ARIZİ, ÖZEL VEYA SONUÇSAL ZARARDAN
+(VERİ KAYBI, KÂR KAYBI, İŞ DURMASI DAHİL) SORUMLU TUTULAMAZ.
+
+────────────────────────────────────────────────────────────────────────
+8. UYGULANACAK HUKUK
+────────────────────────────────────────────────────────────────────────
+Bu sözleşme Türkiye Cumhuriyeti yasalarına tabidir. Doğacak tüm
+uyuşmazlıklarda İstanbul (Çağlayan) Mahkemeleri ve İcra Daireleri
+yetkilidir.
+
+────────────────────────────────────────────────────────────────────────
+İLETİŞİM
+────────────────────────────────────────────────────────────────────────
+  🏢 Allbatros Global Teknoloji
+  🌐 https://www.allbatros.com
+  🐙 https://github.com/karamur/KOAFiloServis
+  📧 Lisans talepleri için iletişime geçiniz.
+
+────────────────────────────────────────────────────────────────────────
+SON
+────────────────────────────────────────────────────────────────────────
