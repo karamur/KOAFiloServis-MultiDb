@@ -1,0 +1,56 @@
+﻿# ============================================================
+# 📊 Codecov yapılandırması
+# https://docs.codecov.com/docs/codecov-yaml
+# ============================================================
+
+codecov:
+  require_ci_to_pass: false
+  notify:
+    wait_for_ci: true
+
+coverage:
+  precision: 2
+  round: down
+  range: "60...90"
+
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%       # %1'den fazla düşüş = kırmızı
+        informational: true # ilk dönemde build'i kırma
+        if_ci_failed: success
+    patch:
+      default:
+        target: 70%         # PR'da değişen satırların %70'i kapsanmalı
+        threshold: 5%
+        informational: true
+        if_ci_failed: success
+
+comment:
+  layout: "header, diff, flags, components, files, footer"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: true
+
+ignore:
+  - "**/Migrations/**"
+  - "**/wwwroot/**"
+  - "**/bin/**"
+  - "**/obj/**"
+  - "**/*.Designer.cs"
+  - "**/Program.cs"
+  - "KOAFiloServis.Tests/**"
+  - "Tests/**"
+  - "archive/**"
+  - "setup/**"
+  - "KOAFiloServis.LisansDesktop/**"  # WinForms — Linux runner'da test edilmiyor
+  - "KOAFiloServis.DataSync/**"        # WinForms — Linux runner'da test edilmiyor
+
+flags:
+  unittests:
+    paths:
+      - KOAFiloServis.Web/
+      - KOAFiloServis.Shared/
+    carryforward: true

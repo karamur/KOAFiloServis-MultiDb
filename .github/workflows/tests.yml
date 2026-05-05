@@ -1,0 +1,140 @@
+﻿# ============================================================
+# 🧪 Tests — Build, Test & Coverage Reporting
+# ------------------------------------------------------------
+# Tamamen ücretsiz: GitHub Actions (Linux runner) + Codecov (public repo)
+# - PR ve main push üzerinde çalışır
+# - xUnit + Coverlet ile kod kapsamı toplar
+# - Test sonucu PR'a otomatik özet olarak yorum/summary olarak yazılır
+# - Coverage Codecov + GitHub Step Summary'e yüklenir
+# ============================================================
+name: Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**/*.cs"
+      - "**/*.csproj"
+      - "**/*.sln"
+      - "Directory.Packages.props"
+      - ".github/workflows/tests.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "**/*.cs"
+      - "**/*.csproj"
+      - "**/*.sln"
+      - "Directory.Packages.props"
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  test:
+    name: Build & Test (.NET 10)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🟣 Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            10.0.x
+          cache: true
+          cache-dependency-path: "**/*.csproj"
+
+      - name: 📦 Restore dependencies
+        run: dotnet restore KOAFiloServis.Tests/KOAFiloServis.Tests.csproj
+
+      - name: 🔨 Build (no restore)
+        run: |
+          dotnet build KOAFiloServis.Tests/KOAFiloServis.Tests.csproj \
+            --configuration Release \
+            --no-restore \
+            /p:ContinuousIntegrationBuild=true
+
+      - name: 🧪 Run tests with coverage
+        run: |
+          dotnet test KOAFiloServis.Tests/KOAFiloServis.Tests.csproj \
+            --configuration Release \
+            --no-build \
+            --logger "trx;LogFileName=test-results.trx" \
+            --logger "GitHubActions" \
+            --results-directory ./TestResults \
+            --collect:"XPlat Code Coverage" \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura,opencover
+
+      - name: 📊 Generate coverage report
+        if: always()
+        uses: danielpalme/ReportGenerator-GitHub-Action@5.4.4
+        with:
+          reports: "TestResults/**/coverage.cobertura.xml"
+          targetdir: "coverage-report"
+          reporttypes: "MarkdownSummaryGithub;Cobertura;HtmlSummary;Badges"
+          title: "KOAFiloServis Coverage"
+          tag: "${{ github.run_number }}_${{ github.run_id }}"
+
+      - name: 📝 Add coverage to job summary
+        if: always() && hashFiles('coverage-report/SummaryGithub.md') != ''
+        run: cat coverage-report/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
+
+      - name: 📤 Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./TestResults/**/coverage.cobertura.xml
+          flags: unittests
+          name: koafiloservis-coverage
+          fail_ci_if_error: false
+          verbose: false
+        continue-on-error: true
+
+      - name: 📋 Publish test results
+        if: always()
+        uses: dorny/test-reporter@v2
+        with:
+          name: xUnit Test Results
+          path: "TestResults/**/test-results.trx"
+          reporter: dotnet-trx
+          fail-on-error: false
+
+      - name: 💬 Comment coverage on PR
+        if: github.event_name == 'pull_request' && always() && hashFiles('coverage-report/SummaryGithub.md') != ''
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          path: coverage-report/SummaryGithub.md
+          header: coverage-report
+          recreate: true
+
+      - name: 📦 Upload coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage-report/
+            TestResults/**/coverage.cobertura.xml
+            TestResults/**/test-results.trx
+          retention-days: 14
+
+      - name: ❌ Fail if tests failed
+        if: failure()
+        run: |
+          echo "::error::Tests failed. See job summary for details."
+          exit 1

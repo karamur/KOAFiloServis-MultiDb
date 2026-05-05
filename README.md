@@ -12,6 +12,9 @@
 [![Ollama](https://img.shields.io/badge/Ollama_AI-000000?style=for-the-badge&logo=ollama&logoColor=white)](https://ollama.com/)
 
 [![Build](https://img.shields.io/github/actions/workflow/status/karamur/KOAFiloServis/build-release.yml?style=flat-square&label=build&logo=githubactions&logoColor=white)](https://github.com/karamur/KOAFiloServis/actions)
+[![Tests](https://img.shields.io/github/actions/workflow/status/karamur/KOAFiloServis/tests.yml?style=flat-square&label=tests&logo=xunit&logoColor=white&color=10b981)](https://github.com/karamur/KOAFiloServis/actions/workflows/tests.yml)
+[![Coverage](https://img.shields.io/codecov/c/github/karamur/KOAFiloServis?style=flat-square&logo=codecov&logoColor=white&color=ff0080)](https://codecov.io/gh/karamur/KOAFiloServis)
+[![CodeQL](https://img.shields.io/github/actions/workflow/status/karamur/KOAFiloServis/codeql.yml?style=flat-square&label=CodeQL&logo=github&color=2ea043)](https://github.com/karamur/KOAFiloServis/security/code-scanning)
 [![Last Commit](https://img.shields.io/github/last-commit/karamur/KOAFiloServis?style=flat-square&logo=git&logoColor=white&color=22c55e)](https://github.com/karamur/KOAFiloServis/commits/main)
 [![Issues](https://img.shields.io/github/issues/karamur/KOAFiloServis?style=flat-square&logo=github&color=f59e0b)](https://github.com/karamur/KOAFiloServis/issues)
 [![Stars](https://img.shields.io/github/stars/karamur/KOAFiloServis?style=flat-square&logo=github&color=eab308)](https://github.com/karamur/KOAFiloServis/stargazers)
@@ -402,6 +405,8 @@ dotnet list package --vulnerable --include-transitive
 | 🧪 Birim & Entegrasyon | `KOAFiloServis.Tests` | xUnit + Coverlet |
 | 🎭 E2E Smoke | `Tests/PlaywrightSmoke` | Playwright |
 | 🌐 UI Regression | `Tests/SeleniumTests` | Selenium |
+
+> 🤖 Her PR ve `main` push'unda **`tests.yml`** workflow'u otomatik çalışır; test sonucu + coverage özeti PR'a yorum olarak eklenir ve [Codecov](https://codecov.io/gh/karamur/KOAFiloServis)'a gönderilir.
 
 ---
 
