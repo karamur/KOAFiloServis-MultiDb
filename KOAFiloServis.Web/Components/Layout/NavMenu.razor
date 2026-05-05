@@ -1,8 +1,10 @@
 ﻿@using KOAFiloServis.Web.Services
 @using KOAFiloServis.Shared.Entities
+@using Microsoft.Extensions.Logging
 @implements IDisposable
 @inject IKullaniciService KullaniciService
 @inject AppAuthenticationStateProvider AuthProvider
+@inject ILogger<NavMenu> Logger
 
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid d-flex justify-content-between align-items-center">
@@ -1197,9 +1199,13 @@
             await YetkileriYukle();
             await InvokeAsync(StateHasChanged);
         }
-        catch
+        catch (ObjectDisposedException)
         {
-            // Circuit kapanırken gelebilecek hataları yut
+            // Circuit kapanırken beklenen durum, sessizce yut
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "NavMenu auth state degisikligi islenirken hata olustu");
         }
     }
 
@@ -1237,8 +1243,9 @@
                 yetkilerYuklendi = true;
             }
         }
-        catch
+        catch (Exception ex)
         {
+            Logger.LogError(ex, "NavMenu kullanici yetkileri yuklenirken hata olustu");
             // Hata durumunda bos yetkiler
             kullaniciYetkileri = new HashSet<string>();
             kullaniciYetkiPrefixleri = new HashSet<string>();
