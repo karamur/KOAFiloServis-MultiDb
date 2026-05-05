@@ -1,5 +1,7 @@
-@using KOAFiloServis.Web.Services
+﻿@using KOAFiloServis.Web.Services
+@using Microsoft.Extensions.Logging
 @inject IToastService ToastService
+@inject ILogger<ToastContainer> Logger
 @implements IDisposable
 @rendermode InteractiveServer
 
@@ -10,7 +12,7 @@
             <div class="toast-header @toast.BgClass @toast.TextClass">
                 <i class="bi @toast.IconClass me-2"></i>
                 <strong class="me-auto">@toast.Title</strong>
-                <small>�imdi</small>
+                <small>simdi</small>
                 <button type="button" class="btn-close @(toast.Type != ToastType.Warning ? "btn-close-white" : "")" 
                         @onclick="() => RemoveToast(toast.Id)"></button>
             </div>
@@ -31,27 +33,22 @@
 
     private void ShowToast(ToastMessage toast)
     {
-        _ = InvokeAsync(() =>
+        _ = InvokeAsync(async () =>
         {
             toasts.Add(toast);
             StateHasChanged();
-        });
 
-        // Otomatik kapat (5 saniye sonra)
-        _ = Task.Run(async () =>
-        {
-            await Task.Delay(5000);
             try
             {
-                await InvokeAsync(() =>
+                await Task.Delay(5000);
+                if (toasts.Remove(toast))
                 {
-                    toasts.Remove(toast);
                     StateHasChanged();
-                });
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                // Circuit kapanmış olabilir
+                Logger.LogDebug(ex, "ToastContainer otomatik kapatma sirasinda hata (circuit kapanmis olabilir)");
             }
         });
     }
@@ -59,9 +56,9 @@
     private void RemoveToast(Guid id)
     {
         var toast = toasts.FirstOrDefault(t => t.Id == id);
-        if (toast != null)
+        if (toast != null && toasts.Remove(toast))
         {
-            toasts.Remove(toast);
+            StateHasChanged();
         }
     }
 
