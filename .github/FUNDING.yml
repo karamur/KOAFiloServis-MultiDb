@@ -1,4 +1,15 @@
-﻿# 💖 Topluluk destek/sponsorluk bağlantıları
+﻿# 💛 GitHub'da Sponsorluk / Bağış butonu için
+# Tüm alanlar opsiyoneldir; kullanılmayanları yorum satırı bırakın.
+
 github: [karamur]
+# patreon: # username
+# open_collective: # username
+# ko_fi: # username
+# tidelift: # platform-name/package-name
+# community_bridge: # project-name
+# liberapay: # username
+# issuehunt: # username
+# otechie: # username
+# lfx_crowdfunding: # project-name
 custom:
-  - "https://www.allbatros.com"
+  - https://www.allbatros.com
