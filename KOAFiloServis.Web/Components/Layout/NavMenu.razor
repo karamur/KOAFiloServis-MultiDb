@@ -98,120 +98,7 @@
             </div>
         }
 
- @*        <!-- EBYS BELGE YONETIMI (Eski / Yorumlu) -->
-        @if (HasYetki("belgeuyari.oku"))
-        {
-            <div class="nav-section">
-                <div class="nav-section-header" @onclick="() => ToggleSection(15)" style="cursor: pointer;">
-                    <span><i class="bi bi-folder2-open me-2"></i>EBYS BELGE YONETIMI</span>
-                    <i class="bi @(expandedSections.Length > 15 && expandedSections[15] ? "bi-chevron-up" : "bi-chevron-down")"></i>
-                </div>
-                @if (expandedSections.Length > 15 && expandedSections[15])
-                {
-                    <div class="nav-section-content">
-                        <div class="nav-item px-3">
-                            <NavLink class="nav-link" href="ebys/arama">
-                                <i class="bi bi-search me-2 text-primary"></i> Belge Arama
-                            </NavLink>
-                        </div>
-                        <div class="nav-item px-3">
-                            <NavLink class="nav-link" href="ebys">
-                                <i class="bi bi-folder2-open me-2 text-info"></i> EBYS Belge Merkezi
-                            </NavLink>
-                        </div>
-                        <div class="nav-item px-3">
-                            <NavLink class="nav-link" href="ebys/gelen">
-                                <i class="bi bi-inbox me-2 text-primary"></i> Gelen Evraklar
-                            </NavLink>
-                        </div>
-                        <div class="nav-item px-3">
-                            <NavLink class="nav-link" href="ebys/giden">
-                                <i class="bi bi-send me-2 text-success"></i> Giden Evraklar
-                            </NavLink>
-                        </div>
-                        <div class="nav-item px-3">
-                            <NavLink class="nav-link" href="ebys/takip">
-                                <i class="bi bi-kanban me-2 text-warning"></i> Evrak Takip
-                            </NavLink>
-                        </div>
-                        <div class="nav-item px-3">
-                            <NavLink class="nav-link" href="ebys/kategoriler">
-                                <i class="bi bi-folder2 me-2 text-secondary"></i> Evrak Kategorileri
-                            </NavLink>
-                        </div>
-                    </div>
-                }
-            </div>
-        }
- @*        <!-- CRM MODULU -->
-        @if (HasMenuYetki("menu.crm"))
-        {
-            <div class="nav-section">
-                <div class="nav-section-header" @onclick="() => ToggleSection(10)" style="cursor: pointer;">
-                    <span><i class="bi bi-headset me-2"></i>CRM</span>
-                    <i class="bi @(expandedSections.Length > 10 && expandedSections[10] ? "bi-chevron-up" : "bi-chevron-down")"></i>
-                </div>
-                @if (expandedSections.Length > 10 && expandedSections[10])
-                {
-                    <div class="nav-section-content">
-                        @if (HasYetki("bildirim.oku"))
-                        {
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="crm/bildirimler">
-                                    <i class="bi bi-bell-fill me-2 text-warning"></i> Bildirimler
-                                </NavLink>
-                            </div>
-                        }
-                        @if (HasYetki("mesaj.oku"))
-                        {
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="crm/mesajlar">
-                                    <i class="bi bi-chat-dots-fill me-2 text-primary"></i> Mesajlar
-                                </NavLink>
-                            </div>
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="crm/whatsapp-chat">
-                                    <i class="bi bi-whatsapp me-2 text-success"></i> WhatsApp Chat
-                                </NavLink>
-                            </div>
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="crm/whatsapp">
-                                    <i class="bi bi-send-fill me-2 text-success"></i> WA Gönderim
-                                </NavLink>
-                            </div>
-                        }
-                        @if (HasYetki("email.oku"))
-                        {
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="crm/email">
-                                    <i class="bi bi-envelope-fill me-2 text-info"></i> E-Posta
-                                </NavLink>
-                            </div>
-                        }
-                        @if (HasYetki("hatirlatici.oku"))
-                        {
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="crm/randevular">
-                                    <i class="bi bi-calendar-event-fill me-2 text-danger"></i> Randevu/Hatirlatici
-                                </NavLink>
-                            </div>
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="ayarlar/cari-hatirlatma">
-                                    <i class="bi bi-clock-history me-2 text-warning"></i> Cari Hatırlatma
-                                </NavLink>
-                            </div>
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="ayarlar/fatura-sablonlari">
-                                    <i class="bi bi-file-earmark-pdf me-2 text-danger"></i> Fatura Şablonları
-                                </NavLink>
-                            </div>
-                        }
-                    </div>
-                }
-            </div>
-        } *@
-
-        <!-- CARI MODULU -->
+ <!-- CARI MODULU -->
         @if (HasMenuYetki("menu.cari"))
         {
             <div class="nav-section">
@@ -402,7 +289,7 @@
                             </div>
                             <div class="nav-item px-3">
                                 <NavLink class="nav-link" href="hakedis-excel-import">
-                                    <i class="bi bi-file-earmark-excel me-2 text-success"></i> Excel Import
+                                    <i class="bi bi-file-earmark-excel me-2 text-success"></i> Hakediş Excel Import
                                 </NavLink>
                             </div>
                         }
@@ -496,7 +383,7 @@
                         {
                             <div class="nav-item px-3">
                                 <NavLink class="nav-link" href="muhasebe/analiz">
-                                    <i class="bi bi-graph-up me-2"></i> Mali Analiz
+                                    <i class="bi bi-graph-up me-2"></i> Muhasebe Mali Analiz
                                 </NavLink>
                             </div>
                         }
@@ -526,7 +413,7 @@
                             </div>
                             <div class="nav-item px-3">
                                 <NavLink class="nav-link" href="personel/excel-import">
-                                    <i class="bi bi-file-earmark-excel me-2 text-success"></i> Excel Import
+                                    <i class="bi bi-file-earmark-excel me-2 text-success"></i> Personel Excel Import
                                 </NavLink>
                             </div>
                         }
@@ -894,7 +781,7 @@
                         {
                             <div class="nav-item px-3">
                                 <NavLink class="nav-link" href="mali-analiz">
-                                    <i class="bi bi-graph-up-arrow me-2 text-info"></i> Mali Analiz
+                                    <i class="bi bi-graph-up-arrow me-2 text-info"></i> Checklist Mali Analiz
                                 </NavLink>
                             </div>
                         }
@@ -1027,20 +914,12 @@
                                 </NavLink>
                             </div>
                         }
-                        @if (HasYetki("raporlar.oku"))
-                        {
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="raporlar/belge-uyarilari">
-                                    <i class="bi bi-bell-fill me-2 text-warning"></i> Belge Uyarıları
-                                </NavLink>
+                                    </div>
+                                }
                             </div>
                         }
-                    </div>
-                }
-            </div>
-        }
 
-        <!-- AYARLAR -->
+                        <!-- AYARLAR -->
         @if (HasMenuYetki("menu.ayarlar"))
         {
             <div class="nav-section">
@@ -1137,11 +1016,6 @@
                             <div class="nav-item px-3">
                                 <NavLink class="nav-link" href="sistem-durumu">
                                     <i class="bi bi-heart-pulse me-2"></i> Sistem Durumu
-                                </NavLink>
-                            </div>
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="ayarlar/sistem-saglik">
-                                    <i class="bi bi-activity me-2 text-success"></i> Sistem Sağlık
                                 </NavLink>
                             </div>
                         }
@@ -1281,11 +1155,6 @@
                             <div class="nav-item px-3">
                                 <NavLink class="nav-link" href="ayarlar/gps-simulasyon">
                                     <i class="bi bi-broadcast me-2 text-success"></i> GPS Simülasyon
-                                </NavLink>
-                            </div>
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="ayarlar/audit-log">
-                                    <i class="bi bi-clock-history me-2 text-info"></i> Audit Log
                                 </NavLink>
                             </div>
                             <div class="nav-item px-3">
