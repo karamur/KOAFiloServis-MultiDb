@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.ComponentModel.DataAnnotations.Schema;
 
 namespace KOAFiloServis.Shared.Entities;
 
@@ -50,6 +50,11 @@ public class Arac : BaseEntity
     public decimal? KomisyonOrani { get; set; } // Yüzde
     public decimal? SabitKomisyonTutari { get; set; } // Sefer başına sabit tutar
     public KomisyonHesaplamaTipi? KomisyonHesaplamaTipi { get; set; }
+
+    // Personel Taşıma Tedarikçisi (alt yüklenici)
+    // Doluysa bu araç bir tedarikçiye ait; ruhsat/sigorta/muayene takibi yine AracEvrak üzerinden tek kaynaktan yapılır.
+    public int? TasimaTedarikciId { get; set; }
+    public virtual TasimaTedarikci? TasimaTedarikci { get; set; }
     
     // Belge tarihleri
     public DateTime? TrafikSigortaBitisTarihi { get; set; }

@@ -37,6 +37,7 @@ public class BelgeUyariService : IBelgeUyariService
         var tumOzlukEvraklar = await context.PersonelOzlukEvraklar
             .AsNoTracking()
             .Include(e => e.Sofor)
+                .ThenInclude(s => s!.TasimaTedarikci)
             .Include(e => e.EvrakTanim)
             .Where(e => !e.IsDeleted
                 && e.Sofor != null && e.Sofor.Aktif && !e.Sofor.IsDeleted
@@ -76,7 +77,9 @@ public class BelgeUyariService : IBelgeUyariService
                 Baslik = evrak.Sofor?.TamAd ?? "Personel",
                 BelgeTuru = evrakAdi,
                 BitisTarihi = evrak.GecerlilikBitisTarihi!.Value,
-                DetayUrl = $"/personel/{evrak.SoforId}"
+                DetayUrl = $"/personel/{evrak.SoforId}",
+                TasimaTedarikciId = evrak.Sofor?.TasimaTedarikciId,
+                TasimaTedarikciUnvan = evrak.Sofor?.TasimaTedarikci?.Unvan
             };
 
             if (evrakAdi.Contains("Ehliyet", StringComparison.OrdinalIgnoreCase))
@@ -92,74 +95,11 @@ public class BelgeUyariService : IBelgeUyariService
                 ozet.DigerPersonelEvrakUyarilari.Add(uyari);
         }
 
-        // Özlük evrak kaydı olmayan personel için Sofor entity alanlarından fallback
-        foreach (var sofor in soforler)
-        {
-            if (!soforIdEhliyetEvrakVar.Contains(sofor.Id)
-                && sofor.EhliyetGecerlilikTarihi.HasValue
-                && sofor.EhliyetGecerlilikTarihi.Value <= limitTarih)
-            {
-                ozet.EhliyetUyarilari.Add(new BelgeUyari
-                {
-                    Id = sofor.Id,
-                    Kaynak = "Personel",
-                    Baslik = sofor.TamAd,
-                    BelgeTuru = "Ehliyet",
-                    BitisTarihi = sofor.EhliyetGecerlilikTarihi.Value,
-                    DetayUrl = $"/personel/{sofor.Id}"
-                });
-            }
-
-            if (!soforIdSrcEvrakVar.Contains(sofor.Id)
-                && sofor.SrcBelgesiGecerlilikTarihi.HasValue
-                && sofor.SrcBelgesiGecerlilikTarihi.Value <= limitTarih)
-            {
-                ozet.SrcUyarilari.Add(new BelgeUyari
-                {
-                    Id = sofor.Id,
-                    Kaynak = "Personel",
-                    Baslik = sofor.TamAd,
-                    BelgeTuru = "SRC Belgesi",
-                    BitisTarihi = sofor.SrcBelgesiGecerlilikTarihi.Value,
-                    DetayUrl = $"/personel/{sofor.Id}"
-                });
-            }
-
-            if (!soforIdPsikoteknikEvrakVar.Contains(sofor.Id)
-                && sofor.PsikoteknikGecerlilikTarihi.HasValue
-                && sofor.PsikoteknikGecerlilikTarihi.Value <= limitTarih)
-            {
-                ozet.PsikoteknikUyarilari.Add(new BelgeUyari
-                {
-                    Id = sofor.Id,
-                    Kaynak = "Personel",
-                    Baslik = sofor.TamAd,
-                    BelgeTuru = "Psikoteknik",
-                    BitisTarihi = sofor.PsikoteknikGecerlilikTarihi.Value,
-                    DetayUrl = $"/personel/{sofor.Id}"
-                });
-            }
-
-            if (!soforIdSaglikEvrakVar.Contains(sofor.Id)
-                && sofor.SaglikRaporuGecerlilikTarihi.HasValue
-                && sofor.SaglikRaporuGecerlilikTarihi.Value <= limitTarih)
-            {
-                ozet.SaglikRaporuUyarilari.Add(new BelgeUyari
-                {
-                    Id = sofor.Id,
-                    Kaynak = "Personel",
-                    Baslik = sofor.TamAd,
-                    BelgeTuru = "Sağlık Raporu",
-                    BitisTarihi = sofor.SaglikRaporuGecerlilikTarihi.Value,
-                    DetayUrl = $"/personel/{sofor.Id}"
-                });
-            }
-        }
-
-        // Tüm aktif araç evraklarını tek sorguda çek (AracEvrak tablosu tek kaynak)
+        // TEKİL KAYNAK: Araç uyarıları yalnızca AracEvrak (Filo > Araçlar > Evraklar) tablosundan gelir.
         var tumAracEvraklari = await context.AracEvraklari
             .AsNoTracking()
             .Include(x => x.Arac)
+                .ThenInclude(a => a!.TasimaTedarikci)
             .Where(x => !x.IsDeleted
                 && x.Arac != null
                 && !x.Arac.IsDeleted
@@ -169,72 +109,6 @@ public class BelgeUyariService : IBelgeUyariService
                 && x.BitisTarihi.Value <= limitTarih)
             .OrderBy(x => x.BitisTarihi)
             .ToListAsync();
-
-        // AracEvrak tablosunda kaydı bulunmayan araçlar için Arac entity alanlarından fallback uyarı üret
-        var araclar = await context.Araclar
-            .Where(a => a.Aktif && !a.IsDeleted)
-            .ToListAsync();
-
-        var muayeneEvrakliAracIds = tumAracEvraklari
-            .Where(e => e.EvrakKategorisi == EvrakKategorileri.Muayene)
-            .Select(e => e.AracId).ToHashSet();
-        var kaskoEvrakliAracIds = tumAracEvraklari
-            .Where(e => e.EvrakKategorisi == EvrakKategorileri.Kasko)
-            .Select(e => e.AracId).ToHashSet();
-        var sigortaEvrakliAracIds = tumAracEvraklari
-            .Where(e => e.EvrakKategorisi == EvrakKategorileri.TrafikSigortasi)
-            .Select(e => e.AracId).ToHashSet();
-
-        foreach (var arac in araclar)
-        {
-            // Muayene: AracEvrak kaydı yoksa Arac entity alanından fallback
-            if (!muayeneEvrakliAracIds.Contains(arac.Id)
-                && arac.MuayeneBitisTarihi.HasValue
-                && arac.MuayeneBitisTarihi.Value <= limitTarih)
-            {
-                ozet.MuayeneUyarilari.Add(new BelgeUyari
-                {
-                    Id = arac.Id,
-                    Kaynak = "Araç",
-                    Baslik = arac.AktifPlaka ?? arac.SaseNo,
-                    BelgeTuru = "Araç Muayenesi",
-                    BitisTarihi = arac.MuayeneBitisTarihi.Value,
-                    DetayUrl = $"/araclar/{arac.Id}/evraklar"
-                });
-            }
-
-            // Kasko: AracEvrak kaydı yoksa Arac entity alanından fallback
-            if (!kaskoEvrakliAracIds.Contains(arac.Id)
-                && arac.KaskoBitisTarihi.HasValue
-                && arac.KaskoBitisTarihi.Value <= limitTarih)
-            {
-                ozet.KaskoUyarilari.Add(new BelgeUyari
-                {
-                    Id = arac.Id,
-                    Kaynak = "Araç",
-                    Baslik = arac.AktifPlaka ?? arac.SaseNo,
-                    BelgeTuru = "Kasko",
-                    BitisTarihi = arac.KaskoBitisTarihi.Value,
-                    DetayUrl = $"/araclar/{arac.Id}/evraklar"
-                });
-            }
-
-            // Trafik Sigortası: AracEvrak kaydı yoksa Arac entity alanından fallback
-            if (!sigortaEvrakliAracIds.Contains(arac.Id)
-                && arac.TrafikSigortaBitisTarihi.HasValue
-                && arac.TrafikSigortaBitisTarihi.Value <= limitTarih)
-            {
-                ozet.TrafikSigortasiUyarilari.Add(new BelgeUyari
-                {
-                    Id = arac.Id,
-                    Kaynak = "Araç",
-                    Baslik = arac.AktifPlaka ?? arac.SaseNo,
-                    BelgeTuru = "Trafik Sigortası",
-                    BitisTarihi = arac.TrafikSigortaBitisTarihi.Value,
-                    DetayUrl = $"/araclar/{arac.Id}/evraklar"
-                });
-            }
-        }
 
         // AracEvrak tablosundan gelen tüm evrakleri kategoriye göre dağıt
         foreach (var evrak in tumAracEvraklari)
@@ -250,7 +124,9 @@ public class BelgeUyariService : IBelgeUyariService
                 Baslik = baslik,
                 BelgeTuru = belgeTuru,
                 BitisTarihi = evrak.BitisTarihi!.Value,
-                DetayUrl = detayUrl
+                DetayUrl = detayUrl,
+                TasimaTedarikciId = evrak.Arac?.TasimaTedarikciId,
+                TasimaTedarikciUnvan = evrak.Arac?.TasimaTedarikci?.Unvan
             };
 
             if (evrak.EvrakKategorisi == EvrakKategorileri.Muayene)

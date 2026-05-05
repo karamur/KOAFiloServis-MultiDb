@@ -1,4 +1,4 @@
-using KOAFiloServis.Shared.Entities;
+﻿using KOAFiloServis.Shared.Entities;
 using KOAFiloServis.Web.Models;
 
 namespace KOAFiloServis.Web.Services;
@@ -16,6 +16,9 @@ public interface IMaliAnalizService
 
     // Komisyon Raporu
     Task<KomisyonRaporu> GetKomisyonRaporuAsync(int yil, int ay);
+
+    // Taşıma Tedarikçisi (Alt Yüklenici) Raporu
+    Task<TasimaTedarikciRaporu> GetTasimaTedarikciRaporuAsync(int yil, int ay);
 
     // Checklist
     Task<ChecklistOzet> GetChecklistOzetAsync(int yil, int ay);

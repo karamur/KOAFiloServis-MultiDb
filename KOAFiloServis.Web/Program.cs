@@ -260,6 +260,7 @@ builder.Services.AddScoped<IEbysService, EbysService>(); // EBYS Belge Merkezi S
 builder.Services.AddScoped<IPersonelFinansService, PersonelFinansService>(); // Personel Finans (Avans/Borç) Servisi
 builder.Services.AddScoped<IBordroService, BordroService>(); // Bordro Servisi
 builder.Services.AddScoped<IFiloOperasyonService, FiloOperasyonService>(); // Filo Operasyon (Komisyonculuk, Alım/Satım, Plaka Dönüşüm)
+builder.Services.AddScoped<ITasimaTedarikciService, TasimaTedarikciService>(); // Personel Taşıma Tedarikçi (alt yüklenici) Modülü
 builder.Services.AddScoped<IIlanYayinService, IlanYayinService>(); // Araç İlan Yayın ve Kullanıcı Tercihleri
 builder.Services.AddScoped<IHakedisService, HakedisService>(); // Hakedis/Puantaj Excel Import ve Takip
 builder.Services.AddScoped<IProformaFaturaService, ProformaFaturaService>(); // Proforma Fatura Servisi

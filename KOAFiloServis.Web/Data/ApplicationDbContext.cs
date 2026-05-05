@@ -297,6 +297,10 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<AppAyarlari> AppAyarlari { get; set; }
 
+    // Personel Taşıma Tedarikçileri
+    public DbSet<TasimaTedarikci> TasimaTedarikciler { get; set; }
+    public DbSet<TasimaTedarikciIs> TasimaTedarikciIsler { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -2430,6 +2434,84 @@ public class ApplicationDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasQueryFilter(e => !e.IsDeleted);
         });
+
+        // TasimaTedarikci - Personel Taşıma Tedarikçisi (alt yüklenici)
+        modelBuilder.Entity<TasimaTedarikci>(entity =>
+        {
+            entity.HasIndex(e => e.TedarikciKodu).IsUnique();
+            entity.Property(e => e.TedarikciKodu).HasMaxLength(50);
+            entity.Property(e => e.Unvan).HasMaxLength(250);
+            entity.Property(e => e.YetkiliKisi).HasMaxLength(150);
+            entity.Property(e => e.Telefon).HasMaxLength(20);
+            entity.Property(e => e.Telefon2).HasMaxLength(20);
+            entity.Property(e => e.Email).HasMaxLength(100);
+            entity.Property(e => e.VergiNo).HasMaxLength(20);
+            entity.Property(e => e.VergiDairesi).HasMaxLength(100);
+            entity.Property(e => e.SozlesmeNo).HasMaxLength(100);
+            entity.Property(e => e.VarsayilanSeferUcreti).HasPrecision(18, 2);
+
+            entity.HasOne(e => e.Cari)
+                .WithMany()
+                .HasForeignKey(e => e.CariId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Sirket)
+                .WithMany()
+                .HasForeignKey(e => e.SirketId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // TasimaTedarikciIs - Tedarikçi-Güzergah-İş eşleşmesi
+        modelBuilder.Entity<TasimaTedarikciIs>(entity =>
+        {
+            entity.HasIndex(e => new { e.TasimaTedarikciId, e.GuzergahId, e.BaslangicTarihi });
+            entity.Property(e => e.SeferUcreti).HasPrecision(18, 2);
+            entity.Property(e => e.AylikUcret).HasPrecision(18, 2);
+            entity.Property(e => e.Aciklama).HasMaxLength(1000);
+
+            entity.HasOne(e => e.TasimaTedarikci)
+                .WithMany(t => t.Isler)
+                .HasForeignKey(e => e.TasimaTedarikciId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Guzergah)
+                .WithMany()
+                .HasForeignKey(e => e.GuzergahId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Arac)
+                .WithMany()
+                .HasForeignKey(e => e.AracId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Sofor)
+                .WithMany()
+                .HasForeignKey(e => e.SoforId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Sirket)
+                .WithMany()
+                .HasForeignKey(e => e.SirketId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // Sofor -> TasimaTedarikci (alt yüklenici personeli)
+        modelBuilder.Entity<Sofor>()
+            .HasOne(s => s.TasimaTedarikci)
+            .WithMany(t => t.Personeller)
+            .HasForeignKey(s => s.TasimaTedarikciId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // Arac -> TasimaTedarikci (alt yüklenici aracı)
+        modelBuilder.Entity<Arac>()
+            .HasOne(a => a.TasimaTedarikci)
+            .WithMany(t => t.Araclar)
+            .HasForeignKey(a => a.TasimaTedarikciId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 
     public override int SaveChanges()

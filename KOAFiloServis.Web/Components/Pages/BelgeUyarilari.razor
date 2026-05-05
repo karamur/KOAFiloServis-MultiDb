@@ -5,6 +5,7 @@
 @using KOAFiloServis.Shared.Entities
 @using System.IO
 @inject IBelgeUyariService BelgeUyariService
+@inject ITasimaTedarikciService TasimaTedarikciService
 @inject ISecureFileService SecureFileService
 @inject IPersonelOzlukService OzlukService
 @inject IExcelService ExcelService
@@ -82,6 +83,17 @@
                     </select>
                 </div>
                 <div class="col-md-3">
+                    <label class="form-label small mb-1">Tedarikçi</label>
+                    <select class="form-select form-select-sm" @bind="tedarikciFiltre">
+                        <option value="">Tümü</option>
+                        <option value="-1">Sadece kendi kaynağımız</option>
+                        @foreach (var t in tedarikciler)
+                        {
+                            <option value="@t.Id">@t.Unvan</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
                     <label class="form-label small mb-1">Seviye</label>
                     <select class="form-select form-select-sm" @bind="seviyeFiltre">
                         <option value="Tumu">Tümü</option>
@@ -90,7 +102,7 @@
                         <option value="Uyari">Yaklaşan</option>
                     </select>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-3">
                     <label class="form-label small mb-1">Arama</label>
                     <input type="text" class="form-control form-control-sm" @bind="aramaMetni" @bind:event="oninput" placeholder="Belge türü, personel veya plaka ara..." />
                 </div>
@@ -282,6 +294,7 @@
                                     <th>Kaynak</th>
                                     <th>Belge Türü</th>
                                     <th>Ad / Plaka</th>
+                                    <th>Tedarikçi</th>
                                     <th>Bitiş</th>
                                     <th class="text-center">Durum</th>
                                     <th class="text-center">İşlem</th>
@@ -296,6 +309,16 @@
                                         </td>
                                         <td>@uyari.BelgeTuru</td>
                                         <td><strong>@uyari.Baslik</strong></td>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(uyari.TasimaTedarikciUnvan))
+                                            {
+                                                <span class="badge bg-info text-dark" title="Alt yüklenici">@uyari.TasimaTedarikciUnvan</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted small">Kendi kaynağımız</span>
+                                            }
+                                        </td>
                                         <td>@uyari.BitisTarihi.ToString("dd.MM.yyyy")</td>
                                         <td class="text-center">
                                             <span class="badge @uyari.SeviyeClass">
@@ -1065,6 +1088,8 @@
     private string kaynakFiltre = "Tumu";
     private string seviyeFiltre = "Tumu";
     private string aramaMetni = string.Empty;
+    private string tedarikciFiltre = string.Empty; // "" = Tümü, "-1" = sadece kendi, "<id>" = ilgili tedarikçi
+    private List<TasimaTedarikci> tedarikciler = new();
     private string aktifSekme = "uyarilar";
 
     // Belge Tablosu
@@ -1090,7 +1115,8 @@
 
     private bool FiltreVarMi => kaynakFiltre != "Tumu"
         || seviyeFiltre != "Tumu"
-        || !string.IsNullOrWhiteSpace(aramaMetni);
+        || !string.IsNullOrWhiteSpace(aramaMetni)
+        || !string.IsNullOrWhiteSpace(tedarikciFiltre);
 
     private List<BelgeUyari> FiltrelenmisPersonelUyarilari => FiltreUygula(
         (uyarilar?.EhliyetUyarilari ?? new List<BelgeUyari>())
@@ -1109,6 +1135,14 @@
 
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
+            tedarikciler = await TasimaTedarikciService.GetAllAsync(sadeceAktif: true);
+        }
+        catch
+        {
+            tedarikciler = new();
+        }
         await YenileAsync();
     }
 
@@ -1152,12 +1186,19 @@
         kaynakFiltre = "Tumu";
         seviyeFiltre = "Tumu";
         aramaMetni = string.Empty;
+        tedarikciFiltre = string.Empty;
     }
 
     private List<BelgeUyari> FiltreUygula(IEnumerable<BelgeUyari> kaynak)
     {
         return kaynak
             .Where(u => kaynakFiltre == "Tumu" || u.Kaynak == kaynakFiltre)
+            .Where(u => tedarikciFiltre switch
+            {
+                "" => true,
+                "-1" => u.TasimaTedarikciId == null,
+                _ => int.TryParse(tedarikciFiltre, out var tid) && u.TasimaTedarikciId == tid
+            })
             .Where(u => seviyeFiltre switch
             {
                 "Kritik" => u.Seviye == BelgeUyariSeviye.Kritik,
@@ -1168,7 +1209,8 @@
             .Where(u => string.IsNullOrWhiteSpace(aramaMetni)
                 || u.Baslik.Contains(aramaMetni, StringComparison.OrdinalIgnoreCase)
                 || u.BelgeTuru.Contains(aramaMetni, StringComparison.OrdinalIgnoreCase)
-                || u.Kaynak.Contains(aramaMetni, StringComparison.OrdinalIgnoreCase))
+                || u.Kaynak.Contains(aramaMetni, StringComparison.OrdinalIgnoreCase)
+                || (u.TasimaTedarikciUnvan?.Contains(aramaMetni, StringComparison.OrdinalIgnoreCase) ?? false))
             .OrderBy(u => u.KalanGun)
             .ThenBy(u => u.Baslik)
             .ToList();

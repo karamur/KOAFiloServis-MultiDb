@@ -73,10 +73,8 @@ public class MaliAnalizService : IMaliAnalizService
         var ayBaslangic = new DateTime(yil, ay, 1);
         var ayBitis = ayBaslangic.AddMonths(1).AddDays(-1);
 
-        // Özmal araçları getir
-        var ozmalAraclar = await context.Araclar
-            .Where(a => a.SahiplikTipi == AracSahiplikTipi.Ozmal && a.Aktif && !a.IsDeleted)
-            .ToListAsync();
+        // TEK KAYNAK: Filo Servis - Araçlar bölümündeki aktif özmal araçlar
+        var ozmalAraclar = await GetSegmentAraclariAsync(context, AracSahiplikTipi.Ozmal);
 
         foreach (var arac in ozmalAraclar)
         {
@@ -163,40 +161,46 @@ public class MaliAnalizService : IMaliAnalizService
         var ayBaslangic = new DateTime(yil, ay, 1);
         var ayBitis = ayBaslangic.AddMonths(1).AddDays(-1);
 
-        // Kiralık araçların çalışmalarını getir
-        var kiralikCalismalar = await context.ServisCalismalari
-            .Include(s => s.Arac)
-                .ThenInclude(a => a.KiralikCari)
+        // TEK KAYNAK: Filo Servis - Araçlar bölümündeki aktif kiralık araçlar.
+        // Sefer olsun olmasın, kayıtlı tüm kiralık araç+firma listelenir; veri akışı
+        // tek noktadan beslenir, raporlar Filo Servis ile birebir tutarlı olur.
+        var kiralikAraclar = (await GetSegmentAraclariAsync(context, AracSahiplikTipi.Kiralik))
+            .Where(a => a.KiralikCariId.HasValue)
+            .ToList();
+
+        if (kiralikAraclar.Count == 0)
+            return rapor;
+
+        var aracIdler = kiralikAraclar.Select(a => a.Id).ToList();
+
+        var calismalar = await context.ServisCalismalari
             .Include(s => s.Sofor)
             .Include(s => s.Guzergah)
                 .ThenInclude(g => g.Cari)
-            .Where(s => s.Arac.SahiplikTipi == AracSahiplikTipi.Kiralik &&
-                       s.Arac.KiralikCariId.HasValue &&
+            .Where(s => aracIdler.Contains(s.AracId) &&
                        s.CalismaTarihi >= ayBaslangic &&
                        s.CalismaTarihi <= ayBitis &&
                        !s.IsDeleted &&
-                       !s.Arac.IsDeleted &&
                        s.Durum == CalismaDurum.Tamamlandi)
             .ToListAsync();
 
-        var kiralikMasrafToplamlari = await context.AracMasraflari
+        var masrafToplamlari = await context.AracMasraflari
             .Where(m => !m.IsDeleted &&
                        m.MasrafTarihi >= ayBaslangic &&
                        m.MasrafTarihi <= ayBitis &&
-                       kiralikCalismalar.Select(c => c.AracId).Contains(m.AracId))
+                       aracIdler.Contains(m.AracId))
             .GroupBy(m => m.AracId)
             .Select(g => new { AracId = g.Key, Toplam = g.Sum(m => m.Tutar) })
             .ToDictionaryAsync(x => x.AracId, x => x.Toplam);
 
-        // Firma bazında grupla
-        var firmaGruplari = kiralikCalismalar
-            .GroupBy(c => c.Arac.KiralikCariId!.Value)
-            .ToList();
+        // Firma bazında grupla (kiralık aracın bağlı olduğu firma)
+        var firmaGruplari = kiralikAraclar
+            .GroupBy(a => a.KiralikCari!)
+            .OrderBy(g => g.Key.Unvan);
 
         foreach (var firmaGrup in firmaGruplari)
         {
-            var firma = firmaGrup.First().Arac.KiralikCari!;
-
+            var firma = firmaGrup.Key;
             var firmaDetay = new KiralikFirmaDetay
             {
                 FirmaId = firma.Id,
@@ -204,33 +208,31 @@ public class MaliAnalizService : IMaliAnalizService
                 FirmaKodu = firma.CariKodu
             };
 
-            // Araç bazında grupla
-            var aracGruplari = firmaGrup.GroupBy(c => c.AracId).ToList();
-
-            foreach (var aracGrup in aracGruplari)
+            foreach (var arac in firmaGrup)
             {
-                var arac = aracGrup.First().Arac;
-                var sofor = aracGrup.First().Sofor;
+                var aracCalismalari = calismalar.Where(c => c.AracId == arac.Id).ToList();
+                var sofor = aracCalismalari.FirstOrDefault()?.Sofor;
 
                 var aracDetay = new KiralikAracDetay
                 {
-                    Plaka = arac?.AktifPlaka ?? arac?.SaseNo ?? "Bilinmeyen",
-                    SoforAdSoyad = $"{sofor?.Ad} {sofor?.Soyad}"
+                    Plaka = arac.AktifPlaka ?? arac.SaseNo ?? "Bilinmeyen",
+                    SoforAdSoyad = sofor != null ? $"{sofor.Ad} {sofor.Soyad}" : null
                 };
 
-                // Güzergah bazında grupla
-                var guzergahGruplari = aracGrup.GroupBy(c => c.GuzergahId).ToList();
-                var toplamAracMasrafi = kiralikMasrafToplamlari.GetValueOrDefault(aracGrup.Key);
-                var toplamAracSeferi = aracGrup.Count();
+                var toplamAracMasrafi = masrafToplamlari.GetValueOrDefault(arac.Id);
+                var toplamAracSeferi = aracCalismalari.Count;
 
+                var guzergahGruplari = aracCalismalari.GroupBy(c => c.GuzergahId);
                 foreach (var guzergahGrup in guzergahGruplari)
                 {
                     var guzergah = guzergahGrup.First().Guzergah;
                     var seferSayisi = guzergahGrup.Count();
                     var birimFiyat = guzergah?.BirimFiyat ?? 0;
                     var seferGeliri = guzergahGrup.Sum(c => c.Fiyat ?? birimFiyat);
-                    var kiraBedeli = seferSayisi * (arac?.SeferBasinaKiraBedeli ?? 0);
-                    var masrafPayi = toplamAracSeferi > 0 ? (toplamAracMasrafi * seferSayisi / toplamAracSeferi) : 0;
+                    var kiraBedeli = seferSayisi * (arac.SeferBasinaKiraBedeli ?? 0);
+                    var masrafPayi = toplamAracSeferi > 0
+                        ? toplamAracMasrafi * seferSayisi / toplamAracSeferi
+                        : 0;
 
                     aracDetay.GuzergahDetaylari.Add(new KiralikGuzergahDetay
                     {
@@ -238,7 +240,7 @@ public class MaliAnalizService : IMaliAnalizService
                         MusteriUnvan = guzergah?.Cari?.Unvan ?? string.Empty,
                         SeferSayisi = seferSayisi,
                         BirimFiyat = birimFiyat,
-                        KiraBedeli = arac?.SeferBasinaKiraBedeli ?? 0,
+                        KiraBedeli = arac.SeferBasinaKiraBedeli ?? 0,
                         MusteridenAlinacak = seferGeliri,
                         FirmayaOdenecek = kiraBedeli + masrafPayi
                     });
@@ -260,18 +262,24 @@ public class MaliAnalizService : IMaliAnalizService
         var ayBaslangic = new DateTime(yil, ay, 1);
         var ayBitis = ayBaslangic.AddMonths(1).AddDays(-1);
 
-        // Komisyonlu çalışmaları getir
+        // TEK KAYNAK: Filo Servis - Araçlar bölümündeki komisyon araçları
+        var komisyonAraclar = (await GetSegmentAraclariAsync(context, AracSahiplikTipi.Komisyon))
+            .Where(a => a.KomisyoncuCariId.HasValue)
+            .ToList();
+        if (komisyonAraclar.Count == 0)
+            return rapor;
+
+        var komisyonAracIdler = komisyonAraclar.Select(a => a.Id).ToList();
+
         var komisyonluCalismalar = await context.ServisCalismalari
             .Include(s => s.Arac)
                 .ThenInclude(a => a.KomisyoncuCari)
             .Include(s => s.Guzergah)
                 .ThenInclude(g => g.Cari)
-            .Where(s => s.Arac.SahiplikTipi == AracSahiplikTipi.Komisyon &&
-                       s.Arac.KomisyoncuCariId.HasValue &&
+            .Where(s => komisyonAracIdler.Contains(s.AracId) &&
                        s.CalismaTarihi >= ayBaslangic &&
                        s.CalismaTarihi <= ayBitis &&
                        !s.IsDeleted &&
-                       !s.Arac.IsDeleted &&
                        s.Durum == CalismaDurum.Tamamlandi)
             .ToListAsync();
 
@@ -322,6 +330,165 @@ public class MaliAnalizService : IMaliAnalizService
             }
 
             rapor.KomisyoncuDetaylari.Add(komisyoncuDetay);
+        }
+
+        return rapor;
+    }
+
+    public async Task<TasimaTedarikciRaporu> GetTasimaTedarikciRaporuAsync(int yil, int ay)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var rapor = new TasimaTedarikciRaporu { Yil = yil, Ay = ay };
+        var ayBaslangic = new DateTime(yil, ay, 1);
+        var ayBitis = ayBaslangic.AddMonths(1).AddDays(-1);
+
+        // TEK KAYNAK: Aktif tedarikçiler + Sofor.TasimaTedarikciId / Arac.TasimaTedarikciId
+        var tedarikciler = await context.TasimaTedarikciler
+            .Where(t => !t.IsDeleted && t.Aktif)
+            .OrderBy(t => t.Unvan)
+            .ToListAsync();
+
+        if (tedarikciler.Count == 0)
+            return rapor;
+
+        var tedarikciIdler = tedarikciler.Select(t => t.Id).ToList();
+
+        // Tedarikçi başına personel/araç sayısı (tek kaynak)
+        var personelSayilari = await context.Soforler
+            .Where(s => !s.IsDeleted && s.Aktif &&
+                        s.TasimaTedarikciId.HasValue &&
+                        tedarikciIdler.Contains(s.TasimaTedarikciId.Value))
+            .GroupBy(s => s.TasimaTedarikciId!.Value)
+            .Select(g => new { TedarikciId = g.Key, Sayi = g.Count() })
+            .ToDictionaryAsync(x => x.TedarikciId, x => x.Sayi);
+
+        var aracSayilari = await context.Araclar
+            .Where(a => !a.IsDeleted && a.Aktif &&
+                        a.TasimaTedarikciId.HasValue &&
+                        tedarikciIdler.Contains(a.TasimaTedarikciId.Value))
+            .GroupBy(a => a.TasimaTedarikciId!.Value)
+            .Select(g => new { TedarikciId = g.Key, Sayi = g.Count() })
+            .ToDictionaryAsync(x => x.TedarikciId, x => x.Sayi);
+
+        // Aktif iş atamaları (ay aralığını kesenler)
+        var isler = await context.TasimaTedarikciIsler
+            .Include(i => i.Guzergah)
+                .ThenInclude(g => g.Cari)
+            .Include(i => i.Arac)
+            .Include(i => i.Sofor)
+            .Where(i => !i.IsDeleted &&
+                        tedarikciIdler.Contains(i.TasimaTedarikciId) &&
+                        i.BaslangicTarihi <= ayBitis &&
+                        (i.BitisTarihi == null || i.BitisTarihi >= ayBaslangic))
+            .ToListAsync();
+
+        // Tedarikçinin araçlarına ait gerçekleşen seferler (mali hesaplama için)
+        var tedarikciAracIdler = await context.Araclar
+            .Where(a => !a.IsDeleted && a.TasimaTedarikciId.HasValue &&
+                        tedarikciIdler.Contains(a.TasimaTedarikciId.Value))
+            .Select(a => new { a.Id, TedarikciId = a.TasimaTedarikciId!.Value })
+            .ToListAsync();
+
+        var aracTedarikciMap = tedarikciAracIdler.ToDictionary(x => x.Id, x => x.TedarikciId);
+        var aracIdSet = aracTedarikciMap.Keys.ToList();
+
+        var calismalar = aracIdSet.Count == 0
+            ? new List<ServisCalisma>()
+            : await context.ServisCalismalari
+                .Include(s => s.Arac)
+                .Include(s => s.Sofor)
+                .Include(s => s.Guzergah)
+                    .ThenInclude(g => g.Cari)
+                .Where(s => !s.IsDeleted &&
+                            aracIdSet.Contains(s.AracId) &&
+                            s.CalismaTarihi >= ayBaslangic &&
+                            s.CalismaTarihi <= ayBitis &&
+                            s.Durum == CalismaDurum.Tamamlandi)
+                .ToListAsync();
+
+        foreach (var tedarikci in tedarikciler)
+        {
+            var detay = new TasimaTedarikciDetay
+            {
+                TedarikciId = tedarikci.Id,
+                TedarikciKodu = tedarikci.TedarikciKodu,
+                Unvan = tedarikci.Unvan,
+                CariId = tedarikci.CariId,
+                AracSayisi = aracSayilari.GetValueOrDefault(tedarikci.Id),
+                PersonelSayisi = personelSayilari.GetValueOrDefault(tedarikci.Id),
+                AktifIsSayisi = isler.Count(i => i.TasimaTedarikciId == tedarikci.Id &&
+                                                  i.Durum == TasimaTedarikciIsDurum.Aktif)
+            };
+
+            // Tedarikçinin iş atamaları üzerinden satır oluştur (sözleşme bazlı)
+            var tedarikciIsleri = isler.Where(i => i.TasimaTedarikciId == tedarikci.Id).ToList();
+            var tedarikciCalismalari = calismalar
+                .Where(c => aracTedarikciMap.GetValueOrDefault(c.AracId) == tedarikci.Id)
+                .ToList();
+
+            // Önce iş bazlı (güzergah eşleşmesi olanlar)
+            var islenmisGuzergahIdler = new HashSet<int>();
+            foreach (var isAtama in tedarikciIsleri)
+            {
+                var isCalismalari = tedarikciCalismalari
+                    .Where(c => c.GuzergahId == isAtama.GuzergahId &&
+                                (isAtama.AracId == null || c.AracId == isAtama.AracId))
+                    .ToList();
+
+                var seferSayisi = isCalismalari.Count;
+                var birimFiyat = isAtama.Guzergah?.BirimFiyat ?? 0m;
+                var seferUcreti = isAtama.SeferUcreti ?? tedarikci.VarsayilanSeferUcreti ?? 0m;
+                var aylikUcret = isAtama.AylikUcret ?? 0m;
+
+                var musteridenAlinacak = isCalismalari.Sum(c => c.Fiyat ?? birimFiyat);
+                var tedarikciyeOdenecek = (seferSayisi * seferUcreti) + aylikUcret;
+
+                detay.IsDetaylari.Add(new TasimaTedarikciIsDetay
+                {
+                    IsId = isAtama.Id,
+                    GuzergahAdi = isAtama.Guzergah?.GuzergahAdi ?? string.Empty,
+                    MusteriUnvan = isAtama.Guzergah?.Cari?.Unvan ?? string.Empty,
+                    AracPlaka = isAtama.Arac?.AktifPlaka,
+                    SoforAdSoyad = isAtama.Sofor != null ? $"{isAtama.Sofor.Ad} {isAtama.Sofor.Soyad}" : null,
+                    SeferSayisi = seferSayisi,
+                    BirimFiyat = birimFiyat,
+                    SeferUcreti = seferUcreti,
+                    MusteridenAlinacak = musteridenAlinacak,
+                    TedarikciyeOdenecek = tedarikciyeOdenecek
+                });
+
+                islenmisGuzergahIdler.Add(isAtama.GuzergahId);
+            }
+
+            // İş ataması olmayan ama yine de seferi yapılan güzergahlar (default sefer ücretiyle)
+            var ekGuzergahGruplari = tedarikciCalismalari
+                .Where(c => !islenmisGuzergahIdler.Contains(c.GuzergahId))
+                .GroupBy(c => c.GuzergahId);
+
+            foreach (var grup in ekGuzergahGruplari)
+            {
+                var ilk = grup.First();
+                var seferSayisi = grup.Count();
+                var birimFiyat = ilk.Guzergah?.BirimFiyat ?? 0m;
+                var seferUcreti = tedarikci.VarsayilanSeferUcreti ?? 0m;
+                var musteridenAlinacak = grup.Sum(c => c.Fiyat ?? birimFiyat);
+                var tedarikciyeOdenecek = seferSayisi * seferUcreti;
+
+                detay.IsDetaylari.Add(new TasimaTedarikciIsDetay
+                {
+                    GuzergahAdi = ilk.Guzergah?.GuzergahAdi ?? string.Empty,
+                    MusteriUnvan = ilk.Guzergah?.Cari?.Unvan ?? string.Empty,
+                    AracPlaka = ilk.Arac?.AktifPlaka,
+                    SoforAdSoyad = ilk.Sofor != null ? $"{ilk.Sofor.Ad} {ilk.Sofor.Soyad}" : null,
+                    SeferSayisi = seferSayisi,
+                    BirimFiyat = birimFiyat,
+                    SeferUcreti = seferUcreti,
+                    MusteridenAlinacak = musteridenAlinacak,
+                    TedarikciyeOdenecek = tedarikciyeOdenecek
+                });
+            }
+
+            rapor.TedarikciDetaylari.Add(detay);
         }
 
         return rapor;
@@ -487,14 +654,29 @@ public class MaliAnalizService : IMaliAnalizService
 
     #region Private Methods
 
+    /// <summary>
+    /// TEK KAYNAK helper'ı: Filo Servis - Araçlar bölümündeki, verilen sahiplik tipine ait
+    /// aktif (silinmemiş) araçları getirir. Tüm Mali Analiz hesapları bu havuzu kullanır,
+    /// böylece dashboard, özmal raporu, kiralık raporu ve komisyon raporu birbiriyle
+    /// tutarlı (aynı araç sayısı/listesi) çalışır.
+    /// </summary>
+    private static async Task<List<Arac>> GetSegmentAraclariAsync(ApplicationDbContext context, AracSahiplikTipi tip)
+    {
+        return await context.Araclar
+            .Include(a => a.KiralikCari)
+            .Include(a => a.KomisyoncuCari)
+            .Where(a => a.SahiplikTipi == tip && a.Aktif && !a.IsDeleted)
+            .ToListAsync();
+    }
+
     private async Task<SegmentAnaliz> GetOzmalSegmentAnalizAsync(ApplicationDbContext context, DateTime baslangic, DateTime bitis)
     {
         var analiz = new SegmentAnaliz { SegmentAdi = "Özmal Araçlar" };
 
-        var ozmalAracIds = await context.Araclar
-            .Where(a => a.SahiplikTipi == AracSahiplikTipi.Ozmal && !a.IsDeleted)
+        // TEK KAYNAK: Filo Servis - Araçlar (özmal aktif araçlar)
+        var ozmalAracIds = (await GetSegmentAraclariAsync(context, AracSahiplikTipi.Ozmal))
             .Select(a => a.Id)
-            .ToListAsync();
+            .ToList();
 
         // Gelirler
         analiz.Gelir = await context.ServisCalismalari
@@ -531,28 +713,35 @@ public class MaliAnalizService : IMaliAnalizService
     {
         var analiz = new SegmentAnaliz { SegmentAdi = "Kiralık Araçlar" };
 
+        // TEK KAYNAK: Filo Servis - Araçlar (kiralık aktif araçlar)
+        var kiralikAraclar = await GetSegmentAraclariAsync(context, AracSahiplikTipi.Kiralik);
+        analiz.AracSayisi = kiralikAraclar.Count;
+        if (kiralikAraclar.Count == 0)
+            return analiz;
+
+        var kiralikAracIds = kiralikAraclar.Select(a => a.Id).ToList();
+        var kiraBedelleri = kiralikAraclar.ToDictionary(a => a.Id, a => a.SeferBasinaKiraBedeli ?? 0);
+
         var kiralikCalismalar = await context.ServisCalismalari
-            .Include(s => s.Arac)
             .Include(s => s.Guzergah)
-            .Where(s => s.Arac.SahiplikTipi == AracSahiplikTipi.Kiralik &&
+            .Where(s => kiralikAracIds.Contains(s.AracId) &&
                        s.CalismaTarihi >= baslangic &&
                        s.CalismaTarihi <= bitis &&
                        !s.IsDeleted &&
-                       !s.Arac.IsDeleted &&
                        s.Durum == CalismaDurum.Tamamlandi)
             .ToListAsync();
 
         analiz.Gelir = kiralikCalismalar.Sum(s => s.Fiyat ?? s.Guzergah.BirimFiyat);
+
         var kiralikAracMasraflari = await context.AracMasraflari
             .Where(m => !m.IsDeleted &&
                        m.MasrafTarihi >= baslangic &&
                        m.MasrafTarihi <= bitis &&
-                       kiralikCalismalar.Select(s => s.AracId).Distinct().Contains(m.AracId))
+                       kiralikAracIds.Contains(m.AracId))
             .SumAsync(m => m.Tutar);
 
-        analiz.Gider = kiralikCalismalar.Sum(s => s.Arac.SeferBasinaKiraBedeli ?? 0) + kiralikAracMasraflari;
+        analiz.Gider = kiralikCalismalar.Sum(s => kiraBedelleri.GetValueOrDefault(s.AracId)) + kiralikAracMasraflari;
         analiz.SeferSayisi = kiralikCalismalar.Count;
-        analiz.AracSayisi = kiralikCalismalar.Select(s => s.AracId).Distinct().Count();
 
         return analiz;
     }
@@ -561,14 +750,21 @@ public class MaliAnalizService : IMaliAnalizService
     {
         var analiz = new SegmentAnaliz { SegmentAdi = "Komisyon İşleri" };
 
+        // TEK KAYNAK: Filo Servis - Araçlar (komisyon aktif araçlar)
+        var komisyonAraclar = await GetSegmentAraclariAsync(context, AracSahiplikTipi.Komisyon);
+        analiz.AracSayisi = komisyonAraclar.Count;
+        if (komisyonAraclar.Count == 0)
+            return analiz;
+
+        var komisyonAracIds = komisyonAraclar.Select(a => a.Id).ToList();
+
         var komisyonluCalismalar = await context.ServisCalismalari
             .Include(s => s.Arac)
             .Include(s => s.Guzergah)
-            .Where(s => s.Arac.SahiplikTipi == AracSahiplikTipi.Komisyon &&
+            .Where(s => komisyonAracIds.Contains(s.AracId) &&
                        s.CalismaTarihi >= baslangic &&
                        s.CalismaTarihi <= bitis &&
                        !s.IsDeleted &&
-                       !s.Arac.IsDeleted &&
                        s.Durum == CalismaDurum.Tamamlandi)
             .ToListAsync();
 
@@ -587,7 +783,6 @@ public class MaliAnalizService : IMaliAnalizService
         }
 
         analiz.SeferSayisi = komisyonluCalismalar.Count;
-        analiz.AracSayisi = komisyonluCalismalar.Select(s => s.AracId).Distinct().Count();
 
         return analiz;
     }

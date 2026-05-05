@@ -62,6 +62,10 @@ public class BelgeUyari
     public string BelgeTuru { get; set; } = string.Empty;
     public DateTime BitisTarihi { get; set; }
     public string DetayUrl { get; set; } = string.Empty;
+
+    // Tedarikçi bilgisi (alt yüklenici personel/aracı için doldurulur; kendi kaynağımızda null kalır)
+    public int? TasimaTedarikciId { get; set; }
+    public string? TasimaTedarikciUnvan { get; set; }
     public int KalanGun => (BitisTarihi - DateTime.Today).Days;
     public BelgeUyariSeviye Seviye => KalanGun switch
     {

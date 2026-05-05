@@ -1,0 +1,150 @@
+﻿@page "/personel-tasima/tedarikciler"
+@using KOAFiloServis.Shared.Entities
+@using KOAFiloServis.Web.Services
+@inject ITasimaTedarikciService TedarikciService
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+
+<PageTitle>Personel Taşıma - Tedarikçiler</PageTitle>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h3 class="mb-0"><i class="bi bi-truck me-2"></i>Personel Taşıma Tedarikçileri</h3>
+            <small class="text-muted">Alt yüklenici (taşıma) firmalarını, personel ve araçlarını tek noktadan yönetin.</small>
+        </div>
+        <button class="btn btn-primary" @onclick="YeniTedarikci">
+            <i class="bi bi-plus-circle me-1"></i> Yeni Tedarikçi
+        </button>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            <div class="row g-2 align-items-center">
+                <div class="col-md-4">
+                    <input type="text" class="form-control form-control-sm" placeholder="Ara: ünvan, kod, vergi no..." @bind="aramaMetni" @bind:event="oninput" />
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select form-select-sm" @bind="durumFiltre">
+                        <option value="">Tümü (Aktif + Pasif)</option>
+                        <option value="aktif">Yalnızca Aktif</option>
+                        <option value="pasif">Yalnızca Pasif</option>
+                    </select>
+                </div>
+                <div class="col-md-3 text-muted small">
+                    Toplam: <strong>@FiltrelenmisTedarikciler.Count</strong> tedarikçi
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (yukleniyor)
+    {
+        <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+    }
+    else if (!FiltrelenmisTedarikciler.Any())
+    {
+        <div class="alert alert-info">Kayıt bulunamadı.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Kod</th>
+                        <th>Ünvan</th>
+                        <th>Yetkili</th>
+                        <th>Telefon</th>
+                        <th>Vergi No</th>
+                        <th class="text-center">Personel</th>
+                        <th class="text-center">Araç</th>
+                        <th class="text-center">Aktif İş</th>
+                        <th>Sözleşme</th>
+                        <th class="text-center">Durum</th>
+                        <th class="text-end">İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var t in FiltrelenmisTedarikciler)
+                {
+                    <tr>
+                        <td><code>@t.TedarikciKodu</code></td>
+                        <td><strong>@t.Unvan</strong></td>
+                        <td>@t.YetkiliKisi</td>
+                        <td>@t.Telefon</td>
+                        <td>@t.VergiNo</td>
+                        <td class="text-center">@(personelSayilari.GetValueOrDefault(t.Id))</td>
+                        <td class="text-center">@(aracSayilari.GetValueOrDefault(t.Id))</td>
+                        <td class="text-center">@(isSayilari.GetValueOrDefault(t.Id))</td>
+                        <td>
+                            @if (t.SozlesmeBitisTarihi.HasValue)
+                            {
+                                <span>@t.SozlesmeBitisTarihi.Value.ToString("dd.MM.yyyy")</span>
+                            }
+                        </td>
+                        <td class="text-center">
+                            @if (t.Aktif)
+                            { <span class="badge bg-success">Aktif</span> }
+                            else
+                            { <span class="badge bg-secondary">Pasif</span> }
+                        </td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-primary" href="@($"/personel-tasima/tedarikciler/{t.Id}")">
+                                <i class="bi bi-pencil"></i> Düzenle
+                            </a>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<TasimaTedarikci> tedarikciler = new();
+    private Dictionary<int, int> personelSayilari = new();
+    private Dictionary<int, int> aracSayilari = new();
+    private Dictionary<int, int> isSayilari = new();
+    private bool yukleniyor = true;
+    private string aramaMetni = string.Empty;
+    private string durumFiltre = string.Empty;
+
+    private List<TasimaTedarikci> FiltrelenmisTedarikciler => tedarikciler
+        .Where(t => string.IsNullOrWhiteSpace(aramaMetni)
+            || (t.Unvan?.Contains(aramaMetni, StringComparison.OrdinalIgnoreCase) ?? false)
+            || (t.TedarikciKodu?.Contains(aramaMetni, StringComparison.OrdinalIgnoreCase) ?? false)
+            || (t.VergiNo?.Contains(aramaMetni, StringComparison.OrdinalIgnoreCase) ?? false))
+        .Where(t => durumFiltre switch
+        {
+            "aktif" => t.Aktif,
+            "pasif" => !t.Aktif,
+            _ => true
+        })
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Yukle();
+    }
+
+    private async Task Yukle()
+    {
+        yukleniyor = true;
+        tedarikciler = await TedarikciService.GetAllAsync();
+        personelSayilari.Clear();
+        aracSayilari.Clear();
+        isSayilari.Clear();
+        foreach (var t in tedarikciler)
+        {
+            personelSayilari[t.Id] = (await TedarikciService.GetTedarikciPersonelleriAsync(t.Id)).Count;
+            aracSayilari[t.Id] = (await TedarikciService.GetTedarikciAraclariAsync(t.Id)).Count;
+            isSayilari[t.Id] = (await TedarikciService.GetIslerAsync(t.Id))
+                .Count(i => i.Durum == TasimaTedarikciIsDurum.Aktif);
+        }
+        yukleniyor = false;
+    }
+
+    private void YeniTedarikci() => Nav.NavigateTo("/personel-tasima/tedarikciler/yeni");
+}

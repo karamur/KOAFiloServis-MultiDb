@@ -57,6 +57,11 @@ public class Sofor : BaseEntity
     public int? FirmaId { get; set; }
     public virtual Firma? Firma { get; set; }
 
+    // Personel Taşıma Tedarikçisi (alt yüklenici)
+    // Null ise personel kendi şirketimize ait; doluysa bu personel ilgili tedarikçiye aittir.
+    public int? TasimaTedarikciId { get; set; }
+    public virtual TasimaTedarikci? TasimaTedarikci { get; set; }
+
     // SGK Bordro Ayarları
     public bool SGKBordroDahilMi { get; set; } = false;
     public PersonelBordroTipi BordroTipiPersonel { get; set; } = PersonelBordroTipi.Yok;

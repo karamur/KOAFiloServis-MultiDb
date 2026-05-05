@@ -1,4 +1,4 @@
-namespace KOAFiloServis.Web.Models;
+﻿namespace KOAFiloServis.Web.Models;
 
 /// <summary>
 /// Mali Analiz Dashboard i�in model
@@ -331,4 +331,69 @@ public class GuzergahChecklistOzet
     public decimal BekleyenOdeme { get; set; }
 
     public string GenelDurum { get; set; } = "Bekliyor";
+}
+
+/// <summary>
+/// Taşıma Tedarikçisi (Alt Yüklenici) Rapor Modeli.
+/// Kaynak: Sofor.TasimaTedarikciId / Arac.TasimaTedarikciId üzerinden tek kaynak.
+/// </summary>
+public class TasimaTedarikciRaporu
+{
+    public int Yil { get; set; }
+    public int Ay { get; set; }
+    public List<TasimaTedarikciDetay> TedarikciDetaylari { get; set; } = new();
+
+    public decimal ToplamMusteridenAlinacak => TedarikciDetaylari.Sum(x => x.MusteridenAlinacak);
+    public decimal ToplamTedarikciyeOdenecek => TedarikciDetaylari.Sum(x => x.TedarikciyeOdenecek);
+    public decimal NetKar => ToplamMusteridenAlinacak - ToplamTedarikciyeOdenecek;
+    public int ToplamSefer => TedarikciDetaylari.Sum(x => x.ToplamSefer);
+    public int ToplamArac => TedarikciDetaylari.Sum(x => x.AracSayisi);
+    public int ToplamPersonel => TedarikciDetaylari.Sum(x => x.PersonelSayisi);
+}
+
+/// <summary>
+/// Tek bir tedarikçinin (alt yüklenici) ay bazlı finans özeti.
+/// </summary>
+public class TasimaTedarikciDetay
+{
+    public int TedarikciId { get; set; }
+    public string TedarikciKodu { get; set; } = string.Empty;
+    public string Unvan { get; set; } = string.Empty;
+    public int? CariId { get; set; }
+
+    public int AracSayisi { get; set; }
+    public int PersonelSayisi { get; set; }
+    public int AktifIsSayisi { get; set; }
+
+    public List<TasimaTedarikciIsDetay> IsDetaylari { get; set; } = new();
+
+    public decimal MusteridenAlinacak => IsDetaylari.Sum(x => x.MusteridenAlinacak);
+    public decimal TedarikciyeOdenecek => IsDetaylari.Sum(x => x.TedarikciyeOdenecek);
+    public decimal Kar => MusteridenAlinacak - TedarikciyeOdenecek;
+    public decimal KarlilikOrani => MusteridenAlinacak > 0 ? (Kar / MusteridenAlinacak) * 100 : 0;
+    public int ToplamSefer => IsDetaylari.Sum(x => x.SeferSayisi);
+}
+
+/// <summary>
+/// Tedarikçinin bir güzergah/iş bazındaki ay özeti.
+/// </summary>
+public class TasimaTedarikciIsDetay
+{
+    public int? IsId { get; set; }
+    public string GuzergahAdi { get; set; } = string.Empty;
+    public string MusteriUnvan { get; set; } = string.Empty;
+    public string? AracPlaka { get; set; }
+    public string? SoforAdSoyad { get; set; }
+
+    public int SeferSayisi { get; set; }
+    public decimal BirimFiyat { get; set; }
+    public decimal SeferUcreti { get; set; }
+
+    /// <summary>Müşteriden tahsil edilecek (güzergah birim fiyatı * sefer).</summary>
+    public decimal MusteridenAlinacak { get; set; }
+
+    /// <summary>Tedarikçiye ödenecek (sözleşme sefer ücreti * sefer + aylık ücret).</summary>
+    public decimal TedarikciyeOdenecek { get; set; }
+
+    public decimal Kar => MusteridenAlinacak - TedarikciyeOdenecek;
 }
