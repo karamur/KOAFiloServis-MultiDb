@@ -1273,8 +1273,7 @@
 
         if (kullaniciYetkileri.Contains(menuKodu)) return true;
 
-        var menuYetkileri = GetMenuRelatedYetkiler(menuKodu);
-        if (menuYetkileri.Count > 0)
+        if (MenuRelatedYetkiler.TryGetValue(menuKodu, out var menuYetkileri))
         {
             foreach (var y in menuYetkileri)
             {
@@ -1282,65 +1281,41 @@
             }
         }
 
-        var menuPrefixleri = GetMenuPrefixes(menuKodu);
-        foreach (var prefix in menuPrefixleri)
+        if (MenuPrefixleri.TryGetValue(menuKodu, out var menuPrefixleri))
         {
-            if (!string.IsNullOrWhiteSpace(prefix) && kullaniciYetkiPrefixleri.Contains(prefix))
-                return true;
+            foreach (var prefix in menuPrefixleri)
+            {
+                if (kullaniciYetkiPrefixleri.Contains(prefix))
+                    return true;
+            }
         }
 
         return false;
     }
 
-    private string[] GetMenuPrefixes(string menuKodu)
+    private static readonly Dictionary<string, string[]> MenuPrefixleri = new()
     {
-        switch (menuKodu)
-        {
-            case "menu.crm":
-                return new[] { "bildirim", "mesaj", "email", "hatirlatici" };
-            case "menu.cari":
-                return new[] { "cari", "cariler", "kesilenfatura", "gelenfatura" };
-            case "menu.filoservis":
-                return new[] { "arac", "araclar", "guzergah", "guzergahlar", "serviscalisma", "toplucalisma", "masrafkalem", "aracmasraf", "filo", "hakedis" };
-            case "menu.muhasebe":
-                return new[] { "muhasebe", "hesapplani", "muhasebefis", "muhaseberapor", "malianaliz" };
-            case "menu.personel":
-                return new[] { "personel", "maas", "izin" };
-            case "menu.fatura":
-                return new[] { "fatura", "faturalar", "faturahazirlik", "kesilenfatura", "gelenfatura" };
-            case "menu.bankakasa":
-                return new[] { "banka", "bankahesap", "bankahareket", "odemeeslestir" };
-            case "menu.butce":
-                return new[] { "butce", "odemeyonetim", "tekrarlayanodem" };
-            case "menu.checklist":
-                return new[] { "checklist", "checklistmali" };
-            case "menu.raporlar":
-                return new[] { "rapor", "raporlar", "raporozmal", "raporkirala", "raporkomisyon", "raporservis", "raporfatura", "rapormasraf", "raporekstre" };
-            case "menu.satis":
-                return new[] { "satis", "piyasa", "ilan" };
-            case "menu.ayarlar":
-                return new[] { "firma", "ayarlar", "kullanici", "rol", "veritabani", "sistemdurumu", "aktivitelog", "yedekleme", "guncelleme", "destektalebi", "piyasakaynak" };
-            case "menu.ebys":
-                return new[] { "ebys", "evrak", "belgeuyari" };
-            case "menu.stok":
-                return new[] { "stok" };
-            default:
-                return Array.Empty<string>();
-        }
-    }
+        ["menu.crm"] = new[] { "bildirim", "mesaj", "email", "hatirlatici" },
+        ["menu.cari"] = new[] { "cari", "cariler", "kesilenfatura", "gelenfatura" },
+        ["menu.filoservis"] = new[] { "arac", "araclar", "guzergah", "guzergahlar", "serviscalisma", "toplucalisma", "masrafkalem", "aracmasraf", "filo", "hakedis" },
+        ["menu.muhasebe"] = new[] { "muhasebe", "hesapplani", "muhasebefis", "muhaseberapor", "malianaliz" },
+        ["menu.personel"] = new[] { "personel", "maas", "izin" },
+        ["menu.fatura"] = new[] { "fatura", "faturalar", "faturahazirlik", "kesilenfatura", "gelenfatura" },
+        ["menu.bankakasa"] = new[] { "banka", "bankahesap", "bankahareket", "odemeeslestir" },
+        ["menu.butce"] = new[] { "butce", "odemeyonetim", "tekrarlayanodem" },
+        ["menu.checklist"] = new[] { "checklist", "checklistmali" },
+        ["menu.raporlar"] = new[] { "rapor", "raporlar", "raporozmal", "raporkirala", "raporkomisyon", "raporservis", "raporfatura", "rapormasraf", "raporekstre" },
+        ["menu.satis"] = new[] { "satis", "piyasa", "ilan" },
+        ["menu.ayarlar"] = new[] { "firma", "ayarlar", "kullanici", "rol", "veritabani", "sistemdurumu", "aktivitelog", "yedekleme", "guncelleme", "destektalebi", "piyasakaynak" },
+        ["menu.ebys"] = new[] { "ebys", "evrak", "belgeuyari" },
+        ["menu.stok"] = new[] { "stok" },
+    };
 
-    private HashSet<string> GetMenuRelatedYetkiler(string menuKodu)
+    private static readonly Dictionary<string, string[]> MenuRelatedYetkiler = new()
     {
-        switch (menuKodu)
-        {
-            case "menu.filoservis":
-                return new HashSet<string> { "raporlar.oku" };
-            case "menu.satis":
-                return new HashSet<string> { "satis.oku", "piyasa.oku", "raporlar.oku" };
-            default:
-                return new HashSet<string>();
-        }
-    }
+        ["menu.filoservis"] = new[] { "raporlar.oku" },
+        ["menu.satis"] = new[] { "satis.oku", "piyasa.oku", "raporlar.oku" },
+    };
 
     private void ToggleSection(int index)
     {
