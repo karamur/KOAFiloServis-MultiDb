@@ -1,8 +1,13 @@
 ﻿@page "/rapor/tasima-tedarikci"
+@using KOAFiloServis.Shared.Entities
 @using KOAFiloServis.Web.Services
 @using Models = KOAFiloServis.Web.Models
 @inject IMaliAnalizService MaliAnalizService
 @inject IExcelService ExcelService
+@inject IBudgetService BudgetService
+@inject ICariService CariService
+@inject IToastService ToastService
+@inject NavigationManager Navigation
 @inject IJSRuntime JS
 @rendermode InteractiveServer
 
@@ -29,6 +34,15 @@
                     disabled="@(rapor == null || rapor.TedarikciDetaylari.Count == 0)">
                 <i class="bi bi-file-earmark-excel me-1"></i>Excel
             </button>
+            <button type="button" class="btn btn-warning"
+                    @onclick="TumunuButceyeAktar"
+                    disabled="@(isAktariliyor || rapor == null || rapor.TedarikciDetaylari.Count == 0 || rapor.ToplamTedarikciyeOdenecek <= 0)"
+                    title="Tüm tedarikçi hakedişlerini Bütçe / Ödeme Yönetimi'ne aktar">
+                <i class="bi bi-cash-coin me-1"></i>Tümünü Bütçeye Aktar
+            </button>
+            <a href="/butce/odemeler" class="btn btn-outline-warning" title="Bütçe Ödeme Yönetimi">
+                <i class="bi bi-wallet2 me-1"></i>Ödemeler
+            </a>
             <a href="/mali-analiz" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left me-1"></i>Dashboard
             </a>
@@ -110,9 +124,27 @@
                         <div class="text-end">
                             <span class="badge bg-success me-1">Müşteri: @tedarikci.MusteridenAlinacak.ToString("N0") TL</span>
                             <span class="badge bg-danger me-1">Tedarikçi: @tedarikci.TedarikciyeOdenecek.ToString("N0") TL</span>
-                            <span class="badge @(tedarikci.Kar >= 0 ? "bg-primary" : "bg-warning text-dark")">
+                            <span class="badge @(tedarikci.Kar >= 0 ? "bg-primary" : "bg-warning text-dark") me-2">
                                 Kâr: @tedarikci.Kar.ToString("N0") TL (%@tedarikci.KarlilikOrani.ToString("N1"))
                             </span>
+                            @{
+                                var aktarildi = AktarilmisTedarikciIdler.Contains(tedarikci.TedarikciId);
+                            }
+                            @if (aktarildi)
+                            {
+                                <span class="badge bg-success" title="Bu dönem için bütçeye aktarıldı">
+                                    <i class="bi bi-check2-circle me-1"></i>Bütçede
+                                </span>
+                            }
+                            else
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-warning"
+                                        @onclick="() => ButceyeAktar(tedarikci)"
+                                        disabled="@(isAktariliyor || tedarikci.TedarikciyeOdenecek <= 0)"
+                                        title="Bu tedarikçinin hakedişini Bütçe Ödeme Yönetimi'ne aktar">
+                                    <i class="bi bi-cash-coin me-1"></i>Bütçeye Aktar
+                                </button>
+                            }
                         </div>
                     </div>
                     <div class="card-body p-0">
@@ -168,10 +200,14 @@
 </div>
 
 @code {
+    private const string BudgetMasrafKalemi = "Taşıma Tedarikçi Hakediş";
+
     private int secilenYil = DateTime.Today.Year;
     private int secilenAy = DateTime.Today.Month;
     private bool isLoading = true;
+    private bool isAktariliyor = false;
     private Models.TasimaTedarikciRaporu? rapor;
+    private HashSet<int> AktarilmisTedarikciIdler { get; set; } = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -184,11 +220,137 @@
         try
         {
             rapor = await MaliAnalizService.GetTasimaTedarikciRaporuAsync(secilenYil, secilenAy);
+            await AktarilmisOdemeleriYukleAsync();
         }
         finally
         {
             isLoading = false;
         }
+    }
+
+    private static string BuildAciklama(Models.TasimaTedarikciDetay tedarikci, int yil, int ay)
+        => $"{tedarikci.TedarikciKodu} - {tedarikci.Unvan} ({ay:D2}/{yil})";
+
+    private async Task AktarilmisOdemeleriYukleAsync()
+    {
+        AktarilmisTedarikciIdler.Clear();
+        if (rapor == null || rapor.TedarikciDetaylari.Count == 0)
+            return;
+
+        var donemOdemeler = await BudgetService.GetOdemelerAsync(secilenYil, secilenAy);
+        var hakedisOdemeler = donemOdemeler
+            .Where(o => string.Equals(o.MasrafKalemi, BudgetMasrafKalemi, StringComparison.OrdinalIgnoreCase))
+            .Select(o => o.Aciklama ?? string.Empty)
+            .ToList();
+
+        foreach (var t in rapor.TedarikciDetaylari)
+        {
+            var aciklama = BuildAciklama(t, secilenYil, secilenAy);
+            if (hakedisOdemeler.Any(a => string.Equals(a, aciklama, StringComparison.OrdinalIgnoreCase)))
+                AktarilmisTedarikciIdler.Add(t.TedarikciId);
+        }
+    }
+
+    private async Task ButceyeAktar(Models.TasimaTedarikciDetay tedarikci)
+    {
+        if (tedarikci.TedarikciyeOdenecek <= 0)
+        {
+            ToastService.ShowWarning("Aktarılacak tutar yok.");
+            return;
+        }
+        if (AktarilmisTedarikciIdler.Contains(tedarikci.TedarikciId))
+        {
+            ToastService.ShowInfo("Bu tedarikçi bu dönem için zaten aktarılmış.");
+            return;
+        }
+
+        isAktariliyor = true;
+        try
+        {
+            await OdemeOlustur(tedarikci);
+            ToastService.ShowSuccess($"{tedarikci.Unvan} → Bütçe / Ödeme Yönetimi'ne aktarıldı.");
+            AktarilmisTedarikciIdler.Add(tedarikci.TedarikciId);
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Aktarım hatası: " + ex.Message);
+        }
+        finally
+        {
+            isAktariliyor = false;
+        }
+    }
+
+    private async Task TumunuButceyeAktar()
+    {
+        if (rapor == null || rapor.TedarikciDetaylari.Count == 0)
+            return;
+
+        isAktariliyor = true;
+        int eklenen = 0, atlanan = 0;
+        try
+        {
+            foreach (var t in rapor.TedarikciDetaylari)
+            {
+                if (t.TedarikciyeOdenecek <= 0 || AktarilmisTedarikciIdler.Contains(t.TedarikciId))
+                {
+                    atlanan++;
+                    continue;
+                }
+
+                await OdemeOlustur(t);
+                AktarilmisTedarikciIdler.Add(t.TedarikciId);
+                eklenen++;
+            }
+
+            if (eklenen > 0)
+                ToastService.ShowSuccess($"{eklenen} tedarikçi hakedişi bütçeye aktarıldı. (Atlanan: {atlanan})");
+            else
+                ToastService.ShowInfo("Aktarılacak yeni hakediş bulunmadı.");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Toplu aktarım hatası: " + ex.Message);
+        }
+        finally
+        {
+            isAktariliyor = false;
+        }
+    }
+
+    private async Task OdemeOlustur(Models.TasimaTedarikciDetay tedarikci)
+    {
+        // Ödeme tarihi: dönem ayının son günü
+        var ayBaslangic = new DateTime(secilenYil, secilenAy, 1);
+        var ayBitis = ayBaslangic.AddMonths(1).AddDays(-1);
+
+        // Tedarikçinin Cari kaydından FirmaId ve cari bilgilerini al (varsa)
+        int? firmaId = null;
+        string? cariBilgi = null;
+        if (tedarikci.CariId.HasValue)
+        {
+            var cari = await CariService.GetByIdAsync(tedarikci.CariId.Value);
+            if (cari != null)
+            {
+                firmaId = cari.FirmaId;
+                cariBilgi = $"Cari: {cari.CariKodu} - {cari.Unvan}";
+            }
+        }
+
+        var odeme = new BudgetOdeme
+        {
+            OdemeTarihi = ayBitis,
+            OdemeAy = secilenAy,
+            OdemeYil = secilenYil,
+            MasrafKalemi = BudgetMasrafKalemi,
+            Aciklama = BuildAciklama(tedarikci, secilenYil, secilenAy),
+            Miktar = tedarikci.TedarikciyeOdenecek,
+            Durum = OdemeDurum.Bekliyor,
+            FirmaId = firmaId,
+            Notlar = $"Otomatik aktarım: Mali Analiz / Taşıma Tedarikçisi Raporu\nTedarikçi: {tedarikci.Unvan} ({tedarikci.TedarikciKodu})\n{cariBilgi}\nAraç: {tedarikci.AracSayisi}, Personel: {tedarikci.PersonelSayisi}, Sefer: {tedarikci.ToplamSefer}"
+        };
+
+        await BudgetService.CreateOdemeAsync(odeme);
     }
 
     private async Task ExcelExport()

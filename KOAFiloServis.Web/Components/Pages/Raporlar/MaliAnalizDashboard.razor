@@ -6,6 +6,8 @@
 @using Models = KOAFiloServis.Web.Models
 @inject IMaliAnalizService MaliAnalizService
 @inject IMuhasebeService MuhasebeService
+@inject IBudgetService BudgetService
+@inject NavigationManager Navigation
 @inject IDataExportService DataExportService
 @inject IToastService ToastService
 @inject IJSRuntime JS
@@ -308,6 +310,74 @@
                 </div>
             </div>
         </div>
+
+        <!-- Bekleyen Tedarikçi Hakedişleri -->
+        @if (bekleyenTedarikciHakedisleri.Any())
+        {
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-warning">
+                        <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">
+                                <i class="bi bi-hourglass-split me-2"></i>Bekleyen Taşıma Tedarikçi Hakedişleri
+                                <span class="badge bg-dark ms-2">@bekleyenTedarikciHakedisleri.Count kayıt</span>
+                            </h6>
+                            <div class="d-flex gap-2">
+                                <span class="fw-bold">Toplam: @FormatPara(bekleyenTedarikciHakedisleri.Sum(x => x.KalanTutar))</span>
+                                <a href="/butce/odemeler" class="btn btn-sm btn-dark" title="Ödeme Yönetimi">
+                                    <i class="bi bi-credit-card me-1"></i>Ödeme Yönetimi
+                                </a>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Dönem</th>
+                                            <th>Tedarikçi / Açıklama</th>
+                                            <th>Firma</th>
+                                            <th class="text-end">Tutar</th>
+                                            <th class="text-end">Kalan</th>
+                                            <th>Durum</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var o in bekleyenTedarikciHakedisleri.OrderBy(x => x.OdemeTarihi))
+                                        {
+                                            <tr>
+                                                <td>@($"{o.OdemeAy:D2}/{o.OdemeYil}")</td>
+                                                <td><small>@o.Aciklama</small></td>
+                                                <td><small>@(o.Firma?.FirmaAdi ?? "-")</small></td>
+                                                <td class="text-end">@FormatPara(o.Miktar)</td>
+                                                <td class="text-end fw-bold text-danger">@FormatPara(o.KalanTutar)</td>
+                                                <td>
+                                                    @if (o.Durum == OdemeDurum.KismiOdendi)
+                                                    {
+                                                        <span class="badge bg-info">Kısmi (%@o.OdemeYuzdesi.ToString("N0"))</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-warning text-dark">Bekliyor</span>
+                                                    }
+                                                </td>
+                                                <td class="text-end">
+                                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                                            @onclick="() => OdemeYonetimineGit(o.Id)" title="Ödemeye git">
+                                                        <i class="bi bi-arrow-right"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
 
         <!-- Grafikler -->
         <div class="row mb-4">
@@ -1063,6 +1133,8 @@
     private BilancoRapor? bilancoRapor;
     private List<Models.GrafikVeri> trendSeciliYil = new();
     private List<Models.GrafikVeri> trendOncekiYil = new();
+    private List<BudgetOdeme> bekleyenTedarikciHakedisleri = new();
+    private const string TasimaTedarikciHakedisKalemi = "Taşıma Tedarikçi Hakediş";
     private bool isLoading = false;
     
     private string aktifSekme = "genel";
@@ -1091,6 +1163,7 @@
             if (aktifSekme == "genel")
             {
                 dashboard = await MaliAnalizService.GetDashboardAsync(secilenYil, secilenAy > 0 ? secilenAy : DateTime.Today.Month);
+                await LoadBekleyenTedarikciHakedisleriAsync();
             }
             if (aktifSekme == "trend")
             {
@@ -1128,6 +1201,28 @@
         {
             isLoading = false;
         }
+    }
+
+    private async Task LoadBekleyenTedarikciHakedisleriAsync()
+    {
+        try
+        {
+            // Tüm yıl için (filtreden bağımsız) bekleyen tedarikçi hakedişlerini getir
+            var tumOdemeler = await BudgetService.GetOdemelerAsync(secilenYil, null);
+            bekleyenTedarikciHakedisleri = tumOdemeler
+                .Where(o => string.Equals(o.MasrafKalemi, TasimaTedarikciHakedisKalemi, StringComparison.OrdinalIgnoreCase)
+                            && (o.Durum == OdemeDurum.Bekliyor || o.Durum == OdemeDurum.KismiOdendi))
+                .ToList();
+        }
+        catch
+        {
+            bekleyenTedarikciHakedisleri = new();
+        }
+    }
+
+    private void OdemeYonetimineGit(int odemeId)
+    {
+        Navigation.NavigateTo($"/butce/odemeler?odemeId={odemeId}");
     }
 
     private decimal NetKarMarji = 0;

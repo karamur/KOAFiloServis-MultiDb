@@ -92,6 +92,18 @@
                         }
                     </select>
                 </div>
+                <div class="col-md-2">
+                    <select class="form-select form-select-sm" @bind="filtreMasrafKalemi" @bind:after="FiltreUygula">
+                        <option value="">Tum Masraf Kalemleri</option>
+                        @if (masrafKalemleri != null)
+                        {
+                            @foreach (var k in masrafKalemleri.OrderBy(x => x.KalemAdi))
+                            {
+                                <option value="@k.KalemAdi">@k.KalemAdi</option>
+                            }
+                        }
+                    </select>
+                </div>
                 <div class="col-md-3 position-relative">
                     <button type="button" class="btn btn-outline-secondary btn-sm w-100 d-flex justify-content-between align-items-center"
                             @onclick="() => showAciklamaSecim = !showAciklamaSecim">
@@ -137,6 +149,23 @@
                         <i class="bi bi-x-lg"></i>
                     </button>
                     <span class="badge bg-secondary align-self-center">@filtrelenmisOdemeler.Count</span>
+                </div>
+            </div>
+            <div class="row g-2 mt-1">
+                <div class="col-12 d-flex flex-wrap gap-2 align-items-center">
+                    <small class="text-muted">Hızlı Filtre:</small>
+                    <button type="button"
+                            class="btn btn-sm @(filtreMasrafKalemi == TasimaTedarikciHakedisKalemi ? "btn-warning" : "btn-outline-warning")"
+                            @onclick="TasimaTedarikciHakedisFiltresiToggle">
+                        <i class="bi bi-truck me-1"></i>Taşıma Tedarikçi Hakediş
+                        @if (filtreMasrafKalemi == TasimaTedarikciHakedisKalemi)
+                        {
+                            <span class="badge bg-light text-dark ms-1">@filtrelenmisOdemeler.Count</span>
+                        }
+                    </button>
+                    <a href="/rapor/tasima-tedarikci" class="btn btn-sm btn-outline-info" title="Taşıma Tedarikçi Raporuna git">
+                        <i class="bi bi-graph-up me-1"></i>Tedarikçi Raporu
+                    </a>
                 </div>
             </div>
         </div>
@@ -223,7 +252,15 @@
                             {
                                 <tr class="@(odeme.Durum == OdemeDurum.Odendi ? "table-success" : odeme.Durum == OdemeDurum.KismiOdendi ? "table-warning" : odeme.Durum == OdemeDurum.Iptal ? "table-secondary" : "")">
                                     <td>@odeme.OdemeTarihi.ToString("dd.MM.yyyy")</td>
-                                    <td><strong>@odeme.MasrafKalemi</strong></td>
+                                    <td>
+                                        <strong>@odeme.MasrafKalemi</strong>
+                                        @if (string.Equals(odeme.MasrafKalemi, TasimaTedarikciHakedisKalemi, StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <span class="badge bg-warning text-dark ms-1" title="Taşıma Tedarikçi Hakediş">
+                                                <i class="bi bi-truck"></i>
+                                            </span>
+                                        }
+                                    </td>
                                     <td>
                                         <small>@(odeme.Aciklama ?? "-")</small>
                                         @if (!string.IsNullOrWhiteSpace(odeme.HareketKaynakGorunumu))
@@ -863,6 +900,8 @@
     private string filtreTip = "";
     private string aramaMetni = "";
     private int filtreFirmaId = 0;
+    private string filtreMasrafKalemi = "";
+    private const string TasimaTedarikciHakedisKalemi = "Taşıma Tedarikçi Hakediş";
     private List<Firma>? firmalar;
     private HashSet<string> seciliAciklamalar = new();
     private bool showAciklamaSecim = false;
@@ -1028,6 +1067,10 @@
         if (filtreFirmaId > 0)
             query = query.Where(o => o.FirmaId == filtreFirmaId);
 
+        // Masraf Kalemi filtresi
+        if (!string.IsNullOrWhiteSpace(filtreMasrafKalemi))
+            query = query.Where(o => string.Equals(o.MasrafKalemi, filtreMasrafKalemi, StringComparison.OrdinalIgnoreCase));
+
         // Coklu Aciklama filtresi (OR mantığı: seçilen açıklamalardan herhangi biri)
         if (seciliAciklamalar.Any())
         {
@@ -1056,10 +1099,17 @@
         filtreTip = "";
         aramaMetni = "";
         filtreFirmaId = 0;
+        filtreMasrafKalemi = "";
         seciliAciklamalar.Clear();
         aciklamaArama = string.Empty;
         showAciklamaSecim = false;
         await LoadDataAsync();
+    }
+
+    private void TasimaTedarikciHakedisFiltresiToggle()
+    {
+        filtreMasrafKalemi = filtreMasrafKalemi == TasimaTedarikciHakedisKalemi ? "" : TasimaTedarikciHakedisKalemi;
+        FiltreUygula();
     }
 
     private async Task AramaKeyPress(KeyboardEventArgs e)
