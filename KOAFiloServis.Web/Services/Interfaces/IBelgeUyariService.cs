@@ -40,6 +40,9 @@ public class BelgeUyariOzet
     public List<BelgeUyari> TrafikSigortasiUyarilari { get; set; } = new();
     public List<BelgeUyari> DigerAracEvrakUyarilari { get; set; } = new();
 
+    // Taşıma Tedarikçi Sözleşmeleri
+    public List<BelgeUyari> TedarikciSozlesmeUyarilari { get; set; } = new();
+
     public List<BelgeUyari> TumUyarilar =>
         EhliyetUyarilari
         .Concat(SrcUyarilari)
@@ -50,6 +53,7 @@ public class BelgeUyariOzet
         .Concat(KaskoUyarilari)
         .Concat(TrafikSigortasiUyarilari)
         .Concat(DigerAracEvrakUyarilari)
+        .Concat(TedarikciSozlesmeUyarilari)
         .OrderBy(u => u.KalanGun)
         .ToList();
 }

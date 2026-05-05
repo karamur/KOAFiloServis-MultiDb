@@ -139,6 +139,30 @@ public class BelgeUyariService : IBelgeUyariService
                 ozet.DigerAracEvrakUyarilari.Add(uyari);
         }
 
+        // Taşıma Tedarikçi sözleşme bitiş uyarıları (tek kaynak: TasimaTedarikciler)
+        var tedarikciler = await context.TasimaTedarikciler
+            .AsNoTracking()
+            .Where(t => t.Aktif
+                && t.SozlesmeBitisTarihi.HasValue
+                && t.SozlesmeBitisTarihi.Value <= limitTarih)
+            .OrderBy(t => t.SozlesmeBitisTarihi)
+            .ToListAsync();
+
+        foreach (var tedarikci in tedarikciler)
+        {
+            ozet.TedarikciSozlesmeUyarilari.Add(new BelgeUyari
+            {
+                Id = tedarikci.Id,
+                Kaynak = "Tedarikçi",
+                Baslik = tedarikci.Unvan,
+                BelgeTuru = "Sözleşme Bitiş",
+                BitisTarihi = tedarikci.SozlesmeBitisTarihi!.Value,
+                DetayUrl = $"/personel-tasima/tedarikciler/{tedarikci.Id}",
+                TasimaTedarikciId = tedarikci.Id,
+                TasimaTedarikciUnvan = tedarikci.Unvan
+            });
+        }
+
 
         // Tum personeller icin "Diger" kategorisindeki evrak durumlarini cek (uyari filtresi yok - tam liste)
         var digerEvrakTanimlari = await context.OzlukEvrakTanimlari

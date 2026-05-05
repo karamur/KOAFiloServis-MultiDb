@@ -80,6 +80,7 @@
                         <option value="Tumu">Tümü</option>
                         <option value="Personel">Personel</option>
                         <option value="Araç">Araç</option>
+                        <option value="Tedarikçi">Tedarikçi</option>
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -397,6 +398,13 @@
                             <i class="bi bi-folder2-open" style="font-size: 2rem;"></i>
                             <h4 class="mt-2 mb-0">@uyarilar.DigerAracEvrakUyarilari.Count</h4>
                             <small class="text-muted">Diger Evraklar</small>
+                        </div>
+                    </div>
+                    <div class="col-md-2 text-center mb-3">
+                        <div class="p-3 border rounded @(uyarilar.TedarikciSozlesmeUyarilari.Any(u => u.KalanGun < 0) ? "border-danger" : "")">
+                            <i class="bi bi-file-earmark-medical" style="font-size: 2rem;"></i>
+                            <h4 class="mt-2 mb-0">@uyarilar.TedarikciSozlesmeUyarilari.Count</h4>
+                            <small class="text-muted">Tedarikçi Sözleşme</small>
                         </div>
                     </div>
                 </div>
