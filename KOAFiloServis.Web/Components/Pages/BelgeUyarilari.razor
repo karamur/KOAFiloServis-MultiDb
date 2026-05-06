@@ -17,6 +17,12 @@
 
 <PageTitle>Belge Sure Uyarilari</PageTitle>
 
+<style>
+    .ozet-kart { transition: transform .12s ease, box-shadow .12s ease; }
+    .ozet-kart:hover { transform: translateY(-2px); box-shadow: 0 .5rem 1rem rgba(0,0,0,.15); }
+    .ozet-kart-aktif { outline: 3px solid #212529; outline-offset: -3px; box-shadow: 0 .5rem 1rem rgba(0,0,0,.25) !important; }
+</style>
+
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h3><i class="bi bi-file-earmark-medical me-2"></i>Belge Süre Uyarıları</h3>
@@ -124,36 +130,40 @@
     }
     else if (uyarilar != null)
     {
-        <!-- Ozet Kartlari -->
+        <!-- Ozet Kartlari (tıklanabilir - alttaki Tüm Uyarilar listesini filtreler) -->
         <div class="row mb-4">
             <div class="col-md-3">
-                <div class="card bg-danger text-white h-100">
+                <div class="card bg-danger text-white h-100 ozet-kart @(seviyeFiltre == "Kritik" ? "ozet-kart-aktif" : "")"
+                     style="cursor: pointer;" @onclick='() => OzetKartaTikla("Kritik")' title="Tıklayın: Süresi geçmiş kayıtları filtreler">
                     <div class="card-body text-center">
-                        <h1 class="mb-0">@FiltrelenmisTumUyarilar.Count(u => u.Seviye == BelgeUyariSeviye.Kritik)</h1>
+                        <h1 class="mb-0">@OzetSayim(BelgeUyariSeviye.Kritik)</h1>
                         <small>Suresi Gecmis</small>
                     </div>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card bg-warning text-dark h-100">
+                <div class="card bg-warning text-dark h-100 ozet-kart @(seviyeFiltre == "Acil" ? "ozet-kart-aktif" : "")"
+                     style="cursor: pointer;" @onclick='() => OzetKartaTikla("Acil")' title="Tıklayın: 7 gün içindeki kayıtları filtreler">
                     <div class="card-body text-center">
-                        <h1 class="mb-0">@FiltrelenmisTumUyarilar.Count(u => u.Seviye == BelgeUyariSeviye.Acil)</h1>
+                        <h1 class="mb-0">@OzetSayim(BelgeUyariSeviye.Acil)</h1>
                         <small>7 Gun Icinde</small>
                     </div>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card bg-info text-white h-100">
+                <div class="card bg-info text-white h-100 ozet-kart @(seviyeFiltre == "Uyari" ? "ozet-kart-aktif" : "")"
+                     style="cursor: pointer;" @onclick='() => OzetKartaTikla("Uyari")' title="Tıklayın: 30 gün içindeki kayıtları filtreler">
                     <div class="card-body text-center">
-                        <h1 class="mb-0">@FiltrelenmisTumUyarilar.Count(u => u.Seviye == BelgeUyariSeviye.Uyari)</h1>
+                        <h1 class="mb-0">@OzetSayim(BelgeUyariSeviye.Uyari)</h1>
                         <small>30 Gun Icinde</small>
                     </div>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card bg-success text-white h-100">
+                <div class="card bg-success text-white h-100 ozet-kart @(seviyeFiltre == "Tumu" ? "ozet-kart-aktif" : "")"
+                     style="cursor: pointer;" @onclick='() => OzetKartaTikla("Tumu")' title="Tıklayın: Tüm uyarıları gösterir">
                     <div class="card-body text-center">
-                        <h1 class="mb-0">@FiltrelenmisTumUyarilar.Count</h1>
+                        <h1 class="mb-0">@OzetSayim(null)</h1>
                         <small>Toplam Uyari</small>
                     </div>
                 </div>
@@ -161,6 +171,65 @@
         </div>
 
         <div class="row">
+            <!-- Arac Belgeleri (öne alındı) -->
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0"><i class="bi bi-truck me-2"></i>Arac Belgeleri</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        @if (FiltrelenmisAracUyarilari.Any())
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Plaka</th>
+                                            <th>Belge</th>
+                                            <th>Bitis</th>
+                                            <th class="text-center">Durum</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var u in FiltrelenmisAracUyarilari)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    <a href="@u.DetayUrl" class="text-decoration-none">
+                                                        <strong>@u.Baslik</strong>
+                                                    </a>
+                                                </td>
+                                                <td>@u.BelgeTuru</td>
+                                                <td>@u.BitisTarihi.ToString("dd.MM.yyyy")</td>
+                                                <td class="text-center">
+                                                    <span class="badge @u.SeviyeClass">
+                                                        @if (u.KalanGun < 0)
+                                                        {
+                                                            @(Math.Abs(u.KalanGun) + " gun gecti")
+                                                        }
+                                                        else
+                                                        {
+                                                            @(u.KalanGun + " gun")
+                                                        }
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center text-success py-4">
+                                <i class="bi bi-check-circle" style="font-size: 2rem;"></i>
+                                <p class="mb-0 mt-2">Arac belgeleri guncel!</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
             <!-- Personel Belgeleri -->
             <div class="col-md-6 mb-4">
                 <div class="card h-100">
@@ -214,65 +283,6 @@
                             <div class="text-center text-success py-4">
                                 <i class="bi bi-check-circle" style="font-size: 2rem;"></i>
                                 <p class="mb-0 mt-2">Personel belgeleri guncel!</p>
-                            </div>
-                        }
-                    </div>
-                </div>
-            </div>
-
-            <!-- Arac Belgeleri -->
-            <div class="col-md-6 mb-4">
-                <div class="card h-100">
-                    <div class="card-header bg-success text-white">
-                        <h6 class="mb-0"><i class="bi bi-truck me-2"></i>Arac Belgeleri</h6>
-                    </div>
-                    <div class="card-body p-0">
-                        @if (FiltrelenmisAracUyarilari.Any())
-                        {
-                            <div class="table-responsive">
-                                <table class="table table-sm table-hover mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Plaka</th>
-                                            <th>Belge</th>
-                                            <th>Bitis</th>
-                                            <th class="text-center">Durum</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach (var u in FiltrelenmisAracUyarilari)
-                                        {
-                                            <tr>
-                                                <td>
-                                                    <a href="@u.DetayUrl" class="text-decoration-none">
-                                                        <strong>@u.Baslik</strong>
-                                                    </a>
-                                                </td>
-                                                <td>@u.BelgeTuru</td>
-                                                <td>@u.BitisTarihi.ToString("dd.MM.yyyy")</td>
-                                                <td class="text-center">
-                                                    <span class="badge @u.SeviyeClass">
-                                                        @if (u.KalanGun < 0)
-                                                        {
-                                                            @(Math.Abs(u.KalanGun) + " gun gecti")
-                                                        }
-                                                        else
-                                                        {
-                                                            @(u.KalanGun + " gun")
-                                                        }
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        }
-                                    </tbody>
-                                </table>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="text-center text-success py-4">
-                                <i class="bi bi-check-circle" style="font-size: 2rem;"></i>
-                                <p class="mb-0 mt-2">Arac belgeleri guncel!</p>
                             </div>
                         }
                     </div>
@@ -1106,6 +1116,9 @@
         .OrderBy(u => u);
     private string aktifSekme = "uyarilar";
 
+    [SupplyParameterFromQuery(Name = "tab")]
+    public string? TabQuery { get; set; }
+
     // Belge Tablosu
     private List<PersonelBelgeTabloKalemi>? belgeTablosu;
     private bool isTabloyukleniyor = false;
@@ -1149,6 +1162,14 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (!string.IsNullOrWhiteSpace(TabQuery))
+        {
+            var t = TabQuery.Trim().ToLowerInvariant();
+            if (t == "uyarilar" || t == "tablo" || t == "aractablo")
+            {
+                aktifSekme = t;
+            }
+        }
         try
         {
             tedarikciler = await TasimaTedarikciService.GetAllAsync(sadeceAktif: true);
@@ -1158,6 +1179,14 @@
             tedarikciler = new();
         }
         await YenileAsync();
+        if (aktifSekme == "tablo")
+        {
+            await SekmeTabloAc();
+        }
+        else if (aktifSekme == "aractablo")
+        {
+            await SekmeAracTabloAc();
+        }
     }
 
     private async Task YenileAsync()
@@ -1201,6 +1230,36 @@
         seviyeFiltre = "Tumu";
         aramaMetni = string.Empty;
         tedarikciFiltre = string.Empty;
+    }
+
+    private void OzetKartaTikla(string seviye)
+    {
+        // Aynı kart tekrar tıklanırsa filtreyi kaldır (Tumu)
+        if (seviyeFiltre == seviye)
+        {
+            seviyeFiltre = "Tumu";
+        }
+        else
+        {
+            seviyeFiltre = seviye;
+        }
+    }
+
+    private int OzetSayim(BelgeUyariSeviye? seviye)
+    {
+        // Seviye filtresi göz ardı edilerek (diğer filtreler korunarak) sayım yap
+        if (uyarilar == null) return 0;
+        var oncekiSeviye = seviyeFiltre;
+        seviyeFiltre = "Tumu";
+        try
+        {
+            var liste = FiltrelenmisTumUyarilar;
+            return seviye.HasValue ? liste.Count(u => u.Seviye == seviye.Value) : liste.Count;
+        }
+        finally
+        {
+            seviyeFiltre = oncekiSeviye;
+        }
     }
 
     private List<BelgeUyari> FiltreUygula(IEnumerable<BelgeUyari> kaynak)

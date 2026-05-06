@@ -1,4 +1,4 @@
-.navbar-toggler {
+﻿.navbar-toggler {
     appearance: none;
     cursor: pointer;
     width: 3.5rem;
@@ -69,6 +69,39 @@
 
 .nav-section-content {
     padding: 0.25rem 0;
+    animation: slideDown 0.2s ease-out;
+}
+
+.nav-subsection {
+    margin: 0.25rem 0.6rem;
+}
+
+.nav-subsection-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.85rem;
+    color: #cbd5f5;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    transition: all 0.2s ease;
+}
+
+.nav-subsection-header:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #f8fafc;
+}
+
+.nav-subsection-header span i {
+    color: #60a5fa;
+}
+
+.nav-subsection-content {
+    padding: 0.15rem 0 0.15rem 0.6rem;
+    border-left: 2px solid rgba(96, 165, 250, 0.25);
+    margin-left: 0.85rem;
     animation: slideDown 0.2s ease-out;
 }
 
