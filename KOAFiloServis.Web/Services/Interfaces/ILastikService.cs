@@ -1,4 +1,4 @@
-﻿using KOAFiloServis.Shared.Entities;
+using KOAFiloServis.Shared.Entities;
 
 namespace KOAFiloServis.Web.Services.Interfaces;
 
@@ -34,6 +34,11 @@ public interface ILastikService
     /// LastikDurum.Kayip olan tüm aktif lastik kayıtlarını döner.
     /// </summary>
     Task<List<LastikKayipSatiri>> GetKayipLastikRaporuAsync();
+
+    /// <summary>
+    /// Kayıp lastiği depoya alır ve durumunu Kullanılabilir olarak günceller.
+    /// </summary>
+    Task<LastikStok?> KayipLastigiDepoyaAlAsync(int stokId, int depoId, string? not = null);
 
     // --- Değişim ---
     Task<List<LastikDegisim>> GetDegisimListAsync(int? aracId = null, DateTime? baslangic = null, DateTime? bitis = null);
@@ -142,3 +147,6 @@ public sealed class LastikKayipSatiri
     public int? DegisimId { get; set; }
     public string? Notlar { get; set; }
 }
+
+
+

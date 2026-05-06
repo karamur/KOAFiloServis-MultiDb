@@ -1,4 +1,4 @@
-﻿@page "/lastik/stok"
+@page "/lastik/stok"
 @using KOAFiloServis.Shared.Entities
 @using KOAFiloServis.Web.Services
 @using KOAFiloServis.Web.Services.Interfaces
@@ -343,6 +343,7 @@
                                     <th class="text-center">Sezon</th>
                                     <th>Seri No</th>
                                     <th>Notlar</th>
+                                    <th style="width:170px;">İşlem</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -358,6 +359,11 @@
                                         <td class="text-center"><span class="badge @GetSezonBadge(k.Sezon)">@GetSezonText(k.Sezon)</span></td>
                                         <td><small>@k.SeriNo</small></td>
                                         <td><small class="text-muted">@k.Notlar</small></td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-success" @onclick="() => KayipBulunduOnay(k)">
+                                                <i class="bi bi-box-arrow-in-down me-1"></i>Depoya Al
+                                            </button>
+                                        </td>
                                     </tr>
                                 }
                             </tbody>
@@ -370,6 +376,41 @@
     }
 </div>
 
+
+@if (showKayipBulunduModal && seciliKayipSatir != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="bi bi-box-arrow-in-down me-2"></i>Kayıp Lastik Bulundu</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => showKayipBulunduModal = false"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2"><strong>@seciliKayipSatir.Marka @seciliKayipSatir.Ebat</strong> lastiğini depoya almak üzeresiniz.</p>
+                    <div class="mb-3">
+                        <label class="form-label">Depo *</label>
+                        <select class="form-select" @bind="kayipBulunduDepoId">
+                            <option value="">-- Depo seçin --</option>
+                            @foreach (var d in depolar)
+                            {
+                                <option value="@d.Id">@d.DepoAdi</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-1">
+                        <label class="form-label">Not</label>
+                        <textarea class="form-control" rows="2" @bind="kayipBulunduNot"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="() => showKayipBulunduModal = false">İptal</button>
+                    <button class="btn btn-success" @onclick="KayipBulunduKaydet" disabled="@(kayipBulunduDepoId == null)">Depoya Al</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 <!-- Form Modal -->
 @if (showForm)
 {
@@ -552,6 +593,10 @@
     private LastikStok editStok = new();
     private LastikStok? silinecek;
     private LastikStok? pasifYapilacak;
+    private LastikKayipSatiri? seciliKayipSatir;
+    private bool showKayipBulunduModal;
+    private int? kayipBulunduDepoId;
+    private string kayipBulunduNot = string.Empty;
     private bool showForm;
     private bool showDeleteModal;
     private bool showPasifModal;
@@ -727,6 +772,40 @@
         finally { kaydediliyor = false; }
     }
 
+
+    private void KayipBulunduOnay(LastikKayipSatiri satir)
+    {
+        seciliKayipSatir = satir;
+        kayipBulunduDepoId = depolar.FirstOrDefault()?.Id;
+        kayipBulunduNot = string.Empty;
+        showKayipBulunduModal = true;
+    }
+
+    private async Task KayipBulunduKaydet()
+    {
+        if (seciliKayipSatir == null || kayipBulunduDepoId == null)
+            return;
+
+        try
+        {
+            var sonuc = await LastikService.KayipLastigiDepoyaAlAsync(seciliKayipSatir.StokId, kayipBulunduDepoId.Value, kayipBulunduNot);
+            if (sonuc == null)
+            {
+                ToastService.ShowWarning("Kayıp lastik bulunamadı.");
+                return;
+            }
+
+            showKayipBulunduModal = false;
+            seciliKayipSatir = null;
+            await YukleStoklar();
+            await RaporlariYenile();
+            ToastService.ShowSuccess("Kayıp lastik depoya alındı.");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Hata: " + ex.Message);
+        }
+    }
     private void PasifOnay(LastikStok s) { pasifYapilacak = s; showPasifModal = true; }
 
     private async Task PasifYap()
@@ -779,4 +858,8 @@
         _ => d.ToString()
     };
 }
+
+
+
+
 

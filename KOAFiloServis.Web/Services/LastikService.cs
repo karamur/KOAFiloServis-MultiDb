@@ -738,6 +738,40 @@ public class LastikService : ILastikService
         }).ToList();
     }
 
+    public async Task<LastikStok?> KayipLastigiDepoyaAlAsync(int stokId, int depoId, string? not = null)
+    {
+        await using var ctx = await _contextFactory.CreateDbContextAsync();
+
+        var stok = await ctx.LastikStoklar
+            .FirstOrDefaultAsync(s => s.Id == stokId && !s.IsDeleted);
+
+        if (stok == null)
+            return null;
+
+        if (stok.Durum != LastikDurum.Kayip)
+            return await ctx.LastikStoklar
+                .AsNoTracking()
+                .Include(s => s.Depo)
+                .Include(s => s.Arac)
+                .FirstOrDefaultAsync(s => s.Id == stokId && !s.IsDeleted);
+
+        stok.Durum = LastikDurum.Kullanilabilir;
+        stok.DepoId = depoId;
+        stok.AracId = null;
+        stok.YedekMi = true;
+        stok.UpdatedAt = DateTime.UtcNow;
+
+        var ekNot = string.IsNullOrWhiteSpace(not) ? "Bulundu: Depoya alındı" : $"Bulundu: {not}";
+        stok.Notlar = string.IsNullOrWhiteSpace(stok.Notlar) ? ekNot : $"{stok.Notlar} | {ekNot}";
+
+        await ctx.SaveChangesAsync();
+
+        return await ctx.LastikStoklar
+            .AsNoTracking()
+            .Include(s => s.Depo)
+            .Include(s => s.Arac)
+            .FirstOrDefaultAsync(s => s.Id == stokId && !s.IsDeleted);
+    }
     private static string FormatTakilanHareket(LastikDegisim degisim)
     {
         var payload = ParseDegisimPayload(degisim.Notlar);
@@ -857,3 +891,4 @@ internal sealed class LastikDegisimNotSatiri
     public int? HedefDepoId { get; set; }
     public string? HedefDepoAdi { get; set; }
 }
+
