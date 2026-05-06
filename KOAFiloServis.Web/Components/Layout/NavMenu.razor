@@ -207,8 +207,8 @@
                                 }
                             </div>
                             <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="arac-takip">
-                                    <i class="bi bi-geo-alt-fill me-2 text-success"></i> Canlı Araç Takip
+                                <NavLink class="nav-link" href="">
+                                    <i class="bi bi-geo-alt-fill me-2 text-success"></i> 
                                 </NavLink>
                             </div>
                         }
@@ -220,19 +220,19 @@
                                 </NavLink>
                             </div>
                         }
-                        @if (HasYetki("serviscalisma.oku"))
+                        @if (HasYetki(".oku"))
                         {
                             <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="servis-calismalari">
-                                    <i class="bi bi-calendar-check-fill me-2"></i> Servis Çalışmaları
+                                <NavLink class="nav-link" href="">
+                                    <i class="bi bi-calendar-check-fill me-2"></i> 
                                 </NavLink>
                             </div>
                         }
                         @if (HasYetki("toplucalisma.oku"))
                         {
                             <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="servis-calismalari/toplu-ekle">
-                                    <i class="bi bi-list-check me-2"></i> Toplu Çalışma Girişi
+                                <NavLink class="nav-link" href="/toplu-ekle">
+                                    <i class="bi bi-list-check me-2"></i> 
                                 </NavLink>
                             </div>
                         }
@@ -241,6 +241,14 @@
                                 <i class="bi bi-journal-check me-2 text-success"></i> Filo Puantaj
                             </NavLink>
                         </div>
+                        @if (HasYetki("masrafkalem.oku"))
+                        {
+                            <div class="nav-item px-3">
+                                <NavLink class="nav-link" href="masraf-kalemleri">
+                                    <i class="bi bi-list-task me-2"></i> Masraf Kalemleri
+                                </NavLink>
+                            </div>
+                        }
 
 
 
@@ -873,14 +881,6 @@
                                 </NavLink>
                             </div>
                         }
-                        @if (HasYetki("masrafkalem.oku"))
-                        {
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="masraf-kalemleri">
-                                    <i class="bi bi-list-task me-2"></i> Masraf Kalemleri
-                                </NavLink>
-                            </div>
-                        }
                         <div class="nav-item px-3">
                             <NavLink class="nav-link" href="ayarlar/profil">
                                 <i class="bi bi-person-circle me-2 text-success"></i> Profilim
@@ -1057,7 +1057,7 @@
                                 </NavLink>
                             </div>
                             <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="ayarlar/arac-takip-cihaz">
+                                <NavLink class="nav-link" href="ayarlar/-cihaz">
                                     <i class="bi bi-broadcast-pin me-2 text-danger"></i> Araç Takip Cihazları
                                 </NavLink>
                             </div>
@@ -1275,8 +1275,8 @@
     {
         ["menu.crm"] = new() { "bildirim", "mesaj", "email", "hatirlatici" },
         ["menu.cari"] = new() { "cari", "cariler", "kesilenfatura", "gelenfatura" },
-        ["menu.filoservis"] = new() { "arac", "araclar", "guzergah", "guzergahlar", "serviscalisma", "toplucalisma", "aracmasraf", "filo", "hakedis" },
-        ["menu.muhasebe"] = new() { "muhasebe", "hesapplani", "muhasebefis", "muhaseberapor", "malianaliz" },
+        ["menu.filoservis"] = new() { "arac", "araclar", "guzergah", "guzergahlar", "", "toplucalisma", "aracmasraf", "filo", "hakedis" },
+        ["menu.muhasebe"] = new() { "muhasebe", "hesapplani", "muhasebefis", "muhaseberapor" },
         ["menu.personel"] = new() { "personel", "maas", "izin" },
         ["menu.fatura"] = new() { "fatura", "faturalar", "faturahazirlik", "kesilenfatura", "gelenfatura" },
         ["menu.bankakasa"] = new() { "banka", "bankahesap", "bankahareket" },
@@ -1305,6 +1305,7 @@
 
     private bool IsExpanded(NavSection section) => expandedSections.Contains(section);
 }
+
 
 
 

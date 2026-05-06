@@ -35,6 +35,7 @@
   <ItemGroup>
     <Folder Include="Components\Pages\Checklist\" />
     <Folder Include="Components\Pages\OdemeEslestirme\" />
+    <Folder Include="Components\Pages\ServisCalismalari\" />
     <Folder Include="Scripts\" />
   </ItemGroup>
 
