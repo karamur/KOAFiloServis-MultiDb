@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace KOAFiloServis.Web.Data.Migrations;
@@ -17,7 +17,7 @@ public static class PersonelBelgeTarihleriMigrationHelper
 
             var isPostgres = context.Database.ProviderName?.Contains("Npgsql") == true;
 
-            string[] columns = ["KimlikGecerlilikTarihi", "AdliSicilGecerlilikTarihi", "SuruculCezaBarkodluBelgeTarihi"];
+            string[] columns = ["KimlikGecerlilikTarihi", "AdliSicilGecerlilikTarihi", "SuruculCezaBarkodluBelgeTarihi", "MykBelgesiGecerlilikTarihi", "YayginEgitimSertifikasiVarMi"];
 
             foreach (var column in columns)
             {
@@ -34,8 +34,12 @@ public static class PersonelBelgeTarihleriMigrationHelper
                     logger.LogInformation("Personeller tablosuna {Column} kolonu ekleniyor...", column);
 
                     var alterSql = isPostgres
-                        ? $"ALTER TABLE \"Personeller\" ADD COLUMN \"{column}\" timestamp without time zone NULL"
-                        : $"ALTER TABLE Personeller ADD COLUMN {column} DATETIME NULL";
+                        ? (column == "YayginEgitimSertifikasiVarMi"
+                            ? $"ALTER TABLE \"Personeller\" ADD COLUMN \"{column}\" boolean NOT NULL DEFAULT false"
+                            : $"ALTER TABLE \"Personeller\" ADD COLUMN \"{column}\" timestamp without time zone NULL")
+                        : (column == "YayginEgitimSertifikasiVarMi"
+                            ? $"ALTER TABLE Personeller ADD COLUMN {column} BIT NOT NULL DEFAULT 0"
+                            : $"ALTER TABLE Personeller ADD COLUMN {column} DATETIME NULL");
 
                     using var alterCmd = connection.CreateCommand();
                     alterCmd.CommandText = alterSql;
@@ -51,3 +55,6 @@ public static class PersonelBelgeTarihleriMigrationHelper
         }
     }
 }
+
+
+

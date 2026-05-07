@@ -1,4 +1,4 @@
-﻿using KOAFiloServis.Shared.Entities;
+using KOAFiloServis.Shared.Entities;
 
 namespace KOAFiloServis.Web.Services;
 
@@ -27,6 +27,8 @@ public class BelgeUyariOzet
     // Personel Belgeleri
     public List<BelgeUyari> EhliyetUyarilari { get; set; } = new();
     public List<BelgeUyari> SrcUyarilari { get; set; } = new();
+    public List<BelgeUyari> MykBelgesiUyarilari { get; set; } = new();
+    public List<BelgeUyari> YayginEgitimUyarilari { get; set; } = new();
     public List<BelgeUyari> PsikoteknikUyarilari { get; set; } = new();
     public List<BelgeUyari> SaglikRaporuUyarilari { get; set; } = new();
     public List<BelgeUyari> DigerPersonelEvrakUyarilari { get; set; } = new();
@@ -45,7 +47,9 @@ public class BelgeUyariOzet
 
     public List<BelgeUyari> TumUyarilar =>
         EhliyetUyarilari
-        .Concat(SrcUyarilari)
+         .Concat(SrcUyarilari)
+         .Concat(MykBelgesiUyarilari)
+        .Concat(YayginEgitimUyarilari)
         .Concat(PsikoteknikUyarilari)
         .Concat(SaglikRaporuUyarilari)
         .Concat(DigerPersonelEvrakUyarilari)
@@ -176,7 +180,9 @@ public class PersonelBelgeTabloKalemi
     // Belge tarihleri
     public DateTime? EhliyetGecerlilik { get; set; }
     public DateTime? KimlikGecerlilik { get; set; }
-    public DateTime? SrcGecerlilik { get; set; }
+    public DateTime? MykBelgesiGecerlilik { get; set; }
+    public DateTime? YayginEgitimGecerlilik { get; set; }
+    public bool YayginEgitimSertifikasiVarMi { get; set; }
     public DateTime? PsikoteknikGecerlilik { get; set; }
     public DateTime? AdliSicilGecerlilik { get; set; }
     public DateTime? SaglikRaporuGecerlilik { get; set; }
@@ -212,7 +218,7 @@ public class OzlukEvrakDosyaBilgisi
 }
 
 /// <summary>
-/// Araç belge takip tablosu – her satır bir araç, sütunlar belge türleri (Ruhsat, Sigorta, Muayene, Uygunluk, Koltuk Sigortası, Kasko)
+/// Araç belge takip tablosu – her satır bir araç, sütunlar belge türleri (Sigorta, Muayene, Uygunluk, Koltuk Sigortası, Kasko)
 /// </summary>
 public class AracBelgeTabloKalemi
 {
@@ -265,3 +271,8 @@ public class AracEvrakDosyaBilgisi
     public bool DosyaVar => !string.IsNullOrEmpty(DosyaYolu);
     public bool Secili { get; set; } = false;
 }
+
+
+
+
+

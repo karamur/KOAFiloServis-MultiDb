@@ -214,10 +214,10 @@
                             </div>
                             <div class="col-3">
                                 <div class="border-end">
-                                    <h4 class="mb-0 @(uyariOzet.SrcUyarilari.Count > 0 ? "text-danger" : "text-success")">
-                                        @uyariOzet.SrcUyarilari.Count
+                                    <h4 class="mb-0 @(uyariOzet.MykBelgesiUyarilari.Count > 0 ? "text-danger" : "text-success")">
+                                        @uyariOzet.MykBelgesiUyarilari.Count
                                     </h4>
-                                    <small class="text-muted">SRC</small>
+                                    <small class="text-muted">MYK</small>
                                 </div>
                             </div>
                             <div class="col-3">
@@ -292,7 +292,8 @@
     private string aktifTab = "tumu";
 
     private int PersonelUyariSayisi => uyariOzet?.EhliyetUyarilari.Count 
-        + uyariOzet?.SrcUyarilari.Count 
+        + uyariOzet?.MykBelgesiUyarilari.Count 
+        + uyariOzet?.YayginEgitimUyarilari.Count 
         + uyariOzet?.PsikoteknikUyarilari.Count 
         + uyariOzet?.SaglikRaporuUyarilari.Count ?? 0;
 
@@ -310,7 +311,8 @@
             var liste = aktifTab switch
             {
                 "personel" => uyariOzet.EhliyetUyarilari
-                    .Concat(uyariOzet.SrcUyarilari)
+                    .Concat(uyariOzet.MykBelgesiUyarilari)
+                    .Concat(uyariOzet.YayginEgitimUyarilari)
                     .Concat(uyariOzet.PsikoteknikUyarilari)
                     .Concat(uyariOzet.SaglikRaporuUyarilari),
                 "arac" => uyariOzet.MuayeneUyarilari

@@ -206,33 +206,12 @@
                                     </div>
                                 }
                             </div>
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="">
-                                    <i class="bi bi-geo-alt-fill me-2 text-success"></i> 
-                                </NavLink>
-                            </div>
                         }
                         @if (HasYetki("guzergahlar.oku"))
                         {
                             <div class="nav-item px-3">
                                 <NavLink class="nav-link" href="guzergahlar">
                                     <i class="bi bi-signpost-split-fill me-2"></i> Guzergahlar
-                                </NavLink>
-                            </div>
-                        }
-                        @if (HasYetki(".oku"))
-                        {
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="">
-                                    <i class="bi bi-calendar-check-fill me-2"></i> 
-                                </NavLink>
-                            </div>
-                        }
-                        @if (HasYetki("toplucalisma.oku"))
-                        {
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="/toplu-ekle">
-                                    <i class="bi bi-list-check me-2"></i> 
                                 </NavLink>
                             </div>
                         }

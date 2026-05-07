@@ -55,16 +55,14 @@ public class Arac : BaseEntity
     // Doluysa bu araç bir tedarikçiye ait; ruhsat/sigorta/muayene takibi yine AracEvrak üzerinden tek kaynaktan yapılır.
     public int? TasimaTedarikciId { get; set; }
     public virtual TasimaTedarikci? TasimaTedarikci { get; set; }
-    
-    // Belge tarihleri
+
+    // Geriye dönük uyumluluk için araç üzerindeki belge tarihleri
     public DateTime? TrafikSigortaBitisTarihi { get; set; }
     public DateTime? KaskoBitisTarihi { get; set; }
     public DateTime? MuayeneBitisTarihi { get; set; }
-    
-    // Koltuk sigortası tarihleri
     public DateTime? KoltukSigortasiBaslangiçTarihi { get; set; }
     public DateTime? KoltukSigortasiBitisTarihi { get; set; }
-    
+
     public int? KmDurumu { get; set; }
     public AracDurumu Durumu { get; set; } = AracDurumu.Bosta;
     public bool Aktif { get; set; } = true;
@@ -175,3 +173,6 @@ public enum AracDurumu
     Yonetim = 3,
     Satis = 4
 }
+
+
+

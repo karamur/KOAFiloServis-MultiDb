@@ -1,4 +1,4 @@
-﻿using System.IO.Compression;
+using System.IO.Compression;
 using KOAFiloServis.Shared.Entities;
 using KOAFiloServis.Web.Data;
 using Microsoft.EntityFrameworkCore;
@@ -46,26 +46,6 @@ public class BelgeUyariService : IBelgeUyariService
             .OrderBy(e => e.GecerlilikBitisTarihi)
             .ToListAsync();
 
-        // Özlük evraklarından GecerlilikBitisTarihi olan tüm uyarıları kategoriye göre dağıt
-        // Sofor entity alanlarına sahip olanlar için özlük evrak kaydı varsa onu kullan, yoksa fallback
-        var soforIdEhliyetEvrakVar = tumOzlukEvraklar
-            .Where(e => e.EvrakTanim?.EvrakAdi != null &&
-                        e.EvrakTanim.EvrakAdi.Contains("Ehliyet", StringComparison.OrdinalIgnoreCase))
-            .Select(e => e.SoforId).ToHashSet();
-        var soforIdSrcEvrakVar = tumOzlukEvraklar
-            .Where(e => e.EvrakTanim?.EvrakAdi != null &&
-                        e.EvrakTanim.EvrakAdi.Contains("SRC", StringComparison.OrdinalIgnoreCase))
-            .Select(e => e.SoforId).ToHashSet();
-        var soforIdPsikoteknikEvrakVar = tumOzlukEvraklar
-            .Where(e => e.EvrakTanim?.EvrakAdi != null &&
-                        e.EvrakTanim.EvrakAdi.Contains("Psikoteknik", StringComparison.OrdinalIgnoreCase))
-            .Select(e => e.SoforId).ToHashSet();
-        var soforIdSaglikEvrakVar = tumOzlukEvraklar
-            .Where(e => e.EvrakTanim?.EvrakAdi != null &&
-                        (e.EvrakTanim.EvrakAdi.Contains("Sağlık", StringComparison.OrdinalIgnoreCase) ||
-                         e.EvrakTanim.EvrakAdi.Contains("Saglik", StringComparison.OrdinalIgnoreCase)))
-            .Select(e => e.SoforId).ToHashSet();
-
         // Özlük evraklarını uyarı listelerine dağıt
         foreach (var evrak in tumOzlukEvraklar)
         {
@@ -84,8 +64,13 @@ public class BelgeUyariService : IBelgeUyariService
 
             if (evrakAdi.Contains("Ehliyet", StringComparison.OrdinalIgnoreCase))
                 ozet.EhliyetUyarilari.Add(uyari);
-            else if (evrakAdi.Contains("SRC", StringComparison.OrdinalIgnoreCase))
-                ozet.SrcUyarilari.Add(uyari);
+            else if (evrakAdi.Contains("MYK", StringComparison.OrdinalIgnoreCase)
+                || evrakAdi.Contains("Mesleki Yeterlilik", StringComparison.OrdinalIgnoreCase)
+                || evrakAdi.Contains("SRC", StringComparison.OrdinalIgnoreCase))
+                ozet.MykBelgesiUyarilari.Add(uyari);
+            else if (evrakAdi.Contains("Yaygın", StringComparison.OrdinalIgnoreCase)
+                || evrakAdi.Contains("Yaygin", StringComparison.OrdinalIgnoreCase))
+                ozet.YayginEgitimUyarilari.Add(uyari);
             else if (evrakAdi.Contains("Psikoteknik", StringComparison.OrdinalIgnoreCase))
                 ozet.PsikoteknikUyarilari.Add(uyari);
             else if (evrakAdi.Contains("Sağlık", StringComparison.OrdinalIgnoreCase) ||
@@ -105,6 +90,7 @@ public class BelgeUyariService : IBelgeUyariService
                 && !x.Arac.IsDeleted
                 && x.Arac.Aktif
                 && x.Durum != EvrakDurum.Pasif
+                && x.EvrakKategorisi != EvrakKategorileri.Ruhsat
                 && x.BitisTarihi.HasValue
                 && x.BitisTarihi.Value <= limitTarih)
             .OrderBy(x => x.BitisTarihi)
@@ -288,7 +274,9 @@ public class BelgeUyariService : IBelgeUyariService
                 EvrakDosyalari = dosyalar,
                 EhliyetGecerlilik = s.EhliyetGecerlilikTarihi,
                 KimlikGecerlilik = s.KimlikGecerlilikTarihi,
-                SrcGecerlilik = s.SrcBelgesiGecerlilikTarihi,
+                MykBelgesiGecerlilik = s.MykBelgesiGecerlilikTarihi,
+                YayginEgitimGecerlilik = s.SrcBelgesiGecerlilikTarihi,
+                YayginEgitimSertifikasiVarMi = s.SrcBelgesiGecerlilikTarihi.HasValue || s.YayginEgitimSertifikasiVarMi,
                 PsikoteknikGecerlilik = s.PsikoteknikGecerlilikTarihi,
                 AdliSicilGecerlilik = s.AdliSicilGecerlilikTarihi,
                 SaglikRaporuGecerlilik = s.SaglikRaporuGecerlilikTarihi,
@@ -329,7 +317,9 @@ public class BelgeUyariService : IBelgeUyariService
             EvrakDosyalari = dosyalar,
             EhliyetGecerlilik = s.EhliyetGecerlilikTarihi,
             KimlikGecerlilik = s.KimlikGecerlilikTarihi,
-            SrcGecerlilik = s.SrcBelgesiGecerlilikTarihi,
+            MykBelgesiGecerlilik = s.MykBelgesiGecerlilikTarihi,
+            YayginEgitimGecerlilik = s.SrcBelgesiGecerlilikTarihi,
+            YayginEgitimSertifikasiVarMi = s.SrcBelgesiGecerlilikTarihi.HasValue || s.YayginEgitimSertifikasiVarMi,
             PsikoteknikGecerlilik = s.PsikoteknikGecerlilikTarihi,
             AdliSicilGecerlilik = s.AdliSicilGecerlilikTarihi,
             SaglikRaporuGecerlilik = s.SaglikRaporuGecerlilikTarihi,
@@ -347,7 +337,11 @@ public class BelgeUyariService : IBelgeUyariService
         {
             case "Ehliyet": sofor.EhliyetGecerlilikTarihi = tarih; break;
             case "Kimlik": sofor.KimlikGecerlilikTarihi = tarih; break;
-            case "Src": sofor.SrcBelgesiGecerlilikTarihi = tarih; break;
+            case "MykBelgesi": sofor.MykBelgesiGecerlilikTarihi = tarih; break;
+            case "YayginEgitim":
+                sofor.SrcBelgesiGecerlilikTarihi = tarih;
+                sofor.YayginEgitimSertifikasiVarMi = tarih.HasValue;
+                break;
             case "Psikoteknik": sofor.PsikoteknikGecerlilikTarihi = tarih; break;
             case "AdliSicil": sofor.AdliSicilGecerlilikTarihi = tarih; break;
             case "SaglikRaporu": sofor.SaglikRaporuGecerlilikTarihi = tarih; break;
@@ -434,7 +428,6 @@ public class BelgeUyariService : IBelgeUyariService
     // Sütun anahtarı → AracEvrak.EvrakKategorisi eşlemesi
     private static string KategoriEslestir(string belgeAlani) => belgeAlani switch
     {
-        "Ruhsat" => EvrakKategorileri.Ruhsat,
         "Sigorta" => EvrakKategorileri.TrafikSigortasi,
         "Muayene" => EvrakKategorileri.Muayene,
         "Uygunluk" => EvrakKategorileri.UygunlukBelgesi,
@@ -466,7 +459,7 @@ public class BelgeUyariService : IBelgeUyariService
         var evraklarByArac = tumEvraklar.GroupBy(e => e.AracId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        var sutunlar = new[] { "Ruhsat", "Sigorta", "Muayene", "Uygunluk", "KoltukSigortasi", "Kasko" };
+        var sutunlar = new[] { "Sigorta", "Muayene", "Uygunluk", "KoltukSigortasi", "Kasko" };
         var result = new List<AracBelgeTabloKalemi>();
 
         foreach (var a in araclar)
@@ -483,8 +476,7 @@ public class BelgeUyariService : IBelgeUyariService
                     .FirstOrDefault();
             }
 
-            var ruhsatEv = Bul("Ruhsat");
-            var sigortaEv = Bul("Sigorta");
+                        var sigortaEv = Bul("Sigorta");
             var muayeneEv = Bul("Muayene");
             var uygunlukEv = Bul("Uygunluk");
             var koltukEv = Bul("KoltukSigortasi");
@@ -505,7 +497,6 @@ public class BelgeUyariService : IBelgeUyariService
                 });
             }
 
-            DosyaEkle(ruhsatEv, KategoriEslestir("Ruhsat"));
             DosyaEkle(sigortaEv, KategoriEslestir("Sigorta"));
             DosyaEkle(muayeneEv, KategoriEslestir("Muayene"));
             DosyaEkle(uygunlukEv, KategoriEslestir("Uygunluk"));
@@ -530,7 +521,6 @@ public class BelgeUyariService : IBelgeUyariService
                 ToplamEvrakSayisi = sutunlar.Length,
                 YuklenmisEvrakSayisi = dosyalar.Count(d => d.DosyaVar),
                 EvrakDosyalari = dosyalar,
-                RuhsatGecerlilik = ruhsatEv?.BitisTarihi,
                 SigortaGecerlilik = sigortaTarihi,
                 MuayeneGecerlilik = muayeneTarihi,
                 UygunlukGecerlilik = uygunlukEv?.BitisTarihi,
@@ -572,7 +562,6 @@ public class BelgeUyariService : IBelgeUyariService
                 arac.KoltukSigortasiBitisTarihi = bitisTarihi.HasValue
                     ? DateTime.SpecifyKind(bitisTarihi.Value, DateTimeKind.Utc) : null;
                 break;
-            case "Ruhsat":
             case "Uygunluk":
                 // Bu tarihler Arac entity'de yok → AracEvrak üzerine kaydedilir/güncellenir
                 break;
@@ -720,5 +709,14 @@ public class BelgeUyariService : IBelgeUyariService
         return zipMs.ToArray();
     }
 }
+
+
+
+
+
+
+
+
+
 
 

@@ -1,4 +1,4 @@
-﻿@page "/soforler/yeni"
+@page "/soforler/yeni"
 @page "/soforler/{Id:int}"
 @page "/personel/yeni"
 @page "/personel/{Id:int}"
@@ -181,8 +181,8 @@
                         </div>
                         <div class="col-md-3">
                             <div class="mb-3">
-                                <label class="form-label">SRC Belgesi Geçerlilik</label>
-                                <InputDate @bind-Value="sofor.SrcBelgesiGecerlilikTarihi" class="form-control" />
+                                <label class="form-label">MYK Belgesi Geçerlilik</label>
+                                <InputDate @bind-Value="sofor.MykBelgesiGecerlilikTarihi" class="form-control" />
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -197,6 +197,12 @@
                             <div class="mb-3">
                                 <label class="form-label">Sağlık Raporu Geçerlilik</label>
                                 <InputDate @bind-Value="sofor.SaglikRaporuGecerlilikTarihi" class="form-control" />
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Yaygın Eğitim Geçerlilik</label>
+                                <InputDate @bind-Value="sofor.SrcBelgesiGecerlilikTarihi" class="form-control" />
                             </div>
                         </div>
                     </div>
@@ -1133,6 +1139,7 @@
 
         await BrutMaasHesaplaAsync();
         sofor.NetMaas = YuvarlaPara(sofor.ResmiNetMaas + sofor.DigerMaas);
+        sofor.YayginEgitimSertifikasiVarMi = sofor.SrcBelgesiGecerlilikTarihi.HasValue;
 
         try
         {
@@ -1692,3 +1699,5 @@
 
     #endregion
 }
+
+

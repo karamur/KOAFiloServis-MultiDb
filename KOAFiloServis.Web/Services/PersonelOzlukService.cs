@@ -369,7 +369,7 @@ public class PersonelOzlukService : IPersonelOzlukService
     }
 
     /// <summary>
-    /// Belge alan adına göre (Ehliyet, Kimlik, Src, Psikoteknik, AdliSicil, SaglikRaporu, SuruculCezaBarkod)
+    /// Belge alan adına göre (Ehliyet, Kimlik, MykBelgesi, YayginEgitim, Psikoteknik, AdliSicil, SaglikRaporu, SuruculCezaBarkod)
     /// ilgili özlük evrak tanımını bulup dosyayı yükler. Tanım yoksa otomatik oluşturur.
     /// </summary>
     public async Task<PersonelOzlukEvrak?> BelgeAlaniIleDosyaYukleAsync(int soforId, string belgeAlani, string dosyaYolu)
@@ -380,7 +380,9 @@ public class PersonelOzlukService : IPersonelOzlukService
         {
             "Ehliyet" => (new[] { "Ehliyet" }, "Ehliyet Fotokopisi", OzlukEvrakKategori.SoforBelgeleri),
             "Kimlik" => (new[] { "Kimlik Fotokopisi", "Nüfus Cüzdanı" }, "Kimlik Fotokopisi", OzlukEvrakKategori.KimlikBelgeleri),
-            "Src" => (new[] { "SRC" }, "SRC Belgesi", OzlukEvrakKategori.SoforBelgeleri),
+            "MykBelgesi" => (new[] { "MYK", "Mesleki Yeterlilik", "SRC" }, "MYK Belgesi", OzlukEvrakKategori.SoforBelgeleri),
+            "Src" => (new[] { "MYK", "Mesleki Yeterlilik", "SRC" }, "MYK Belgesi", OzlukEvrakKategori.SoforBelgeleri),
+            "YayginEgitim" => (new[] { "Yaygın Eğitim", "Yaygin Egitim", "Yaygın Eğitim Sertifikası", "Yaygin Egitim Sertifikasi" }, "Yaygın Eğitim Sertifikası", OzlukEvrakKategori.EgitimBelgeleri),
             "Psikoteknik" => (new[] { "Psikoteknik" }, "Psikoteknik Belgesi", OzlukEvrakKategori.SoforBelgeleri),
             "AdliSicil" => (new[] { "Adli Sicil", "Sabıka" }, "Adli Sicil Kaydı", OzlukEvrakKategori.KimlikBelgeleri),
             "SaglikRaporu" => (new[] { "Sağlık Rapor", "Saglik Rapor" }, "Sağlık Raporu", OzlukEvrakKategori.SaglikBelgeleri),
@@ -742,7 +744,7 @@ public class PersonelOzlukService : IPersonelOzlukService
                         AddRow("İşe Başlama Tarihi", personelBilgili ? personel?.IseBaslamaTarihi?.ToString("dd.MM.yyyy") : null);
                         AddRow("Ehliyet No", personelBilgili ? personel?.EhliyetNo : null);
                         AddRow("Ehliyet Geçerlilik", personelBilgili ? personel?.EhliyetGecerlilikTarihi?.ToString("dd.MM.yyyy") : null);
-                        AddRow("SRC Geçerlilik", personelBilgili ? personel?.SrcBelgesiGecerlilikTarihi?.ToString("dd.MM.yyyy") : null);
+                        AddRow("Yaygın Eğitim Geçerlilik", personelBilgili ? personel?.SrcBelgesiGecerlilikTarihi?.ToString("dd.MM.yyyy") : null);
                         AddRow("Psikoteknik Geçerlilik", personelBilgili ? personel?.PsikoteknikGecerlilikTarihi?.ToString("dd.MM.yyyy") : null);
                         AddRow("Sağlık Raporu Geçerlilik", personelBilgili ? personel?.SaglikRaporuGecerlilikTarihi?.ToString("dd.MM.yyyy") : null);
                         AddRow("Net Maaş", personelBilgili ? personel?.NetMaas.ToString("N2") : null);

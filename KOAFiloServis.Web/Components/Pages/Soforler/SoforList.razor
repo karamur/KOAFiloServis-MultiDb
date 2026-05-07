@@ -1,4 +1,4 @@
-﻿@page "/soforler"
+@page "/soforler"
 @page "/personel"
 @using KOAFiloServis.Shared.Entities
 @using KOAFiloServis.Web.Services
@@ -171,13 +171,22 @@
                                                     <i class="bi bi-card-text"></i>
                                                 </span>
                                             }
-                                            @* SRC durumu *@
+                                            @* MYK durumu *@
+                                            @if (personel.MykBelgesiGecerlilikTarihi.HasValue)
+                                            {
+                                                var gunKaldi = (personel.MykBelgesiGecerlilikTarihi.Value - DateTime.Today).Days;
+                                                <span class="badge @(gunKaldi < 30 ? "bg-danger" : gunKaldi < 60 ? "bg-warning text-dark" : "bg-success") ms-1" 
+                                                      title="MYK: @personel.MykBelgesiGecerlilikTarihi.Value.ToString("dd.MM.yyyy")">
+                                                    <i class="bi bi-award"></i>
+                                                </span>
+                                            }
+                                            @* Yaygın eğitim durumu *@
                                             @if (personel.SrcBelgesiGecerlilikTarihi.HasValue)
                                             {
                                                 var gunKaldi = (personel.SrcBelgesiGecerlilikTarihi.Value - DateTime.Today).Days;
-                                                <span class="badge @(gunKaldi < 30 ? "bg-danger" : gunKaldi < 60 ? "bg-warning text-dark" : "bg-success") ms-1" 
-                                                      title="SRC: @personel.SrcBelgesiGecerlilikTarihi.Value.ToString("dd.MM.yyyy")">
-                                                    <i class="bi bi-file-earmark-check"></i>
+                                                <span class="badge @(gunKaldi < 30 ? "bg-danger" : gunKaldi < 60 ? "bg-warning text-dark" : "bg-success") ms-1"
+                                                      title="Yaygın Eğitim: @personel.SrcBelgesiGecerlilikTarihi.Value.ToString("dd.MM.yyyy")">
+                                                    <i class="bi bi-mortarboard"></i>
                                                 </span>
                                             }
                                         }
@@ -735,3 +744,5 @@
         }
     }
 }
+
+

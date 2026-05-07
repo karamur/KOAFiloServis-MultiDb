@@ -1036,7 +1036,8 @@
         => EvrakTuruBelirle(evrak) switch
         {
             "Ehliyet" => personel.EhliyetGecerlilikTarihi,
-            "Src" => personel.SrcBelgesiGecerlilikTarihi,
+            "MykBelgesi" => personel.MykBelgesiGecerlilikTarihi,
+            "YayginEgitim" => personel.SrcBelgesiGecerlilikTarihi,
             "Psikoteknik" => personel.PsikoteknikGecerlilikTarihi,
             "Saglik" => personel.SaglikRaporuGecerlilikTarihi,
             "Sozlesme" => personel.IseBaslamaTarihi,
@@ -1050,8 +1051,12 @@
             case "Ehliyet":
                 personel.EhliyetGecerlilikTarihi = tarih;
                 return true;
-            case "Src":
+            case "MykBelgesi":
+                personel.MykBelgesiGecerlilikTarihi = tarih;
+                return true;
+            case "YayginEgitim":
                 personel.SrcBelgesiGecerlilikTarihi = tarih;
+                personel.YayginEgitimSertifikasiVarMi = true;
                 return true;
             case "Psikoteknik":
                 personel.PsikoteknikGecerlilikTarihi = tarih;
@@ -1074,8 +1079,18 @@
         if (ad.Contains("Ehliyet", StringComparison.OrdinalIgnoreCase))
             return "Ehliyet";
 
+        if (ad.Contains("MYK", StringComparison.OrdinalIgnoreCase)
+            || ad.Contains("Mesleki Yeterlilik", StringComparison.OrdinalIgnoreCase))
+            return "MykBelgesi";
+
+        if (ad.Contains("Yaygın Eğitim", StringComparison.OrdinalIgnoreCase)
+            || ad.Contains("Yaygin Egitim", StringComparison.OrdinalIgnoreCase)
+            || ad.Contains("Yaygın Eğitim Sertifikası", StringComparison.OrdinalIgnoreCase)
+            || ad.Contains("Yaygin Egitim Sertifikasi", StringComparison.OrdinalIgnoreCase))
+            return "YayginEgitim";
+
         if (ad.Contains("SRC", StringComparison.OrdinalIgnoreCase))
-            return "Src";
+            return "YayginEgitim";
 
         if (ad.Contains("Psikoteknik", StringComparison.OrdinalIgnoreCase))
             return "Psikoteknik";

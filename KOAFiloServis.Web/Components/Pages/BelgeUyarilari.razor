@@ -1,4 +1,4 @@
-﻿@page "/belge-uyarilari"
+@page "/belge-uyarilari"
 @attribute [Authorize]
 @using Microsoft.AspNetCore.Authorization
 @using KOAFiloServis.Web.Services
@@ -369,10 +369,10 @@
                         </div>
                     </div>
                     <div class="col-md-2 text-center mb-3">
-                        <div class="p-3 border rounded @(uyarilar.SrcUyarilari.Any(u => u.KalanGun < 0) ? "border-danger" : "")">
+                        <div class="p-3 border rounded @(uyarilar.MykBelgesiUyarilari.Any(u => u.KalanGun < 0) ? "border-danger" : "")">
                             <i class="bi bi-file-earmark-check" style="font-size: 2rem;"></i>
-                            <h4 class="mt-2 mb-0">@uyarilar.SrcUyarilari.Count</h4>
-                            <small class="text-muted">SRC Belgesi</small>
+                            <h4 class="mt-2 mb-0">@uyarilar.MykBelgesiUyarilari.Count</h4>
+                            <small class="text-muted">MYK Belgesi</small>
                         </div>
                     </div>
                     <div class="col-md-2 text-center mb-3">
@@ -548,7 +548,8 @@
                                     <th class="text-center" style="width:40px;">Görev</th>
                                     <th class="text-center bg-primary bg-opacity-25" style="width:90px;" title="Ehliyet Geçerlilik">Ehliyet</th>
                                     <th class="text-center bg-info bg-opacity-25" style="width:90px;" title="Kimlik Geçerlilik">Kimlik</th>
-                                    <th class="text-center bg-success bg-opacity-25" style="width:90px;" title="SRC Belgesi">SRC</th>
+                                    <th class="text-center bg-success bg-opacity-25" style="width:90px;" title="MYK Belgesi">MYK</th>
+                                    <th class="text-center bg-light" style="width:90px;" title="Yaygın Eğitim Sertifikası">Yaygın Eğitim</th>
                                     <th class="text-center bg-warning bg-opacity-25" style="width:90px;" title="Psikoteknik">Psikoteknik</th>
                                     <th class="text-center bg-danger bg-opacity-25" style="width:90px;" title="Adli Sicil">Adli Sicil</th>
                                     <th class="text-center bg-secondary bg-opacity-25" style="width:90px;" title="Sağlık Raporu">Sağlık</th>
@@ -580,9 +581,13 @@
                                         <td class="text-center p-1">
                                             @BelgeHucre(item, "Kimlik", item.KimlikGecerlilik)
                                         </td>
-                                        <!-- SRC -->
+                                        <!-- MYK -->
                                         <td class="text-center p-1">
-                                            @BelgeHucre(item, "Src", item.SrcGecerlilik)
+                                            @BelgeHucre(item, "MykBelgesi", item.MykBelgesiGecerlilik)
+                                        </td>
+                                        <!-- Yaygın Eğitim -->
+                                        <td class="text-center p-1">
+                                            @BelgeHucre(item, "YayginEgitim", item.YayginEgitimGecerlilik)
                                         </td>
                                         <!-- Psikoteknik -->
                                         <td class="text-center p-1">
@@ -745,7 +750,6 @@
                                     </th>
                                     <th>Araç</th>
                                     <th class="text-center" style="width:90px;">Tip</th>
-                                    <th class="text-center bg-primary bg-opacity-25" style="width:100px;" title="Ruhsat">Ruhsat</th>
                                     <th class="text-center bg-info bg-opacity-25" style="width:100px;" title="Trafik Sigortası">Sigorta</th>
                                     <th class="text-center bg-success bg-opacity-25" style="width:100px;" title="Muayene">Muayene</th>
                                     <th class="text-center bg-warning bg-opacity-25" style="width:100px;" title="Uygunluk Belgesi">Uygunluk</th>
@@ -768,7 +772,6 @@
                                             <br /><small class="text-muted">@item.MarkaModel</small>
                                         </td>
                                         <td class="text-center"><span class="badge bg-dark" style="font-size:0.7rem;">@item.AracTipi</span></td>
-                                        <td class="text-center p-1">@AracBelgeHucre(item, "Ruhsat", item.RuhsatGecerlilik)</td>
                                         <td class="text-center p-1">@AracBelgeHucre(item, "Sigorta", item.SigortaGecerlilik)</td>
                                         <td class="text-center p-1">@AracBelgeHucre(item, "Muayene", item.MuayeneGecerlilik)</td>
                                         <td class="text-center p-1">@AracBelgeHucre(item, "Uygunluk", item.UygunlukGecerlilik)</td>
@@ -1147,7 +1150,8 @@
 
     private List<BelgeUyari> FiltrelenmisPersonelUyarilari => FiltreUygula(
         (uyarilar?.EhliyetUyarilari ?? new List<BelgeUyari>())
-        .Concat(uyarilar?.SrcUyarilari ?? new List<BelgeUyari>())
+        .Concat(uyarilar?.MykBelgesiUyarilari ?? new List<BelgeUyari>())
+        .Concat(uyarilar?.YayginEgitimUyarilari ?? new List<BelgeUyari>())
         .Concat(uyarilar?.PsikoteknikUyarilari ?? new List<BelgeUyari>())
         .Concat(uyarilar?.SaglikRaporuUyarilari ?? new List<BelgeUyari>())
         .Concat(uyarilar?.DigerPersonelEvrakUyarilari ?? new List<BelgeUyari>()));
@@ -1383,7 +1387,11 @@
                 {
                     case "Ehliyet": editItem.EhliyetGecerlilik = editTarih; break;
                     case "Kimlik": editItem.KimlikGecerlilik = editTarih; break;
-                    case "Src": editItem.SrcGecerlilik = editTarih; break;
+                    case "MykBelgesi": editItem.MykBelgesiGecerlilik = editTarih; break;
+                    case "YayginEgitim":
+                        editItem.YayginEgitimGecerlilik = editTarih;
+                        editItem.YayginEgitimSertifikasiVarMi = editTarih.HasValue;
+                        break;
                     case "Psikoteknik": editItem.PsikoteknikGecerlilik = editTarih; break;
                     case "AdliSicil": editItem.AdliSicilGecerlilik = editTarih; break;
                     case "SaglikRaporu": editItem.SaglikRaporuGecerlilik = editTarih; break;
@@ -1451,13 +1459,15 @@
     }
 
     // Tablodaki sütunlara karşılık gelen belge tanım adları (özlük evrak tanımıyla eşleşmesi gereken).
-    // Personel listesinde görünen 7 belge (Ehliyet, Kimlik, SRC, Psikoteknik, Adli Sicil, Sağlık, Ceza Barkod)
+    // Personel listesinde görünen 8 belge (Ehliyet, Kimlik, MYK, Yaygın Eğitim, Psikoteknik, Adli Sicil, Sağlık, Ceza Barkod)
     // dışındaki tüm özlük evrakları modalda gizlenir.
     private static readonly string[] TabloBelgeAnahtarlari = new[]
     {
         "ehliyet",
         "kimlik",
-        "src",
+        "myk",
+        "yaygın",
+        "yaygin",
         "psikoteknik",
         "adli sicil",
         "sabıka",
@@ -1632,15 +1642,15 @@
 
     private static IEnumerable<DateTime> GetTumBelgeTarihleri(PersonelBelgeTabloKalemi p)
     {
-        DateTime?[] list = [p.EhliyetGecerlilik, p.KimlikGecerlilik, p.SrcGecerlilik,
-            p.PsikoteknikGecerlilik, p.AdliSicilGecerlilik, p.SaglikRaporuGecerlilik, p.SuruculCezaBarkodGecerlilik];
+        DateTime?[] list = [p.EhliyetGecerlilik, p.KimlikGecerlilik, p.MykBelgesiGecerlilik,
+            p.YayginEgitimGecerlilik, p.PsikoteknikGecerlilik, p.AdliSicilGecerlilik, p.SaglikRaporuGecerlilik, p.SuruculCezaBarkodGecerlilik];
         return list.Where(d => d.HasValue).Select(d => d!.Value);
     }
 
     private static int GetEksikBelgeSayisi(PersonelBelgeTabloKalemi p)
     {
-        DateTime?[] list = [p.EhliyetGecerlilik, p.KimlikGecerlilik, p.SrcGecerlilik,
-            p.PsikoteknikGecerlilik, p.AdliSicilGecerlilik, p.SaglikRaporuGecerlilik, p.SuruculCezaBarkodGecerlilik];
+        DateTime?[] list = [p.EhliyetGecerlilik, p.KimlikGecerlilik, p.MykBelgesiGecerlilik,
+            p.YayginEgitimGecerlilik, p.PsikoteknikGecerlilik, p.AdliSicilGecerlilik, p.SaglikRaporuGecerlilik, p.SuruculCezaBarkodGecerlilik];
         return list.Count(d => !d.HasValue);
     }
 
@@ -1813,7 +1823,6 @@
             {
                 switch (editAracBelgeAlani)
                 {
-                    case "Ruhsat": editAracItem.RuhsatGecerlilik = editAracTarih; break;
                     case "Sigorta": editAracItem.SigortaGecerlilik = editAracTarih; break;
                     case "Muayene": editAracItem.MuayeneGecerlilik = editAracTarih; break;
                     case "Uygunluk": editAracItem.UygunlukGecerlilik = editAracTarih; break;
@@ -1966,21 +1975,20 @@
 
     private static IEnumerable<DateTime> GetTumAracBelgeTarihleri(AracBelgeTabloKalemi p)
     {
-        DateTime?[] list = [p.RuhsatGecerlilik, p.SigortaGecerlilik, p.MuayeneGecerlilik,
+        DateTime?[] list = [p.SigortaGecerlilik, p.MuayeneGecerlilik,
             p.UygunlukGecerlilik, p.KoltukSigortasiGecerlilik, p.KaskoGecerlilik];
         return list.Where(d => d.HasValue).Select(d => d!.Value);
     }
 
     private static int GetEksikAracBelgeSayisi(AracBelgeTabloKalemi p)
     {
-        DateTime?[] list = [p.RuhsatGecerlilik, p.SigortaGecerlilik, p.MuayeneGecerlilik,
+        DateTime?[] list = [p.SigortaGecerlilik, p.MuayeneGecerlilik,
             p.UygunlukGecerlilik, p.KoltukSigortasiGecerlilik, p.KaskoGecerlilik];
         return list.Count(d => !d.HasValue);
     }
 
     private static string GetAracBelgeAdi(string alan) => alan switch
     {
-        "Ruhsat" => "Ruhsat",
         "Sigorta" => "Trafik Sigortası",
         "Muayene" => "Muayene",
         "Uygunluk" => "Uygunluk Belgesi",
@@ -2016,6 +2024,17 @@
         builder.AddAttribute(5, "onclick", EventCallback.Factory.Create(this, () =>
             TarihDuzenle(item, alan, GetBelgeAdi(alan), tarih)));
         builder.AddContent(6, txt);
+        builder.CloseElement();
+    };
+
+    /// <summary>
+    /// Bool (var/yok) badge render eder – tarih yerine Evet/Hayır gösterir.
+    /// </summary>
+    private RenderFragment BelgeBoolHucre(PersonelBelgeTabloKalemi item, string alan, bool deger) => builder =>
+    {
+        builder.OpenElement(0, "span");
+        builder.AddAttribute(1, "class", deger ? "badge bg-success" : "badge bg-secondary");
+        builder.AddContent(2, deger ? "Evet" : "Hayır");
         builder.CloseElement();
     };
 
@@ -2087,7 +2106,8 @@
         {
             "Ehliyet" => new[] { "Ehliyet" },
             "Kimlik" => new[] { "Kimlik Fotokopisi", "Nüfus Cüzdanı" },
-            "Src" => new[] { "SRC" },
+            "MykBelgesi" => new[] { "MYK", "Mesleki Yeterlilik", "SRC" },
+            "YayginEgitim" => new[] { "Yaygın Eğitim", "Yaygin Egitim", "Yaygın Eğitim Sertifikası", "Yaygin Egitim Sertifikasi" },
             "Psikoteknik" => new[] { "Psikoteknik" },
             "AdliSicil" => new[] { "Adli Sicil", "Sabıka" },
             "SaglikRaporu" => new[] { "Sağlık Rapor", "Saglik Rapor" },
@@ -2183,7 +2203,8 @@
     {
         "Ehliyet" => "Ehliyet",
         "Kimlik" => "Kimlik",
-        "Src" => "SRC Belgesi",
+        "MykBelgesi" => "MYK Belgesi",
+        "YayginEgitim" => "Yaygın Eğitim Sertifikası",
         "Psikoteknik" => "Psikoteknik",
         "AdliSicil" => "Adli Sicil",
         "SaglikRaporu" => "Sağlık Raporu",
@@ -2191,6 +2212,12 @@
         _ => alan
     };
 }
+
+
+
+
+
+
 
 
 

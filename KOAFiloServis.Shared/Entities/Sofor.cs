@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace KOAFiloServis.Shared.Entities;
 
@@ -30,6 +30,8 @@ public class Sofor : BaseEntity
     // Şoför Belgeler (Sadece şoförler için)
     public string? EhliyetNo { get; set; }
     public DateTime? EhliyetGecerlilikTarihi { get; set; }
+    public DateTime? MykBelgesiGecerlilikTarihi { get; set; }
+    public bool YayginEgitimSertifikasiVarMi { get; set; } = false;
     public DateTime? SrcBelgesiGecerlilikTarihi { get; set; }
     public DateTime? PsikoteknikGecerlilikTarihi { get; set; }
     public DateTime? SaglikRaporuGecerlilikTarihi { get; set; }
@@ -178,3 +180,8 @@ public enum SgkCalismaTuru
     EskiHukumlu = 13,         // Eski Hükümlü (%2 kotası)
     TerörMagduru = 14,        // Terör Mağduru (%1 kotası)
 }
+
+
+
+
+
