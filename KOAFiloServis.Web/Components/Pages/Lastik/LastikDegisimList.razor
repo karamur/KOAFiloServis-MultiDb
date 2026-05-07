@@ -292,6 +292,73 @@
                             </div>
                         </div>
 
+                        <!-- Araçta takılı + depoda mevcut lastikler özeti -->
+                        @if (editDegisim.AracId > 0)
+                        {
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="card border-primary">
+                                        <div class="card-header py-1 bg-primary text-white small">
+                                            <i class="bi bi-truck me-1"></i>Araçta Takılı Lastikler
+                                            <span class="badge bg-white text-primary ms-1">@formAracTakiliLastikler.Count</span>
+                                        </div>
+                                        <div class="card-body py-2 px-2">
+                                            @if (!formAracTakiliLastikler.Any())
+                                            {
+                                                <span class="text-muted small">Bu araçta kayıtlı takılı lastik yok.</span>
+                                            }
+                                            else
+                                            {
+                                                <div class="d-flex flex-wrap gap-1">
+                                                    @foreach (var t in formAracTakiliLastikler)
+                                                    {
+                                                        <span class="badge bg-primary">
+                                                            @(t.Marka ?? "(?)") @t.Ebat
+                                                            <span class="ms-1 fw-normal">@GetSezonText(t.Sezon)</span>
+                                                        </span>
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card border-secondary">
+                                        <div class="card-header py-1 bg-secondary text-white small">
+                                            <i class="bi bi-archive me-1"></i>Depoda Kullanılabilir
+                                            <span class="badge bg-white text-secondary ms-1">@formDepoLastikleri.Count</span>
+                                        </div>
+                                        <div class="card-body py-2 px-2">
+                                            @if (!formDepoLastikleri.Any())
+                                            {
+                                                <span class="text-muted small">Depoda kullanılabilir lastik yok.</span>
+                                            }
+                                            else
+                                            {
+                                                <div class="d-flex flex-wrap gap-1">
+                                                    @foreach (var dep in formDepoLastikleri.Take(8))
+                                                    {
+                                                        <span class="badge bg-secondary">
+                                                            @(dep.Marka ?? "(?)") @dep.Ebat
+                                                            <span class="ms-1 fw-normal">@GetSezonText(dep.Sezon)</span>
+                                                            @if (!string.IsNullOrWhiteSpace(dep.Depo?.DepoAdi))
+                                                            {
+                                                                <small class="ms-1 opacity-75">(@dep.Depo!.DepoAdi)</small>
+                                                            }
+                                                        </span>
+                                                    }
+                                                    @if (formDepoLastikleri.Count > 8)
+                                                    {
+                                                        <span class="badge bg-light text-dark border">+@(formDepoLastikleri.Count - 8) daha</span>
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
                         <div class="card mb-3">
                             <div class="card-header d-flex justify-content-between align-items-center">
                                 <div>
@@ -357,6 +424,7 @@
                                                 <th style="width:180px;">Takılan Kaynak Depo</th>
                                                 <th>Sökülen Stok</th>
                                                 <th style="width:180px;">Sökülen Hedef Depo</th>
+                                                <th style="width:140px;">Sökülen Akibet</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -393,7 +461,9 @@
                                                                 <option value="">-- Stok Seçin --</option>
                                                                 @foreach (var s in GetTakilabilirStoklar(satir))
                                                                 {
-                                                                    <option value="@s.Id">@s.Ebat @s.Marka (@s.Depo?.DepoAdi)</option>
+                                                                    var yedekLabel = s.YedekMi ? " [Yedek]" : "";
+                                                                    var depoLabel = s.Depo?.DepoAdi ?? "Depo?";
+                                                                    <option value="@s.Id">@s.Ebat @s.Marka @GetSezonText(s.Sezon)@yedekLabel — @depoLabel</option>
                                                                 }
                                                             </InputSelect>
                                                         }
@@ -409,10 +479,11 @@
                                                     </td>
                                                     <td>
                                                         <InputSelect @bind-Value="satir.SokulenStokId" class="form-select form-select-sm" disabled="@(!satir.IslemYapilsin)">
-                                                            <option value="">-- Stok Seçin --</option>
+                                                            <option value="">— Sökülen yok / seçiniz —</option>
                                                             @foreach (var s in GetSokulebilirStoklar(satir))
                                                             {
-                                                                <option value="@s.Id">@s.Ebat @s.Marka (@(s.Arac?.AktifPlaka ?? s.Depo?.DepoAdi))</option>
+                                                                var lokasyon = s.AracId.HasValue ? $"Takılı: {s.Arac?.AktifPlaka ?? "?"}" : (s.Depo?.DepoAdi ?? "Depo?");
+                                                                <option value="@s.Id">@s.Ebat @s.Marka @GetSezonText(s.Sezon) — @lokasyon</option>
                                                             }
                                                         </InputSelect>
                                                     </td>
@@ -423,6 +494,13 @@
                                                             {
                                                                 <option value="@d.Id">@d.DepoAdi</option>
                                                             }
+                                                        </InputSelect>
+                                                    </td>
+                                                    <td>
+                                                        <InputSelect @bind-Value="satir.SokulenAkibet" class="form-select form-select-sm" disabled="@(!satir.IslemYapilsin || !satir.SokulenStokId.HasValue)">
+                                                            <option value="depo">Depoda (kullanılabilir)</option>
+                                                            <option value="tamir">Tamire gönderildi</option>
+                                                            <option value="cop">Hurdaya çıkarıldı</option>
                                                         </InputSelect>
                                                     </td>
                                                 </tr>
@@ -808,6 +886,16 @@
                             </select>
                         </div>
 
+                        <!-- Sökülenin akibeti -->
+                        <div class="col-md-6">
+                            <label class="form-label">Sökülenin Akibeti</label>
+                            <select class="form-select form-select-sm" @bind="hizliAkibet">
+                                <option value="depo">Depoda (kullanılabilir)</option>
+                                <option value="tamir">Tamire gönderildi</option>
+                                <option value="cop">Hurdaya çıkarıldı</option>
+                            </select>
+                        </div>
+
                         <!-- Değişim türü -->
                         <div class="col-md-4">
                             <label class="form-label">Değişim Türü</label>
@@ -903,12 +991,17 @@
     private bool showAracDetayModal;
     private bool kaydediliyor;
 
+    // Form: araçta takılı lastikler (seçili araç için)
+    private List<LastikStok> formAracTakiliLastikler = new();
+    private List<LastikStok> formDepoLastikleri = new();
+
     // Hızlı değişim alanları
     private bool showHizliDegisimModal;
     private bool hizliKaydediliyor;
     private LastikStok? hizliSokulenStok;
     private int? hizliTakilanStokId;
     private int? hizliHedefDepoId;
+    private string hizliAkibet = "depo";
     private DateTime hizliTarih = DateTime.Today;
     private int? hizliKm;
     private string hizliYer = string.Empty;
@@ -1052,7 +1145,32 @@
         ortakTakilanStokId = null;
         ortakKaynakDepoId = null;
         ortakHedefDepoId = null;
+
+        // Araçta takılı ve depodaki lastikleri yükle
+        formAracTakiliLastikler = stoklar
+            .Where(s => s.AracId == aracId && s.Aktif)
+            .OrderBy(s => s.Marka)
+            .ThenBy(s => s.Ebat)
+            .ToList();
+        formDepoLastikleri = stoklar
+            .Where(s => s.AracId == null && s.Aktif && s.Durum == LastikDurum.Kullanilabilir)
+            .OrderBy(s => s.Depo?.DepoAdi)
+            .ThenBy(s => s.Ebat)
+            .ToList();
+
+        var arac = araclar.FirstOrDefault(a => a.Id == aracId);
+        formAracArama = arac != null ? $"{arac.AktifPlaka} {arac.Marka} {arac.Model}".Trim() : string.Empty;
+
         HazirlaDegisimSatirlari(degisimAdet);
+
+        // Sökülen satırlarını araçtaki lastiklerle otomatik doldur
+        for (int i = 0; i < degisimSatirlari.Count; i++)
+        {
+            degisimSatirlari[i].SokulenStokId = i < formAracTakiliLastikler.Count
+                ? formAracTakiliLastikler[i].Id
+                : null;
+        }
+
         showAracDetayModal = false;
         showForm = true;
     }
@@ -1062,6 +1180,7 @@
         hizliSokulenStok = sokulenStok;
         hizliTakilanStokId = null;
         hizliHedefDepoId = null;
+        hizliAkibet = "depo";
         hizliTarih = DateTime.Today;
         hizliKm = null;
         hizliYer = string.Empty;
@@ -1084,6 +1203,29 @@
         hizliKaydediliyor = true;
         try
         {
+            var payload = new LastikDegisimNotPayload
+            {
+                GirisTipi = "hizli",
+                Adet = 1,
+                SetAdedi = 1,
+                IslemGorenAdet = 1,
+                UserNot = hizliNeden,
+                Satirlar = new List<LastikDegisimNotSatir>
+                {
+                    new()
+                    {
+                        IslemYapildiMi = true,
+                        Pozisyon = hizliSokulenStok.Notlar ?? "?",
+                        TakilanStokId = hizliTakilanStokId,
+                        KaynakDepoId = null,
+                        SokulenStokId = hizliSokulenStok.Id,
+                        SokulenEtiket = $"{hizliSokulenStok.Marka} {hizliSokulenStok.Ebat}",
+                        HedefDepoId = hizliHedefDepoId,
+                        SokulenAkibet = hizliAkibet
+                    }
+                }
+            };
+
             var degisim = new LastikDegisim
             {
                 AracId = seciliAracDetay.AracId,
@@ -1094,7 +1236,7 @@
                 TakilanStokId = hizliTakilanStokId,
                 SokulenStokId = hizliSokulenStok.Id,
                 HedefDepoId = hizliHedefDepoId,
-                Notlar = hizliNeden
+                Notlar = System.Text.Json.JsonSerializer.Serialize(payload)
             };
 
             await LastikService.CreateDegisimAsync(degisim);
@@ -1149,6 +1291,28 @@
         editDegisim.AracId = arac.Id;
         formAracArama = $"{arac.AktifPlaka} {arac.Marka} {arac.Model}".Trim();
         formAracDropAcik = false;
+
+        // Araçta şu an takılı lastikleri güncelle
+        formAracTakiliLastikler = stoklar
+            .Where(s => s.AracId == arac.Id && s.Aktif)
+            .OrderBy(s => s.Marka)
+            .ThenBy(s => s.Ebat)
+            .ToList();
+
+        // Depo ve yedek lastiklerini güncelle
+        formDepoLastikleri = stoklar
+            .Where(s => s.AracId == null && s.Aktif && s.Durum == LastikDurum.Kullanilabilir)
+            .OrderBy(s => s.Depo?.DepoAdi)
+            .ThenBy(s => s.Ebat)
+            .ToList();
+
+        // Sökülen satırlarını araçtaki lastiklerle otomatik doldur
+        for (int i = 0; i < degisimSatirlari.Count; i++)
+        {
+            degisimSatirlari[i].SokulenStokId = i < formAracTakiliLastikler.Count
+                ? formAracTakiliLastikler[i].Id
+                : null;
+        }
     }
 
     private async Task FormAracDropKapat()
@@ -1171,6 +1335,12 @@
         ortakTakilanStokId = null;
         ortakKaynakDepoId = null;
         ortakHedefDepoId = null;
+        formAracTakiliLastikler = new();
+        formDepoLastikleri = stoklar
+            .Where(s => s.AracId == null && s.Aktif && s.Durum == LastikDurum.Kullanilabilir)
+            .OrderBy(s => s.Depo?.DepoAdi)
+            .ThenBy(s => s.Ebat)
+            .ToList();
         HazirlaDegisimSatirlari(degisimAdet);
         showForm = true;
     }
@@ -1307,6 +1477,7 @@
                     SokulenEtiket = GetStokEtiket(s.SokulenStokId),
                     HedefDepoId = s.HedefDepoId,
                     HedefDepoAdi = GetDepoAdi(s.HedefDepoId),
+                    SokulenAkibet = s.SokulenAkibet,
                     SatinAlmaTedarikciAdi = s.TeminSekli == "satinalma" ? satinAlmaForm.TedarikciAdi : null,
                     SatinAlmaMarka = s.TeminSekli == "satinalma" ? satinAlmaForm.Marka : null,
                     SatinAlmaEbat = s.TeminSekli == "satinalma" ? satinAlmaForm.Ebat : null,
@@ -1672,6 +1843,7 @@
         LastikDurum.Kullanilabilir => "bg-success",
         LastikDurum.Hasarli => "bg-warning text-dark",
         LastikDurum.Hurda => "bg-danger",
+        LastikDurum.Tamir => "bg-orange text-dark",
         _ => "bg-secondary"
     };
 
@@ -1680,6 +1852,7 @@
         LastikDurum.Kullanilabilir => "Kullanilabilir",
         LastikDurum.Hasarli => "Hasarli",
         LastikDurum.Hurda => "Hurda",
+        LastikDurum.Tamir => "Tamirde",
         _ => d.ToString()
     };
 
@@ -1692,6 +1865,8 @@
         public int? KaynakDepoId { get; set; }
         public int? SokulenStokId { get; set; }
         public int? HedefDepoId { get; set; }
+        /// <summary>depo | tamir | cop</summary>
+        public string SokulenAkibet { get; set; } = "depo";
     }
 
     private sealed class LastikDegisimNotPayload
@@ -1720,6 +1895,7 @@
         public string? SokulenEtiket { get; set; }
         public int? HedefDepoId { get; set; }
         public string? HedefDepoAdi { get; set; }
+        public string? SokulenAkibet { get; set; }
 
         public string? SatinAlmaTedarikciAdi { get; set; }
         public string? SatinAlmaMarka { get; set; }

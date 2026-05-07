@@ -77,6 +77,19 @@
                         }
                     </select>
                 </div>
+                <div class="col-md-auto">
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn @(filtreTakimaDurum == null ? "btn-dark" : "btn-outline-dark")" @onclick='() => TakimaDurumFiltreDegistir(null)'>
+                            Tümü
+                        </button>
+                        <button type="button" class="btn @(filtreTakimaDurum == true ? "btn-primary" : "btn-outline-primary")" @onclick='() => TakimaDurumFiltreDegistir(true)'>
+                            <i class="bi bi-truck me-1"></i>Takılı
+                        </button>
+                        <button type="button" class="btn @(filtreTakimaDurum == false ? "btn-secondary" : "btn-outline-secondary")" @onclick='() => TakimaDurumFiltreDegistir(false)'>
+                            <i class="bi bi-archive me-1"></i>Depoda
+                        </button>
+                    </div>
+                </div>
                 <div class="col-md-3">
                     <div class="position-relative">
                         <input type="text" class="form-control form-control-sm" placeholder="Plaka ile filtrele..."
@@ -156,17 +169,19 @@
                                         <span class="badge @GetDurumBadge(s.Durum)">@GetDurumText(s.Durum)</span>
                                     </td>
                                     <td>
-                                        @if (s.YedekMi)
+                                        @if (s.AracId != null && s.Arac != null)
                                         {
-                                            <span class="badge bg-light text-dark border"><i class="bi bi-archive me-1"></i>Yedek</span>
+                                            <span class="badge bg-primary me-1"><i class="bi bi-truck"></i> Takılı</span>
+                                            <span>@s.Arac.AktifPlaka</span>
                                         }
-                                        else if (s.Arac != null)
+                                        else if (s.KaynakAracId != null && s.KaynakArac != null)
                                         {
-                                            <span><i class="bi bi-truck me-1 text-primary"></i>@s.Arac.AktifPlaka</span>
+                                            <span class="badge bg-info text-dark me-1"><i class="bi bi-archive"></i> Depoda</span>
+                                            <small class="text-info" title="Plakaya bağlı depoda">@s.KaynakArac.AktifPlaka</small>
                                         }
                                         else
                                         {
-                                            <span class="text-muted">Depoda</span>
+                                            <span class="badge bg-secondary"><i class="bi bi-archive"></i> Depoda</span>
                                         }
                                     </td>
                                     <td><small class="text-muted">@s.SeriNo</small></td>
@@ -601,8 +616,18 @@
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Araç (Plaka)</label>
+                                <div class="btn-group btn-group-sm mb-1 w-100" role="group">
+                                    <input type="radio" class="btn-check" name="konumModu" id="konumModuArac" value="arac"
+                                           checked="@(formAracKonumModu == "arac")"
+                                           @onchange='() => { formAracKonumModu = "arac"; editStok.KaynakAracId = null; }' />
+                                    <label class="btn btn-outline-primary" for="konumModuArac"><i class="bi bi-truck me-1"></i>Araç Üzerinde</label>
+                                    <input type="radio" class="btn-check" name="konumModu" id="konumModuDepo" value="depo"
+                                           checked="@(formAracKonumModu == "depo")"
+                                           @onchange='() => { formAracKonumModu = "depo"; editStok.AracId = null; }' />
+                                    <label class="btn btn-outline-secondary" for="konumModuDepo"><i class="bi bi-archive me-1"></i>Depoda (Plakaya Bağlı)</label>
+                                </div>
                                 <div class="position-relative">
-                                    <input type="text" class="form-control" placeholder="Plaka veya araç ara... (boş = depoda)"
+                                    <input type="text" class="form-control" placeholder="Plaka veya araç ara..."
                                            value="@formAracArama"
                                            @oninput="FormAracAramaGuncelle"
                                            @onfocus="() => formAracDropAcik = true"
@@ -611,7 +636,7 @@
                                     {
                                         <div class="dropdown-menu show w-100" style="max-height:220px;overflow-y:auto;z-index:1060;">
                                             <button type="button" class="dropdown-item" @onmousedown="() => FormAracSec(null)">
-                                                <span class="text-muted">-- Atama Yok (Depoda) --</span>
+                                                <span class="text-muted">-- Atama Yok --</span>
                                             </button>
                                             @foreach (var a in formFiltreliAraclar)
                                             {
@@ -622,6 +647,10 @@
                                         </div>
                                     }
                                 </div>
+                                @if (formAracKonumModu == "depo" && editStok.KaynakAracId.HasValue)
+                                {
+                                    <small class="text-info"><i class="bi bi-info-circle me-1"></i>Lastik depoda muhafaza edilecek, plakaya bağlı olarak izlenecek.</small>
+                                }
                             </div>
                         </div>
                         @if (editStok.Id == 0)
@@ -666,6 +695,7 @@
                                 <InputSelect @bind-Value="editStok.Durum" class="form-select">
                                     <option value="@LastikDurum.Kullanilabilir">Kullanılabilir</option>
                                     <option value="@LastikDurum.Hasarli">Hasarlı</option>
+                                    <option value="@LastikDurum.Tamir">Tamirde</option>
                                     <option value="@LastikDurum.Hurda">Hurda</option>
                                 </InputSelect>
                             </div>
@@ -778,12 +808,15 @@
     private string filtreAracArama = string.Empty;
     private bool aracDropAcik = false;
     private bool plakaKisFiltresiAktif = false;
+    private bool? filtreTakimaDurum = null; // null = Tümü, true = Takılı, false = Depoda
 
     // Form: adet bazlı kayıt + araç seçimi
     private int yeniAdet = 1;
     private string formAracArama = string.Empty;
     private bool formAracDropAcik = false;
     private List<Arac> formFiltreliAraclar = new();
+    /// <summary>Araç seçim modu: "arac" = araç üzerinde (AracId), "depo" = depoda ama plakaya bağlı (KaynakAracId)</summary>
+    private string formAracKonumModu = "arac";
 
     protected override async Task OnInitializedAsync()
     {
@@ -833,7 +866,18 @@
 
     private void FormAracSec(Arac? arac)
     {
-        editStok.AracId = arac?.Id;
+        if (formAracKonumModu == "depo")
+        {
+            // Depoda ama plakaya bağlı
+            editStok.AracId = null;
+            editStok.KaynakAracId = arac?.Id;
+        }
+        else
+        {
+            // Araç üzerinde
+            editStok.AracId = arac?.Id;
+            editStok.KaynakAracId = null;
+        }
         formAracArama = arac != null ? $"{arac.AktifPlaka} {arac.Marka} {arac.Model}".Trim() : string.Empty;
         formAracDropAcik = false;
     }
@@ -847,10 +891,20 @@
     private async Task YukleStoklar()
     {
         var tumStoklar = await LastikService.GetStokListAsync(filtreDepoId, filtreAktif);
+        IEnumerable<LastikStok> sonuc = tumStoklar;
         if (filtreAracId.HasValue)
-            stoklar = tumStoklar.Where(s => s.AracId == filtreAracId).ToList();
-        else
-            stoklar = tumStoklar;
+            sonuc = sonuc.Where(s => s.AracId == filtreAracId);
+        if (filtreTakimaDurum == true)
+            sonuc = sonuc.Where(s => s.AracId != null);
+        else if (filtreTakimaDurum == false)
+            sonuc = sonuc.Where(s => s.AracId == null);
+        stoklar = sonuc.ToList();
+    }
+
+    private async Task TakimaDurumFiltreDegistir(bool? durum)
+    {
+        filtreTakimaDurum = durum;
+        await YukleStoklar();
     }
 
     private void AracAramaGuncelle(ChangeEventArgs e)
@@ -1056,6 +1110,7 @@
         LastikDurum.Hasarli => "bg-warning text-dark",
         LastikDurum.Hurda => "bg-danger",
         LastikDurum.Kayip => "bg-dark",
+        LastikDurum.Tamir => "bg-orange text-dark",
         _ => "bg-secondary"
     };
     private string GetDurumText(LastikDurum d) => d switch
@@ -1064,6 +1119,7 @@
         LastikDurum.Hasarli => "Hasarlı",
         LastikDurum.Hurda => "Hurda",
         LastikDurum.Kayip => "Kayıp",
+        LastikDurum.Tamir => "Tamirde",
         _ => d.ToString()
     };
 

@@ -1351,7 +1351,7 @@ public class BudgetService : IBudgetService
         {
             var tarih = new DateTime(yil, ay, gun);
             var gunOdemeleri = odemeler.Where(o => o.OdemeTarihi.Day == gun).ToList();
-            var bekleyenOdemeler = gunOdemeleri.Where(o => o.Durum == OdemeDurum.Bekliyor).ToList();
+            var bekleyenOdemeler = gunOdemeleri.Where(o => o.Durum == OdemeDurum.Bekliyor || o.Durum == OdemeDurum.KismiOdendi).ToList();
 
             gunlukOzetler.Add(new BudgetGunlukOzet
             {
@@ -1359,7 +1359,7 @@ public class BudgetService : IBudgetService
                 Gun = gun,
                 ToplamOdeme = gunOdemeleri.Sum(o => o.Miktar),
                 OdemeSayisi = gunOdemeleri.Count,
-                BekleyenToplamOdeme = bekleyenOdemeler.Sum(o => o.Miktar),
+                BekleyenToplamOdeme = bekleyenOdemeler.Sum(GetBekleyenTutar),
                 BekleyenOdemeSayisi = bekleyenOdemeler.Count,
                 Odemeler = gunOdemeleri
             });

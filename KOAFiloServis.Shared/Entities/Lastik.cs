@@ -45,6 +45,13 @@ public class LastikStok : BaseEntity
     /// <summary>Yedek lastik mi? true ise plaka atanmaz, depoda yedek olarak beklenir.</summary>
     public bool YedekMi { get; set; } = false;
 
+    /// <summary>
+    /// Lastiğin ilişkili olduğu araç (depodayken de plakaya bağlı izlenir).
+    /// Değişimde araçtan sökülen lastikler bu alana sahip olur; AracId=null ama KaynakAracId set.
+    /// </summary>
+    public int? KaynakAracId { get; set; }
+    public virtual Arac? KaynakArac { get; set; }
+
     /// <summary>Marka (Bridgestone, Michelin vb.)</summary>
     public string? Marka { get; set; }
 
@@ -140,7 +147,11 @@ public enum LastikDurum
     /// <summary>
     /// Lastik değişiminde sökülen ancak depoya teslim edilmediği için kayıp/eksik sayılan lastik.
     /// </summary>
-    Kayip = 4
+    Kayip = 4,
+    /// <summary>
+    /// Araçtan sökülen, tamir/rekap için bekleyen lastik. Aktif=true, depoda muhafaza.
+    /// </summary>
+    Tamir = 5
 }
 
 public enum LastikDegisimTipi

@@ -1938,13 +1938,13 @@
                 new DateTime(secilenYil, aktifTakvimAy, 1),
                 secilenFirmaId > 0 ? secilenFirmaId : null);
 
-            // Bekleyen ödemeler - aktif takvim ayına göre filtrele
+            // Bekleyen ödemeler - aktif takvim ayına göre filtrele (Bekliyor + KismiOdendi)
             bekleyenOdemeler = odemeler
-                .Where(o => o.Durum == OdemeDurum.Bekliyor && o.OdemeAy == aktifTakvimAy)
+                .Where(o => (o.Durum == OdemeDurum.Bekliyor || o.Durum == OdemeDurum.KismiOdendi) && o.OdemeAy == aktifTakvimAy)
                 .OrderBy(o => o.OdemeTarihi)
                 .ToList();
 
-            var krediOdemeler = odemeler.Where(o => o.TaksitliMi && o.Durum == OdemeDurum.Bekliyor).ToList();
+            var krediOdemeler = odemeler.Where(o => o.TaksitliMi && (o.Durum == OdemeDurum.Bekliyor || o.Durum == OdemeDurum.KismiOdendi)).ToList();
             krediTaksitToplam = krediOdemeler.Sum(o => o.Miktar);
             krediTaksitAdet = krediOdemeler.Count;
 
@@ -2059,9 +2059,9 @@
         {
             aktifTakvimAy--;
             takvimData = await BudgetService.GetTakvimDataAsync(secilenYil, aktifTakvimAy, secilenFirmaId > 0 ? secilenFirmaId : null);
-            // Bekleyen ödemeleri de güncelle
+            // Bekleyen ödemeleri de güncelle (Bekliyor + KismiOdendi)
             bekleyenOdemeler = odemeler
-                .Where(o => o.Durum == OdemeDurum.Bekliyor && o.OdemeAy == aktifTakvimAy)
+                .Where(o => (o.Durum == OdemeDurum.Bekliyor || o.Durum == OdemeDurum.KismiOdendi) && o.OdemeAy == aktifTakvimAy)
                 .OrderBy(o => o.OdemeTarihi)
                 .ToList();
             secilenGun = null;
@@ -2096,9 +2096,9 @@
         {
             aktifTakvimAy++;
             takvimData = await BudgetService.GetTakvimDataAsync(secilenYil, aktifTakvimAy, secilenFirmaId > 0 ? secilenFirmaId : null);
-            // Bekleyen ödemeleri de güncelle
+            // Bekleyen ödemeleri de güncelle (Bekliyor + KismiOdendi)
             bekleyenOdemeler = odemeler
-                .Where(o => o.Durum == OdemeDurum.Bekliyor && o.OdemeAy == aktifTakvimAy)
+                .Where(o => (o.Durum == OdemeDurum.Bekliyor || o.Durum == OdemeDurum.KismiOdendi) && o.OdemeAy == aktifTakvimAy)
                 .OrderBy(o => o.OdemeTarihi)
                 .ToList();
             secilenGun = null;
@@ -2111,8 +2111,8 @@
         secilenGun = gun;
         secilenGunTarih = new DateTime(secilenYil, aktifTakvimAy, gun);
         var gunData = takvimData?.FirstOrDefault(t => t.Gun == gun);
-        // Sadece bekleyen odemeler gosterilsin
-        secilenGunOdemeleri = gunData?.Odemeler?.Where(o => o.Durum == OdemeDurum.Bekliyor).ToList() ?? new List<BudgetOdeme>();
+        // Bekleyen odemeler gosterilsin (Bekliyor + KismiOdendi)
+        secilenGunOdemeleri = gunData?.Odemeler?.Where(o => o.Durum == OdemeDurum.Bekliyor || o.Durum == OdemeDurum.KismiOdendi).ToList() ?? new List<BudgetOdeme>();
         StateHasChanged();
     }
 

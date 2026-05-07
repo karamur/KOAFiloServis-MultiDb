@@ -79,6 +79,7 @@ public class LastikService : ILastikService
             .AsNoTracking()
             .Include(s => s.Depo)
             .Include(s => s.Arac)
+            .Include(s => s.KaynakArac)
             .Where(s => !s.IsDeleted);
 
         if (depoId.HasValue)
@@ -101,6 +102,7 @@ public class LastikService : ILastikService
             .AsNoTracking()
             .Include(s => s.Depo)
             .Include(s => s.Arac)
+            .Include(s => s.KaynakArac)
             .FirstOrDefaultAsync(s => s.Id == id && !s.IsDeleted);
     }
 
@@ -126,6 +128,7 @@ public class LastikService : ILastikService
                 SirketId = sablon.SirketId,
                 DepoId = sablon.DepoId,
                 AracId = sablon.AracId,
+                KaynakAracId = sablon.KaynakAracId,
                 YedekMi = sablon.YedekMi,
                 Marka = sablon.Marka,
                 Ebat = sablon.Ebat,
@@ -449,15 +452,37 @@ public class LastikService : ILastikService
                 if (sokulen != null)
                 {
                     sokulen.AracId = null;
-                    if (s.HedefDepoId.HasValue)
+                    sokulen.KaynakAracId = degisim.AracId > 0 ? degisim.AracId : null;
+
+                    var akibet = s.SokulenAkibet?.ToLowerInvariant();
+
+                    if (akibet == "cop")
                     {
+                        // Hurdaya çıkar: depoya alınmaz, aktif değil
                         sokulen.DepoId = s.HedefDepoId;
+                        sokulen.Durum = LastikDurum.Hurda;
+                        sokulen.Aktif = false;
+                    }
+                    else if (akibet == "tamir")
+                    {
+                        // Tamir: depoya al, durum Tamir
+                        sokulen.DepoId = s.HedefDepoId;
+                        sokulen.Durum = LastikDurum.Tamir;
+                        sokulen.Aktif = true;
+                    }
+                    else if (s.HedefDepoId.HasValue)
+                    {
+                        // Normal depoya teslim
+                        sokulen.DepoId = s.HedefDepoId;
+                        sokulen.Durum = LastikDurum.Kullanilabilir;
+                        sokulen.Aktif = true;
                     }
                     else
                     {
                         // Sökülen lastik depoya teslim edilmedi → KAYIP
                         sokulen.DepoId = null;
                         sokulen.Durum = LastikDurum.Kayip;
+                        sokulen.Aktif = true;
                     }
                     sokulen.UpdatedAt = DateTime.UtcNow;
                 }
@@ -525,7 +550,10 @@ public class LastikService : ILastikService
                 {
                     sokulen.AracId = degisim.AracId;
                     sokulen.DepoId = null;
-                    if (sokulen.Durum == LastikDurum.Kayip)
+                    sokulen.KaynakAracId = null;
+                    sokulen.Aktif = true;
+                    if (sokulen.Durum == LastikDurum.Kayip || sokulen.Durum == LastikDurum.Hurda
+                        || sokulen.Durum == LastikDurum.Tamir)
                         sokulen.Durum = LastikDurum.Kullanilabilir;
                     sokulen.UpdatedAt = DateTime.UtcNow;
                 }
@@ -640,7 +668,7 @@ public class LastikService : ILastikService
         var depoLastikler = await ctx.LastikStoklar
             .AsNoTracking()
             .Include(s => s.Depo)
-            .Where(s => !s.IsDeleted && s.Aktif && s.AracId == null)
+            .Where(s => !s.IsDeleted && s.Aktif && s.AracId == null && s.KaynakAracId == aracId)
             .OrderBy(s => s.Durum)
             .ThenBy(s => s.Marka)
             .ThenBy(s => s.Ebat)
@@ -1141,6 +1169,12 @@ internal sealed class LastikDegisimNotSatiri
     public string? SokulenEtiket { get; set; }
     public int? HedefDepoId { get; set; }
     public string? HedefDepoAdi { get; set; }
+
+    /// <summary>
+    /// Sökülen lastiğin akibeti: "depo" = depoda kullanılabilir, "tamir" = tamire gönderildi, "cop" = hurdaya çıkarıldı.
+    /// Null veya boş ise varsayılan davranış (HedefDepoId varsa depoya, yoksa kayıp).
+    /// </summary>
+    public string? SokulenAkibet { get; set; }
 
     public string? SatinAlmaTedarikciAdi { get; set; }
     public string? SatinAlmaMarka { get; set; }
