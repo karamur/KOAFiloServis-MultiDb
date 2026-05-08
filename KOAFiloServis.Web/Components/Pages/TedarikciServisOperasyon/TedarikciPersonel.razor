@@ -13,18 +13,19 @@
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h3><i class="bi bi-people me-2"></i>Tedarikçi Personel Listesi</h3>
-        <button class="btn btn-outline-secondary" @onclick='() => Navigation.NavigateTo("/personel-tasima/tedarikciler")'>
-            <i class="bi bi-truck me-1"></i>Tedarikçi Yönetimi
-        </button>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary" @onclick='() => Navigation.NavigateTo("/personel-tasima/tedarikciler")'>
+                <i class="bi bi-truck me-1"></i>Tedarikçi Yönetimi
+            </button>
+            <button class="btn btn-outline-primary" @onclick='() => Navigation.NavigateTo("/personel")'>
+                <i class="bi bi-grid me-1"></i>Tüm Personel
+            </button>
+        </div>
     </div>
 
     <div class="card shadow-sm mb-3">
         <div class="card-body bg-light">
             <div class="row g-2 align-items-end">
-                <div class="col-md-3">
-                    <label class="form-label small">Ara (Ad, Kod, Telefon)</label>
-                    <input class="form-control form-control-sm" @bind="arama" @bind:event="oninput" placeholder="Arama..." />
-                </div>
                 <div class="col-md-3">
                     <label class="form-label small">Tedarikçi</label>
                     <select class="form-select form-select-sm" @bind="seciliTedarikciId">
@@ -34,6 +35,10 @@
                             <option value="@t.Id">@t.Unvan</option>
                         }
                     </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">Ara (Ad, Kod, Telefon)</label>
+                    <input class="form-control form-control-sm" @bind="arama" @bind:event="oninput" placeholder="Arama..." />
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small">Görev</label>
@@ -46,30 +51,74 @@
                     </select>
                 </div>
                 <div class="col-md-4 d-flex justify-content-between align-items-end gap-2">
-                    <div class="btn-group btn-group-sm" role="group" aria-label="Durum filtresi">
+                    <div class="btn-group btn-group-sm" role="group">
                         <button type="button" class="btn @(secilenAktifDurum == "" ? "btn-secondary" : "btn-outline-secondary")" @onclick='() => secilenAktifDurum = ""'>Tümü</button>
                         <button type="button" class="btn @(secilenAktifDurum == "aktif" ? "btn-success" : "btn-outline-success")" @onclick='() => secilenAktifDurum = "aktif"'>Aktif</button>
                         <button type="button" class="btn @(secilenAktifDurum == "pasif" ? "btn-danger" : "btn-outline-danger")" @onclick='() => secilenAktifDurum = "pasif"'>Pasif</button>
                     </div>
-                    <button class="btn btn-sm btn-primary" @onclick='() => Navigation.NavigateTo("/personel")'>
-                        <i class="bi bi-grid me-1"></i>Tüm Personel Sayfası
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="FiltreleriTemizle">
+                        <i class="bi bi-x-circle me-1"></i>Temizle
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
+    @if (!yukleniyor)
+    {
+        <div class="row g-2 mb-3">
+            <div class="col-md-3">
+                <div class="card border-primary">
+                    <div class="card-body py-2">
+                        <small class="text-muted">Filtre Sonucu</small>
+                        <div class="fs-4 fw-bold text-primary">@filtreliPersonel.Count</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-success">
+                    <div class="card-body py-2">
+                        <small class="text-muted">Aktif Personel</small>
+                        <div class="fs-4 fw-bold text-success">@filtreliPersonel.Count(p => p.Aktif)</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-danger">
+                    <div class="card-body py-2">
+                        <small class="text-muted">Pasif Personel</small>
+                        <div class="fs-4 fw-bold text-danger">@filtreliPersonel.Count(p => !p.Aktif)</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-warning">
+                    <div class="card-body py-2">
+                        <small class="text-muted">Tedarikçi Sayısı</small>
+                        <div class="fs-4 fw-bold text-warning">@filtreliPersonel.Select(p => p.TasimaTedarikciId).Distinct().Count()</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
     @if (yukleniyor)
     {
         <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
     }
-    else if (!FiltreliPersonel.Any())
+    else if (!filtreliPersonel.Any())
     {
         <div class="alert alert-info"><i class="bi bi-info-circle me-2"></i>Kayıt bulunamadı.</div>
     }
     else
     {
         <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center py-2">
+                <span>
+                    <i class="bi bi-people me-1"></i>Tedarikçi Personeli
+                    <span class="badge bg-secondary ms-1">@filtreliPersonel.Count kayıt</span>
+                </span>
+            </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-striped table-hover mb-0 align-middle">
@@ -83,14 +132,15 @@
                                 <th>İşe Başlama</th>
                                 <th>İşten Çıkış</th>
                                 <th class="text-end">Maaş</th>
+                                <th class="text-center">Belgeler</th>
                                 <th>Tedarikçi</th>
                                 <th>Cari</th>
                                 <th>Durum</th>
-                                <th class="text-end">İşlem</th>
+                                <th class="text-center">İşlem</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var p in FiltreliPersonel)
+                            @foreach (var p in filtreliPersonel)
                             {
                                 <tr>
                                     <td><strong>@p.SoforKodu</strong></td>
@@ -103,20 +153,103 @@
                                     <td>@p.IseBaslamaTarihi?.ToString("dd.MM.yyyy")</td>
                                     <td>@p.IstenAyrilmaTarihi?.ToString("dd.MM.yyyy")</td>
                                     <td class="text-end">@p.NetMaas.ToString("C0", System.Globalization.CultureInfo.GetCultureInfo("tr-TR"))</td>
+                                    <td class="text-center">
+                                        @if (p.IsSofor)
+                                        {
+                                            @if (p.EhliyetGecerlilikTarihi.HasValue)
+                                            {
+                                                var gunKaldiE = (p.EhliyetGecerlilikTarihi.Value - DateTime.Today).Days;
+                                                <span class="badge @(gunKaldiE < 30 ? "bg-danger" : gunKaldiE < 60 ? "bg-warning text-dark" : "bg-success")"
+                                                      title="Ehliyet: @p.EhliyetGecerlilikTarihi.Value.ToString("dd.MM.yyyy")">
+                                                    <i class="bi bi-card-text"></i>
+                                                </span>
+                                            }
+                                            @if (p.MykBelgesiGecerlilikTarihi.HasValue)
+                                            {
+                                                var gunKaldiM = (p.MykBelgesiGecerlilikTarihi.Value - DateTime.Today).Days;
+                                                <span class="badge @(gunKaldiM < 30 ? "bg-danger" : gunKaldiM < 60 ? "bg-warning text-dark" : "bg-success") ms-1"
+                                                      title="MYK: @p.MykBelgesiGecerlilikTarihi.Value.ToString("dd.MM.yyyy")">
+                                                    <i class="bi bi-award"></i>
+                                                </span>
+                                            }
+                                            @if (p.SrcBelgesiGecerlilikTarihi.HasValue || p.YayginEgitimSertifikasiVarMi)
+                                            {
+                                                <span class="badge bg-success ms-1" title="SRC Belgesi">
+                                                    <i class="bi bi-mortarboard"></i>
+                                                </span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
                                     <td><span class="badge bg-info text-dark">@GetTedarikciEtiket(p.TasimaTedarikciId)</span></td>
                                     <td><small class="text-muted">@GetTedarikciCariEtiket(p.TasimaTedarikciId)</small></td>
                                     <td>
                                         <span class="badge @(p.Aktif ? "bg-success" : "bg-danger")">@(p.Aktif ? "Aktif" : "Pasif")</span>
                                     </td>
-                                    <td class="text-end">
-                                        <button class="btn btn-sm btn-outline-primary" @onclick='() => Navigation.NavigateTo($"/personel/{p.Id}")'>
-                                            <i class="bi bi-pencil-square me-1"></i>Düzenle
-                                        </button>
+                                    <td class="text-center">
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-info" @onclick='() => Navigation.NavigateTo($"/personel/{p.Id}")' title="Evraklar / Özlük">
+                                                <i class="bi bi-folder2-open"></i>
+                                            </button>
+                                            <button class="btn btn-outline-primary" @onclick='() => Navigation.NavigateTo($"/personel/{p.Id}")' title="Düzenle">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             }
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Tedarikçi Personel Raporu</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="table-light"><tr><th colspan="2">Tedarikçi Başına Personel</th></tr></thead>
+                            <tbody>
+                                @foreach (var t in tedarikciler.Where(t => filtreliPersonel.Any(p => p.TasimaTedarikciId == t.Id)))
+                                {
+                                    var adet = filtreliPersonel.Count(p => p.TasimaTedarikciId == t.Id);
+                                    <tr><td>@t.Unvan</td><td class="text-end fw-bold">@adet</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="col-md-4">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="table-light"><tr><th colspan="2">Görev Dağılımı</th></tr></thead>
+                            <tbody>
+                                @foreach (PersonelGorev gorev in Enum.GetValues(typeof(PersonelGorev)))
+                                {
+                                    var adet = filtreliPersonel.Count(p => p.Gorev == gorev);
+                                    if (adet > 0)
+                                    {
+                                        <tr><td>@GetGorevAdi(gorev)</td><td class="text-end fw-bold">@adet</td></tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="col-md-4">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="table-light"><tr><th colspan="2">Durum Özeti</th></tr></thead>
+                            <tbody>
+                                <tr><td>Aktif</td><td class="text-end fw-bold text-success">@filtreliPersonel.Count(p => p.Aktif)</td></tr>
+                                <tr><td>Pasif</td><td class="text-end fw-bold text-danger">@filtreliPersonel.Count(p => !p.Aktif)</td></tr>
+                                <tr><td>Şoför</td><td class="text-end fw-bold">@filtreliPersonel.Count(p => p.IsSofor)</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -129,28 +262,53 @@
     private int seciliTedarikciId;
     private string secilenAktifDurum = string.Empty;
     private PersonelGorev? secilenGorev;
-    private List<Sofor> personeller = new();
+    private List<Sofor> tumPersoneller = new();
+    private List<Sofor> filtreliPersonel = new();
     private List<TasimaTedarikci> tedarikciler = new();
-
-    private IEnumerable<Sofor> FiltreliPersonel => personeller
-        .Where(p => p.TasimaTedarikciId.HasValue)
-        .Where(p => seciliTedarikciId == 0 || p.TasimaTedarikciId == seciliTedarikciId)
-        .Where(p => !secilenGorev.HasValue || p.Gorev == secilenGorev.Value)
-        .Where(p => secilenAktifDurum == "" || (secilenAktifDurum == "aktif" ? p.Aktif : !p.Aktif))
-        .Where(p => string.IsNullOrWhiteSpace(arama)
-            || (p.SoforKodu?.Contains(arama, StringComparison.OrdinalIgnoreCase) ?? false)
-            || (p.Ad?.Contains(arama, StringComparison.OrdinalIgnoreCase) ?? false)
-            || (p.Soyad?.Contains(arama, StringComparison.OrdinalIgnoreCase) ?? false)
-            || (p.Telefon?.Contains(arama, StringComparison.OrdinalIgnoreCase) ?? false)
-            || GetTedarikciUnvan(p.TasimaTedarikciId).Contains(arama, StringComparison.OrdinalIgnoreCase))
-        .OrderBy(p => p.Ad)
-        .ThenBy(p => p.Soyad);
 
     protected override async Task OnInitializedAsync()
     {
         tedarikciler = await TasimaTedarikciService.GetAllAsync(sadeceAktif: false);
-        personeller = await SoforService.GetAllAsync();
+        tumPersoneller = await SoforService.GetAllAsync();
+        Filtrele();
         yukleniyor = false;
+    }
+
+    private void Filtrele()
+    {
+        IEnumerable<Sofor> sorgu = tumPersoneller.Where(p => p.TasimaTedarikciId.HasValue);
+
+        if (seciliTedarikciId != 0)
+            sorgu = sorgu.Where(p => p.TasimaTedarikciId == seciliTedarikciId);
+
+        if (secilenGorev.HasValue)
+            sorgu = sorgu.Where(p => p.Gorev == secilenGorev.Value);
+
+        if (secilenAktifDurum == "aktif")
+            sorgu = sorgu.Where(p => p.Aktif);
+        else if (secilenAktifDurum == "pasif")
+            sorgu = sorgu.Where(p => !p.Aktif);
+
+        if (!string.IsNullOrWhiteSpace(arama))
+        {
+            sorgu = sorgu.Where(p =>
+                (p.SoforKodu?.Contains(arama, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (p.Ad?.Contains(arama, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (p.Soyad?.Contains(arama, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (p.Telefon?.Contains(arama, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                GetTedarikciUnvan(p.TasimaTedarikciId).Contains(arama, StringComparison.OrdinalIgnoreCase));
+        }
+
+        filtreliPersonel = sorgu.OrderBy(p => p.Ad).ThenBy(p => p.Soyad).ToList();
+    }
+
+    private void FiltreleriTemizle()
+    {
+        arama = string.Empty;
+        seciliTedarikciId = 0;
+        secilenGorev = null;
+        secilenAktifDurum = string.Empty;
+        Filtrele();
     }
 
     private string GetTedarikciUnvan(int? id)
@@ -175,30 +333,25 @@
         return string.IsNullOrWhiteSpace(t.Cari.CariKodu) ? t.Cari.Unvan : $"{t.Cari.CariKodu} - {t.Cari.Unvan}";
     }
 
-    private static string GetGorevAdi(PersonelGorev gorev)
+    private static string GetGorevAdi(PersonelGorev gorev) => gorev switch
     {
-        return gorev switch
-        {
-            PersonelGorev.Sofor => "Şoför",
-            PersonelGorev.OfisCalisani => "Ofis Çalışanı",
-            PersonelGorev.Yonetici => "Yönetici",
-            PersonelGorev.Muhasebe => "Muhasebe",
-            PersonelGorev.Teknik => "Teknik",
-            PersonelGorev.Diger => "Diğer",
-            _ => gorev.ToString()
-        };
-    }
+        PersonelGorev.Sofor => "Şoför",
+        PersonelGorev.OfisCalisani => "Ofis Çalışanı",
+        PersonelGorev.Yonetici => "Yönetici",
+        PersonelGorev.Muhasebe => "Muhasebe",
+        PersonelGorev.Teknik => "Teknik",
+        PersonelGorev.Diger => "Diğer",
+        _ => gorev.ToString()
+    };
 
-    private static string GetGorevBadgeClass(PersonelGorev gorev)
+    private static string GetGorevBadgeClass(PersonelGorev gorev) => gorev switch
     {
-        return gorev switch
-        {
-            PersonelGorev.Sofor => "bg-primary",
-            PersonelGorev.OfisCalisani => "bg-info",
-            PersonelGorev.Yonetici => "bg-danger",
-            PersonelGorev.Muhasebe => "bg-success",
-            PersonelGorev.Teknik => "bg-warning text-dark",
-            _ => "bg-secondary"
-        };
-    }
+        PersonelGorev.Sofor => "bg-primary",
+        PersonelGorev.OfisCalisani => "bg-info",
+        PersonelGorev.Yonetici => "bg-danger",
+        PersonelGorev.Muhasebe => "bg-success",
+        PersonelGorev.Teknik => "bg-warning text-dark",
+        PersonelGorev.Diger => "bg-secondary",
+        _ => "bg-secondary"
+    };
 }

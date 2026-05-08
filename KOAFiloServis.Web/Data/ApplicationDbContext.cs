@@ -300,6 +300,8 @@ public class ApplicationDbContext : DbContext
     // Personel Taşıma Tedarikçileri
     public DbSet<TasimaTedarikci> TasimaTedarikciler { get; set; }
     public DbSet<TasimaTedarikciIs> TasimaTedarikciIsler { get; set; }
+    public DbSet<TedarikciEvrak> TedarikciEvraklari { get; set; }
+    public DbSet<TedarikciEvrakDosya> TedarikciEvrakDosyalari { get; set; }
 
     // Servis Operasyon (Özmal / Kiralık / Tedarikçi Kontrat + Puantaj + Ödeme/Tahsilat)
     public DbSet<ServisKontrat> ServisKontratlar { get; set; }
@@ -2498,6 +2500,39 @@ public class ApplicationDbContext : DbContext
             .WithMany(t => t.Araclar)
             .HasForeignKey(a => a.TasimaTedarikciId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        // TedarikciEvrak - Tedarikçi firma evrakları
+        modelBuilder.Entity<TedarikciEvrak>(entity =>
+        {
+            entity.Property(e => e.EvrakKategorisi).HasMaxLength(100);
+            entity.Property(e => e.EvrakAdi).HasMaxLength(250);
+            entity.Property(e => e.SigortaSirketi).HasMaxLength(200);
+            entity.Property(e => e.PoliceNo).HasMaxLength(100);
+            entity.Property(e => e.Tutar).HasPrecision(18, 2);
+            entity.HasIndex(e => new { e.TasimaTedarikciId, e.EvrakKategorisi });
+
+            entity.HasOne(e => e.TasimaTedarikci)
+                .WithMany(t => t.Evraklar)
+                .HasForeignKey(e => e.TasimaTedarikciId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // TedarikciEvrakDosya - Tedarikçi evrak dosyaları
+        modelBuilder.Entity<TedarikciEvrakDosya>(entity =>
+        {
+            entity.Property(e => e.DosyaAdi).HasMaxLength(500);
+            entity.Property(e => e.DosyaYolu).HasMaxLength(1000);
+            entity.Property(e => e.DosyaTipi).HasMaxLength(20);
+
+            entity.HasOne(e => e.TedarikciEvrak)
+                .WithMany(ev => ev.Dosyalar)
+                .HasForeignKey(e => e.TedarikciEvrakId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
 
         // ── ServisKontrat ──────────────────────────────────────────────────────
         modelBuilder.Entity<ServisKontrat>(entity =>

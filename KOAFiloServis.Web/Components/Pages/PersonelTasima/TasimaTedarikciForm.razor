@@ -465,6 +465,8 @@
         if (Id.HasValue)
         {
             tedarikci = await TedarikciService.GetAsync(Id.Value) ?? new TasimaTedarikci();
+            if (tedarikci.CariId.HasValue)
+                cariKopyaKaynakId = tedarikci.CariId;
             await IliskileriYukle();
         }
         else

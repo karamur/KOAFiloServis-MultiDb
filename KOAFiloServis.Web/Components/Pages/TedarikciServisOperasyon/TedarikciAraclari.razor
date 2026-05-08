@@ -326,7 +326,7 @@
 
     private void Filtrele()
     {
-        var sorgu = tumAraclar.Where(a => a.TasimaTedarikciId.HasValue).AsQueryable();
+        IEnumerable<Arac> sorgu = tumAraclar.Where(a => a.TasimaTedarikciId.HasValue);
 
         if (seciliTedarikciId != 0)
             sorgu = sorgu.Where(a => a.TasimaTedarikciId == seciliTedarikciId);

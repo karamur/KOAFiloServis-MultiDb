@@ -51,6 +51,88 @@ public class TasimaTedarikci : BaseEntity
 
     // Navigation - tedarikçi iş atamaları (güzergah eşleşmeleri)
     public virtual ICollection<TasimaTedarikciIs> Isler { get; set; } = new List<TasimaTedarikciIs>();
+
+    // Navigation - tedarikçi firma evrakları (Ticaret Sicil, Vergi Levhası vb.)
+    public virtual ICollection<TedarikciEvrak> Evraklar { get; set; } = new List<TedarikciEvrak>();
+}
+
+/// <summary>
+/// Tedarikçi firma evrakı (Ticaret Sicil, Vergi Levhası, İmza Sirküleri vb.)
+/// AracEvrak ile aynı yapı, TasimaTedarikci'ye bağlı.
+/// </summary>
+public class TedarikciEvrak : BaseEntity
+{
+    public int TasimaTedarikciId { get; set; }
+    public virtual TasimaTedarikci? TasimaTedarikci { get; set; }
+
+    public string EvrakKategorisi { get; set; } = string.Empty;
+    public string? EvrakAdi { get; set; }
+    public string? Aciklama { get; set; }
+
+    public DateTime? BaslangicTarihi { get; set; }
+    public DateTime? BitisTarihi { get; set; }
+    public DateTime? HatirlatmaTarihi { get; set; }
+
+    public decimal? Tutar { get; set; }
+    public string? SigortaSirketi { get; set; }
+    public string? PoliceNo { get; set; }
+
+    public EvrakDurum Durum { get; set; } = EvrakDurum.Aktif;
+    public bool HatirlatmaAktif { get; set; } = true;
+    public int HatirlatmaGunOnce { get; set; } = 15;
+
+    public virtual ICollection<TedarikciEvrakDosya> Dosyalar { get; set; } = new List<TedarikciEvrakDosya>();
+}
+
+/// <summary>
+/// Tedarikçi evrak dosyası (birden fazla dosya eklenebilir).
+/// </summary>
+public class TedarikciEvrakDosya : BaseEntity
+{
+    public int TedarikciEvrakId { get; set; }
+    public virtual TedarikciEvrak? TedarikciEvrak { get; set; }
+
+    public string DosyaAdi { get; set; } = string.Empty;
+    public string DosyaYolu { get; set; } = string.Empty;
+    public string? DosyaTipi { get; set; }
+    public long DosyaBoyutu { get; set; }
+    public string? Aciklama { get; set; }
+    public int VersiyonNo { get; set; } = 1;
+    public string? SonDegisiklikNotu { get; set; }
+}
+
+/// <summary>
+/// Tedarikçi firma evrak kategorileri.
+/// </summary>
+public static class TedarikciEvrakKategorileri
+{
+    public const string TicaretSicil     = "Ticaret Sicil Gazetesi";
+    public const string VergiLevhasi     = "Vergi Levhası";
+    public const string ImzaSirkuleri    = "İmza Sirküleri";
+    public const string YetkiBelgesi     = "Yetki Belgesi";
+    public const string FaaliyetBelgesi  = "Faaliyet Belgesi";
+    public const string SgkBelgesi       = "SGK Belgesi";
+    public const string IsGuvenligi      = "İş Güvenliği Belgesi";
+    public const string SorumlulukSig    = "Sorumluluk Sigortası";
+    public const string KapasteRaporu    = "Kapasite Raporu";
+    public const string Diger            = "Diğer";
+
+    /// <summary>
+    /// Sıralı tam kategori listesi (aynı yapı AracEvrak.EvrakKategorileri gibi).
+    /// </summary>
+    public static readonly string[] TumKategoriler =
+    {
+        TicaretSicil, VergiLevhasi, ImzaSirkuleri, YetkiBelgesi,
+        FaaliyetBelgesi, SgkBelgesi, IsGuvenligi, SorumlulukSig,
+        KapasteRaporu, Diger
+    };
+
+    public static int SiraIndex(string? kategori)
+    {
+        if (string.IsNullOrWhiteSpace(kategori)) return int.MaxValue;
+        var idx = Array.IndexOf(TumKategoriler, kategori);
+        return idx < 0 ? int.MaxValue : idx;
+    }
 }
 
 /// <summary>

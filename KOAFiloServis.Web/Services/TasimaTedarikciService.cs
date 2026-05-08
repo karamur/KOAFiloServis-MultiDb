@@ -1,5 +1,6 @@
 ﻿using KOAFiloServis.Shared.Entities;
 using KOAFiloServis.Web.Data;
+using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.EntityFrameworkCore;
 
 namespace KOAFiloServis.Web.Services;
@@ -26,15 +27,28 @@ public interface ITasimaTedarikciService
     // Tedarikçiye bağlı personel/araç (mevcut Sofor/Arac kayıtları üzerinden)
     Task<List<Sofor>> GetTedarikciPersonelleriAsync(int tedarikciId);
     Task<List<Arac>> GetTedarikciAraclariAsync(int tedarikciId);
+
+    // Tedarikçi firma evrak CRUD
+    Task<List<TedarikciEvrak>> GetTedarikciEvraklariAsync(int tedarikciId);
+    Task<TedarikciEvrak> CreateTedarikciEvrakAsync(TedarikciEvrak evrak);
+    Task<TedarikciEvrak> UpdateTedarikciEvrakAsync(TedarikciEvrak evrak);
+    Task DeleteTedarikciEvrakAsync(int evrakId);
+
+    // Tedarikçi evrak dosya işlemleri
+    Task<TedarikciEvrakDosya> UploadTedarikciEvrakDosyaAsync(int evrakId, IBrowserFile file);
+    Task<byte[]> GetTedarikciEvrakDosyaAsync(int dosyaId);
+    Task DeleteTedarikciEvrakDosyaAsync(int dosyaId);
 }
 
 public class TasimaTedarikciService : ITasimaTedarikciService
 {
     private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
+    private readonly ISecureFileService _secureFileService;
 
-    public TasimaTedarikciService(IDbContextFactory<ApplicationDbContext> contextFactory)
+    public TasimaTedarikciService(IDbContextFactory<ApplicationDbContext> contextFactory, ISecureFileService secureFileService)
     {
         _contextFactory = contextFactory;
+        _secureFileService = secureFileService;
     }
 
     public async Task<List<TasimaTedarikci>> GetAllAsync(bool sadeceAktif = false)
