@@ -350,54 +350,96 @@
         {
             <div class="text-center"><div class="spinner-border" role="status"></div></div>
         }
-        else if (!eksikSezonRapor.Any())
-        {
-            <div class="alert alert-success"><i class="bi bi-check-circle me-2"></i>Tüm plakalarda yaz ve kış lastiği mevcut.</div>
-        }
         else
         {
-            <div class="card">
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-striped mb-0">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th>Plaka</th>
-                                    <th>Araç</th>
-                                    <th class="text-center">Son Değişim</th>
-                                    <th class="text-center">Yaz</th>
-                                    <th class="text-center">Kış</th>
-                                    <th class="text-center">Toplam Lastik</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var e in eksikSezonRapor)
-                                {
-                                    <tr>
-                                        <td><strong>@e.Plaka</strong></td>
-                                        <td><small>@e.AracBilgisi</small></td>
-                                        <td class="text-center">
-                                            <span class="badge @GetSonDegisimBadgeClass(e.SonDegisimTarihi)">
-                                                @GetSonDegisimText(e.SonDegisimTarihi)
-                                            </span>
-                                        </td>
-                                        <td class="text-center">
-                                            @if (e.YazEksik) { <span class="badge bg-danger">Eksik</span> }
-                                            else { <span class="badge bg-success">Var</span> }
-                                        </td>
-                                        <td class="text-center">
-                                            @if (e.KisEksik) { <span class="badge bg-danger">Eksik</span> }
-                                            else { <span class="badge bg-success">Var</span> }
-                                        </td>
-                                        <td class="text-center">@e.ToplamLastikSayisi</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
+            <!-- Filtreler -->
+            <div class="card mb-3">
+                <div class="card-body py-2">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-4">
+                            <input class="form-control form-control-sm" placeholder="Plaka / araç ara..."
+                                   @bind="eksikAramaTerimi" @bind:event="oninput" />
+                        </div>
+                        <div class="col-md-4">
+                            <select class="form-select form-select-sm" @bind="eksikSezonFiltresi">
+                                <option value="tum">Tümü (@eksikSezonRapor.Count plaka)</option>
+                                <option value="yazeksik">Yaz Eksik</option>
+                                <option value="kiseksik">Kış Eksik</option>
+                                <option value="herikieksik">Her İkisi Eksik</option>
+                                <option value="tamam">Tamamlanmış (Yaz + Kış Var)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-center">
+                            <small class="text-muted">
+                                <i class="bi bi-funnel me-1"></i>
+                                Gösterilen: <strong>@FiltreliEksikListesi.Count</strong> /
+                                Eksik: <strong>@eksikSezonRapor.Count(x => x.YazEksik || x.KisEksik)</strong> plaka
+                            </small>
+                        </div>
                     </div>
-                    <div class="p-2 text-muted small">Toplam: <strong>@eksikSezonRapor.Count</strong> plaka eksik sezona sahip.</div>
                 </div>
             </div>
+
+            @if (!FiltreliEksikListesi.Any())
+            {
+                @if (eksikSezonFiltresi == "tamam" || eksikSezonFiltresi == "tum")
+                {
+                    <div class="alert alert-success"><i class="bi bi-check-circle me-2"></i>Tüm plakalarda yaz ve kış lastiği mevcut.</div>
+                }
+                else
+                {
+                    <div class="alert alert-info"><i class="bi bi-funnel me-2"></i>Filtreye uygun plaka bulunamadı.</div>
+                }
+            }
+            else
+            {
+                <div class="card">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-striped mb-0">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Plaka</th>
+                                        <th>Araç</th>
+                                        <th class="text-center">Son Değişim</th>
+                                        <th class="text-center">Yaz</th>
+                                        <th class="text-center">Kış</th>
+                                        <th class="text-center">Toplam Lastik</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var e in FiltreliEksikListesi)
+                                    {
+                                        <tr>
+                                            <td><strong>@e.Plaka</strong></td>
+                                            <td><small>@e.AracBilgisi</small></td>
+                                            <td class="text-center">
+                                                <span class="badge @GetSonDegisimBadgeClass(e.SonDegisimTarihi)">
+                                                    @GetSonDegisimText(e.SonDegisimTarihi)
+                                                </span>
+                                            </td>
+                                            <td class="text-center">
+                                                @if (e.YazEksik) { <span class="badge bg-danger">Eksik</span> }
+                                                else { <span class="badge bg-success">Var</span> }
+                                            </td>
+                                            <td class="text-center">
+                                                @if (e.KisEksik) { <span class="badge bg-danger">Eksik</span> }
+                                                else { <span class="badge bg-success">Var</span> }
+                                            </td>
+                                            <td class="text-center">@e.ToplamLastikSayisi</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="p-2 text-muted small">
+                            Toplam: <strong>@FiltreliEksikListesi.Count</strong> plaka gösteriliyor.
+                            Eksik sezonlu: <strong>@eksikSezonRapor.Count(x => x.YazEksik || x.KisEksik)</strong> /
+                            Tüm plakalar: <strong>@eksikSezonRapor.Count</strong>
+                        </div>
+                    </div>
+                </div>
+            }
         }
     }
 
@@ -816,14 +858,40 @@
     private bool plakaYazFiltresiAktif = false;
     private HashSet<int> acikDetaylar = new();
 
+    // Eksik sezon sekme filtreleri
+    private string eksikAramaTerimi = string.Empty;
+    private string eksikSezonFiltresi = "tum"; // tum | yazeksik | kiseksik | herikieksik | tamam
+
+    private List<LastikEksikSezonSatiri> FiltreliEksikListesi
+    {
+        get
+        {
+            if (eksikSezonRapor == null) return new();
+            IEnumerable<LastikEksikSezonSatiri> q = eksikSezonRapor;
+            if (!string.IsNullOrWhiteSpace(eksikAramaTerimi))
+                q = q.Where(x => x.Plaka.Contains(eksikAramaTerimi, StringComparison.OrdinalIgnoreCase) ||
+                                  x.AracBilgisi.Contains(eksikAramaTerimi, StringComparison.OrdinalIgnoreCase));
+            q = eksikSezonFiltresi switch
+            {
+                "yazeksik"    => q.Where(x => x.YazEksik),
+                "kiseksik"    => q.Where(x => x.KisEksik),
+                "herikieksik" => q.Where(x => x.YazEksik && x.KisEksik),
+                "tamam"       => q.Where(x => !x.YazEksik && !x.KisEksik),
+                _             => q
+            };
+            return q.ToList();
+        }
+    }
+
     private List<LastikPlakaEnvanteri> FiltreliPlakaListesi
     {
         get
         {
             if (plakaEnvanteri == null) return new List<LastikPlakaEnvanteri>();
             IEnumerable<LastikPlakaEnvanteri> query = plakaEnvanteri;
-            if (plakaKisFiltresiAktif) query = query.Where(x => x.KisVar);
-            if (plakaYazFiltresiAktif) query = query.Where(x => x.YazVar);
+            // Sadece yaz = yaz var VE kış yok; sadece kış = kış var VE yaz yok
+            if (plakaYazFiltresiAktif) query = query.Where(x => x.YazVar && !x.KisVar);
+            if (plakaKisFiltresiAktif) query = query.Where(x => x.KisVar && !x.YazVar);
             return query.ToList();
         }
     }

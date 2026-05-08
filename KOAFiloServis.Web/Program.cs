@@ -698,6 +698,12 @@ await RunScopedSafeAsync(app, "PersonelBelgeTarihleriMigration", async services 
     await KOAFiloServis.Web.Data.Migrations.PersonelBelgeTarihleriMigrationHelper.ApplyPersonelBelgeTarihleriAsync(context, logger);
 });
 
+await RunScopedSafeAsync(app, "LastikSezonAyarMigration", async services =>
+{
+    var context = services.GetRequiredService<ApplicationDbContext>();
+    await KOAFiloServis.Web.Data.Migrations.LastikSezonAyarMigrationHelper.ApplyLastikSezonAyarAsync(context);
+});
+
 await RunScopedSafeAsync(app, "SeedDefaultEvrakTanimlari", async services =>
 {
     var ozlukService = services.GetRequiredService<IPersonelOzlukService>();

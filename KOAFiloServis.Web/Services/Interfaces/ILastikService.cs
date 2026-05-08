@@ -77,6 +77,10 @@ public sealed class LastikAracDonemOzet
     public int TakiliLastikSayisi { get; set; }
     public bool DortLastikAyniMi { get; set; }
     public string TakiliLastikOzeti { get; set; } = string.Empty;
+    /// <summary>Aktif sezon ayarına göre doğru sezon lastiği takılı mı (null = aktif sezon tanımlı değil)</summary>
+    public bool? BuSezonDegisimYapildi { get; set; }
+    /// <summary>Aktif sezon adı (ör: "Yaz Dönemi")</summary>
+    public string? AktifSezonAdi { get; set; }
 }
 
 public sealed class LastikAracHareketSatiri

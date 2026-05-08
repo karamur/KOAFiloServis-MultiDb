@@ -610,6 +610,22 @@ public class LastikService : ILastikService
             .GroupBy(x => x.AracId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
+        // Aktif sezon ayarını belirle (Dönem sütunu için)
+        var bugun = DateTime.Today;
+        var sezonAyarlari = await ctx.LastikSezonAyarlari
+            .AsNoTracking()
+            .Where(a => !a.IsDeleted && a.Aktif)
+            .ToListAsync();
+        LastikSezonAyar? aktifSezon = null;
+        foreach (var ayar in sezonAyarlari)
+        {
+            var (bas, bit) = SezonTarihAralik(ayar, bugun.Year);
+            if (bugun >= bas && bugun <= bit) { aktifSezon = ayar; break; }
+        }
+        LastikSezon? beklenenSezon = aktifSezon?.SezonTipi == LastikSezonTipi.Yaz ? LastikSezon.YazLastigi
+            : aktifSezon?.SezonTipi == LastikSezonTipi.Kis ? LastikSezon.KisLastigi
+            : null;
+
         var sonuc = new List<LastikAracDonemOzet>(araclar.Count);
 
         foreach (var a in araclar)
@@ -629,6 +645,10 @@ public class LastikService : ILastikService
                     .GroupBy(x => new { x.Marka, x.Ebat, x.Sezon })
                     .Select(g => $"{g.Key.Marka} {g.Key.Ebat} {GetSezonText(g.Key.Sezon)} x{g.Count()}"));
 
+            bool? buSezonDegisimYapildi = beklenenSezon.HasValue
+                ? aracaTakili.Any(x => x.Sezon == beklenenSezon.Value || x.Sezon == LastikSezon.DortMevsim)
+                : null;
+
             sonuc.Add(new LastikAracDonemOzet
             {
                 AracId = a.Id,
@@ -638,7 +658,9 @@ public class LastikService : ILastikService
                 DonemdeDegisti = donemDegisimSayisi > 0,
                 TakiliLastikSayisi = takiliSayisi,
                 DortLastikAyniMi = dortLastikAyni,
-                TakiliLastikOzeti = takiliOzet
+                TakiliLastikOzeti = takiliOzet,
+                BuSezonDegisimYapildi = buSezonDegisimYapildi,
+                AktifSezonAdi = aktifSezon?.Ad
             });
         }
 
@@ -764,8 +786,8 @@ public class LastikService : ILastikService
         var sonuc = new List<LastikPlakaEnvanteri>(araclar.Count);
         foreach (var a in araclar)
         {
-            if (!stokByArac.TryGetValue(a.Id, out var liste))
-                continue;
+            stokByArac.TryGetValue(a.Id, out var liste);
+            liste ??= new();
 
             var satirlar = liste
                 .OrderBy(s => s.YedekMi)
@@ -831,23 +853,21 @@ public class LastikService : ILastikService
         var sonuc = new List<LastikEksikSezonSatiri>();
         foreach (var a in araclar)
         {
-            var durum = sezonDurumByArac.TryGetValue(a.Id, out var d) ? d : null;
-            var yazVar = durum?.YazVar ?? false;
-            var kisVar = durum?.KisVar ?? false;
+            var dur = sezonDurumByArac.TryGetValue(a.Id, out var d) ? d : null;
+            var yazVar = dur?.YazVar ?? false;
+            var kisVar = dur?.KisVar ?? false;
 
-            if (!yazVar || !kisVar)
+            // Tüm araçları listele (filtreler UI tarafında uygulanır)
+            sonuc.Add(new LastikEksikSezonSatiri
             {
-                sonuc.Add(new LastikEksikSezonSatiri
-                {
-                    AracId = a.Id,
-                    Plaka = a.AktifPlaka ?? "-",
-                    AracBilgisi = $"{a.Marka} {a.Model} {a.ModelYili}".Trim(),
-                    SonDegisimTarihi = durum?.SonDegisimTarihi,
-                    YazEksik = !yazVar,
-                    KisEksik = !kisVar,
-                    ToplamLastikSayisi = durum?.ToplamLastikSayisi ?? 0
-                });
-            }
+                AracId = a.Id,
+                Plaka = a.AktifPlaka ?? "-",
+                AracBilgisi = $"{a.Marka} {a.Model} {a.ModelYili}".Trim(),
+                SonDegisimTarihi = dur?.SonDegisimTarihi,
+                YazEksik = !yazVar,
+                KisEksik = !kisVar,
+                ToplamLastikSayisi = dur?.ToplamLastikSayisi ?? 0
+            });
         }
         return sonuc
             .OrderBy(x => x.SonDegisimTarihi ?? DateTime.MinValue)
@@ -1247,12 +1267,16 @@ public class LastikService : ILastikService
 
             var sonDegisimByArac = mevsimlikDegisimler
                 .GroupBy(d => d.AracId)
-                .ToDictionary(g => g.Key, g => g.Max(x => x.DegisimTarihi));
+                .ToDictionary(g => g.Key, g => (DateTime?)g.Max(x => x.DegisimTarihi));
 
-            var buSezonDegisimByArac = mevsimlikDegisimler
-                .Where(d => d.DegisimTarihi >= sezonBas)
-                .GroupBy(d => d.AracId)
-                .ToDictionary(g => g.Key, g => true);
+            // CreatedAt fallback: değişim kaydı yoksa stok ekleme tarihini kullan
+            var stokCreatedAtByArac = await ctx.LastikStoklar
+                .AsNoTracking()
+                .Where(s => !s.IsDeleted && s.Aktif && s.AracId != null)
+                .GroupBy(s => s.AracId!.Value)
+                .Select(g => new { AracId = g.Key, MaxCreatedAt = g.Max(x => x.CreatedAt) })
+                .ToListAsync();
+            var createdAtByArac = stokCreatedAtByArac.ToDictionary(x => x.AracId, x => (DateTime?)x.MaxCreatedAt);
 
             foreach (var a in araclar)
             {
@@ -1260,9 +1284,10 @@ public class LastikService : ILastikService
                 liste ??= new();
 
                 var dogruSezonVar = liste.Any(x => x.Sezon == beklenenSezon || x.Sezon == LastikSezon.DortMevsim);
-                if (dogruSezonVar) continue; // zaten uygun lastik takılı
 
                 sonDegisimByArac.TryGetValue(a.Id, out var sonDegisim);
+                // Değişim tarihi yoksa stok ekleme tarihini kullan
+                var sonDegisimTarihi = sonDegisim ?? createdAtByArac.GetValueOrDefault(a.Id);
 
                 var sezonOzeti = liste.Count == 0
                     ? "Lastik yok"
@@ -1276,8 +1301,8 @@ public class LastikService : ILastikService
                     Plaka = a.AktifPlaka ?? "-",
                     AracBilgisi = $"{a.Marka} {a.Model} {a.ModelYili}".Trim(),
                     TakiliSezonOzeti = sezonOzeti,
-                    BuSezonDegisimYapildi = buSezonDegisimByArac.ContainsKey(a.Id),
-                    SonDegisimTarihi = sonDegisim == default ? null : sonDegisim
+                    BuSezonDegisimYapildi = dogruSezonVar,
+                    SonDegisimTarihi = sonDegisimTarihi
                 });
             }
 
@@ -1319,8 +1344,13 @@ public class LastikService : ILastikService
         var stoklar = await ctx.LastikStoklar
             .AsNoTracking()
             .Where(s => !s.IsDeleted && s.Aktif && (s.AracId != null || s.KaynakAracId != null))
-            .Select(s => new { AracId = s.AracId ?? s.KaynakAracId, s.Sezon })
+            .Select(s => new { AracId = s.AracId ?? s.KaynakAracId, s.Sezon, s.CreatedAt })
             .ToListAsync();
+
+        // Stok ekleme tarihini fallback olarak kullan (gerçek değişim yoksa)
+        var createdAtByArac = stoklar
+            .GroupBy(s => s.AracId!.Value)
+            .ToDictionary(g => g.Key, g => (DateTime?)g.Max(x => x.CreatedAt));
 
         var map = stoklar
             .GroupBy(s => s.AracId!.Value)
@@ -1330,7 +1360,8 @@ public class LastikService : ILastikService
                 {
                     ToplamLastikSayisi = g.Count(),
                     YazVar = g.Any(x => x.Sezon == LastikSezon.YazLastigi || x.Sezon == LastikSezon.DortMevsim),
-                    KisVar = g.Any(x => x.Sezon == LastikSezon.KisLastigi || x.Sezon == LastikSezon.DortMevsim)
+                    KisVar = g.Any(x => x.Sezon == LastikSezon.KisLastigi || x.Sezon == LastikSezon.DortMevsim),
+                    SonDegisimTarihi = createdAtByArac.GetValueOrDefault(g.Key)
                 });
 
         var sonDegisimler = await ctx.LastikDegisimler
@@ -1344,6 +1375,7 @@ public class LastikService : ILastikService
         {
             if (map.TryGetValue(d.AracId, out var mevcut))
             {
+                // Gerçek değişim tarihi varsa onu kullan (ekleme tarihini ezer)
                 mevcut.SonDegisimTarihi = d.SonDegisimTarihi;
             }
             else

@@ -159,34 +159,52 @@
             </div>
         </div>
 
-        <!-- Değişim Gereken Araçlar Tablosu -->
-        @if (durum?.AktifSezon != null && (durum.DegisimGerekenler.Any() || durum.UyariAktif))
+        <!-- Sezon Durumu Tablosu -->
+        @if (durum?.AktifSezon != null)
         {
             <div class="card">
                 <div class="card-header bg-danger text-white">
                     <i class="bi bi-exclamation-circle me-2"></i>
-                    @(durum.AktifSezon.SezonTipi == LastikSezonTipi.Yaz ? "☀️ Yaz" : "❄️ Kış") Lastiği Takılması Gereken Araçlar
+                    @(durum.AktifSezon.SezonTipi == LastikSezonTipi.Yaz ? "☀️ Yaz" : "❄️ Kış") Sezon Durumu (Tüm Plakalar)
                 </div>
-                <div class="card-body p-0">
-                    @if (!durum.DegisimGerekenler.Any())
+                <div class="card-body">
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-4">
+                            <input class="form-control form-control-sm" placeholder="Plaka / araç ara..." @bind="plakaFiltre" />
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select form-select-sm" @bind="durumFiltre">
+                                <option value="tum">Tümü</option>
+                                <option value="takili">Takılı (Doğru)</option>
+                                <option value="degismemis">Değişmemiş (Yanlış/Eksik)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-5 d-flex align-items-center">
+                            <small class="text-muted">
+                                Toplam: <strong>@FiltreliSezonListesi.Count</strong> / @(durum?.DegisimGerekenler.Count ?? 0) plaka
+                            </small>
+                        </div>
+                    </div>
+
+                    @if (!FiltreliSezonListesi.Any())
                     {
-                        <div class="p-3 text-success"><i class="bi bi-check-circle me-2"></i>Tüm araçlarda uygun sezon lastiği takılı.</div>
+                        <div class="alert alert-info mb-0"><i class="bi bi-funnel me-2"></i>Filtreye uygun plaka bulunamadı.</div>
                     }
                     else
                     {
-                        <div class="table-responsive">
+                        <div class="table-responsive border rounded">
                             <table class="table table-hover mb-0">
                                 <thead class="table-light">
                                     <tr>
                                         <th>Plaka</th>
                                         <th>Araç</th>
                                         <th>Takılı Lastik Durumu</th>
-                                        <th>Bu Sezon Değişim</th>
+                                        <th>Sezon Durumu</th>
                                         <th>Son Değişim</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach (var g in durum.DegisimGerekenler.OrderBy(x => x.BuSezonDegisimYapildi).ThenBy(x => x.Plaka))
+                                    @foreach (var g in FiltreliSezonListesi)
                                     {
                                         <tr class="@(g.BuSezonDegisimYapildi ? "" : "table-warning")">
                                             <td><strong>@g.Plaka</strong></td>
@@ -194,9 +212,9 @@
                                             <td><span class="small">@g.TakiliSezonOzeti</span></td>
                                             <td>
                                                 @if (g.BuSezonDegisimYapildi)
-                                                { <span class="badge bg-success">Yapıldı</span> }
+                                                { <span class="badge bg-success">Takılı</span> }
                                                 else
-                                                { <span class="badge bg-danger">Yapılmadı</span> }
+                                                { <span class="badge bg-danger">Değişmemiş</span> }
                                             </td>
                                             <td>
                                                 <span class="badge @GetSonDegisimBadgeClass(g.SonDegisimTarihi)">
@@ -314,12 +332,41 @@
     private bool modalAcik = false;
     private bool kaydediyor = false;
     private string? hataMesaji;
+    private string plakaFiltre = string.Empty;
+    private string durumFiltre = "tum";
 
     private List<LastikSezonAyar> ayarlar = new();
     private LastikSezonDurum? durum;
     private LastikSezonAyar editingAyar = new();
 
     private int degisimSayisi => durum?.DegisimGerekenler.Count(x => !x.BuSezonDegisimYapildi) ?? 0;
+
+    private List<LastikSezonDegisimGereken> FiltreliSezonListesi
+    {
+        get
+        {
+            IEnumerable<LastikSezonDegisimGereken> query = durum?.DegisimGerekenler ?? Enumerable.Empty<LastikSezonDegisimGereken>();
+
+            if (!string.IsNullOrWhiteSpace(plakaFiltre))
+            {
+                query = query.Where(x =>
+                    x.Plaka.Contains(plakaFiltre, StringComparison.OrdinalIgnoreCase) ||
+                    x.AracBilgisi.Contains(plakaFiltre, StringComparison.OrdinalIgnoreCase));
+            }
+
+            query = durumFiltre switch
+            {
+                "takili" => query.Where(x => x.BuSezonDegisimYapildi),
+                "degismemis" => query.Where(x => !x.BuSezonDegisimYapildi),
+                _ => query
+            };
+
+            return query
+                .OrderBy(x => x.BuSezonDegisimYapildi)
+                .ThenBy(x => x.Plaka)
+                .ToList();
+        }
+    }
 
     protected override async Task OnInitializedAsync() => await YukleAsync();
 

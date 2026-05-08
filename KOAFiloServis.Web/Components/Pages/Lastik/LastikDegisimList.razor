@@ -104,13 +104,17 @@
                                     <td><strong>@o.Plaka</strong></td>
                                     <td>@o.AracBilgisi</td>
                                     <td class="text-center">
-                                        @if (o.DonemdeDegisti)
+                                        @if (o.BuSezonDegisimYapildi == null)
                                         {
-                                            <span class="badge bg-warning text-dark">Degisti (@o.DonemDegisimSayisi)</span>
+                                            <span class="badge bg-secondary">Sezon Yok</span>
+                                        }
+                                        else if (o.BuSezonDegisimYapildi.Value)
+                                        {
+                                            <span class="badge bg-success" title="@o.AktifSezonAdi">Yapıldı</span>
                                         }
                                         else
                                         {
-                                            <span class="badge bg-success">Degismedi</span>
+                                            <span class="badge bg-danger" title="@o.AktifSezonAdi">Yapılmadı</span>
                                         }
                                     </td>
                                     <td class="text-center">@o.TakiliLastikSayisi</td>
