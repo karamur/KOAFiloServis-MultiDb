@@ -30,6 +30,24 @@
             <a class="btn btn-outline-secondary btn-sm" href="@($"/personel-tasima/tedarikciler/{TedarikciId}")">
                 <i class="bi bi-pencil me-1"></i>Tedarikçi Düzenle
             </a>
+            <button class="btn btn-outline-dark btn-sm" @onclick="TopluYazdir">
+                <i class="bi bi-printer me-1"></i>Toplu Yazdır
+            </button>
+            @if (EvrakFiltreAktifMi)
+            {
+                <button class="btn btn-outline-primary btn-sm" @onclick="() => TopluZipIndir(true)" disabled="@(FiltreliEvraklar.Count == 0)">
+                    <i class="bi bi-file-earmark-zip me-1"></i>Filtreli ZIP İndir
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" @onclick="() => TopluZipIndir(false)" disabled="@(evraklar.Count == 0)">
+                    <i class="bi bi-archive me-1"></i>ZIP İndir (Tümü)
+                </button>
+            }
+            else
+            {
+                <button class="btn btn-outline-primary btn-sm" @onclick="() => TopluZipIndir(false)" disabled="@(evraklar.Count == 0)">
+                    <i class="bi bi-file-earmark-zip me-1"></i>ZIP İndir
+                </button>
+            }
             <button class="btn btn-primary" @onclick="@(() => YeniEvrakAc(null))">
                 <i class="bi bi-plus-lg me-1"></i>Yeni Evrak
             </button>
@@ -44,92 +62,270 @@
     }
     else
     {
-        <!-- Kategori kartları -->
-        <div class="row g-3">
-            @foreach (var kategori in TedarikciEvrakKategorileri.TumKategoriler)
-            {
-                var kategoriEvraklari = evraklar.Where(e => e.EvrakKategorisi == kategori).ToList();
-                var aktifEvrak = kategoriEvraklari.FirstOrDefault(e => e.Durum == EvrakDurum.Aktif);
-                var suresiDolacak = aktifEvrak?.BitisTarihi.HasValue == true && aktifEvrak.BitisTarihi!.Value <= DateTime.Today.AddDays(30);
-                var suresiDolmus  = aktifEvrak?.BitisTarihi.HasValue == true && aktifEvrak.BitisTarihi!.Value <  DateTime.Today;
-
-                <div class="col-md-6 col-lg-4">
-                    <div class="card h-100 @(suresiDolmus ? "border-danger" : suresiDolacak ? "border-warning" : aktifEvrak != null ? "border-success" : "")">
-                        <div class="card-header d-flex justify-content-between align-items-center py-2 @(suresiDolmus ? "bg-danger text-white" : suresiDolacak ? "bg-warning" : aktifEvrak != null ? "bg-success text-white" : "")">
-                            <span>
-                                <i class="bi @GetKategoriIcon(kategori) me-1"></i>
-                                @kategori
-                            </span>
-                            @if (aktifEvrak != null)
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body py-2">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-5">
+                        <label class="form-label small mb-1">Ara (Evrak, Poliçe, Şirket, Açıklama)</label>
+                        <input class="form-control form-control-sm" @bind="evrakArama" placeholder="Örn: sigorta, poliçe no" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small mb-1">Durum</label>
+                        <select class="form-select form-select-sm" @bind="evrakDurumFiltre">
+                            <option value="">Tümü</option>
+                            @foreach (var d in Enum.GetValues<EvrakDurum>())
                             {
-                                <span class="badge @(suresiDolmus ? "bg-light text-danger" : suresiDolacak ? "bg-dark" : "bg-light text-success")">
-                                    @(suresiDolmus ? "Süresi Dolmuş" : suresiDolacak ? "Yaklaşıyor" : "Aktif")
-                                </span>
+                                <option value="@d.ToString()">@d</option>
                             }
-                            else
-                            {
-                                <span class="badge bg-secondary">Evrak Yok</span>
-                            }
-                        </div>
-                        <div class="card-body py-2">
-                            @if (aktifEvrak != null)
-                            {
-                                <table class="table table-borderless table-sm mb-0">
-                                    @if (aktifEvrak.BitisTarihi.HasValue)
-                                    {
-                                        <tr>
-                                            <th width="80"><small>Bitiş:</small></th>
-                                            <td><strong class="@(suresiDolmus ? "text-danger" : suresiDolacak ? "text-warning" : "")">@aktifEvrak.BitisTarihi!.Value.ToString("dd.MM.yyyy")</strong></td>
-                                        </tr>
-                                    }
-                                    @if (!string.IsNullOrEmpty(aktifEvrak.PoliceNo))
-                                    {
-                                        <tr>
-                                            <th><small>Poliçe:</small></th>
-                                            <td>@aktifEvrak.PoliceNo</td>
-                                        </tr>
-                                    }
-                                    @if (aktifEvrak.Tutar.HasValue)
-                                    {
-                                        <tr>
-                                            <th><small>Tutar:</small></th>
-                                            <td>@aktifEvrak.Tutar!.Value.ToString("N2") TL</td>
-                                        </tr>
-                                    }
-                                </table>
-                                <div class="d-flex gap-1 mt-2">
-                                    <button class="btn btn-sm btn-outline-primary flex-grow-1" @onclick="() => EvrakDetayAc(aktifEvrak)">
-                                        <i class="bi bi-eye me-1"></i>Detay
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-info" @onclick="() => DosyaEkleAc(aktifEvrak)">
-                                        <i class="bi bi-paperclip"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => EvrakDuzenle(aktifEvrak)">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                </div>
-                            }
-                            else
-                            {
-                                <div class="text-center py-2">
-                                    <small class="text-muted">Bu kategoride evrak yok</small>
-                                    <br />
-                                    <button class="btn btn-sm btn-primary mt-2" @onclick="() => YeniEvrakAc(kategori)">
-                                        <i class="bi bi-plus-lg me-1"></i>Ekle
-                                    </button>
-                                </div>
-                            }
-                        </div>
-                        @if (kategoriEvraklari.Count > 1)
-                        {
-                            <div class="card-footer py-1 bg-light">
-                                <small class="text-muted">@kategoriEvraklari.Count evrak | </small>
-                                <a href="#" class="small" @onclick="() => { }" @onclick:preventDefault>Tümü</a>
-                            </div>
-                        }
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small mb-1">Grup</label>
+                        <select class="form-select form-select-sm" @bind="evrakGrupFiltre">
+                            <option value="tum">Tümü</option>
+                            <option value="surekli">Sürekli Gerekli</option>
+                            <option value="diger">Diğer</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-grid">
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="TemizleEvrakFiltre">Temizle</button>
                     </div>
                 </div>
-            }
+            </div>
+        </div>
+
+        <div class="row g-2 mb-3">
+            <div class="col-6 col-md-3">
+                <div class="card border-0 bg-light h-100">
+                    <div class="card-body py-2">
+                        <div class="small text-muted">Listelenen / Toplam</div>
+                        <div class="h4 mb-0">@FiltreliEvraklar.Count / @ToplamEvrakSayisi</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-0 bg-success-subtle h-100">
+                    <div class="card-body py-2">
+                        <div class="small text-muted">Aktif</div>
+                        <div class="h4 mb-0">@AktifEvrakSayisi</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-0 bg-danger-subtle h-100">
+                    <div class="card-body py-2">
+                        <div class="small text-muted">Süresi Dolmuş</div>
+                        <div class="h4 mb-0">@SuresiDolmusEvrakSayisi</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-0 bg-warning-subtle h-100">
+                    <div class="card-body py-2">
+                        <div class="small text-muted">Eksik Sürekli Evrak Kategorisi</div>
+                        <div class="h4 mb-0">@EksikSurekliKategoriSayisi</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (!FiltreliEvraklar.Any())
+        {
+            <div class="alert alert-warning py-2 mb-3">Filtre kriterine uygun evrak bulunamadı.</div>
+        }
+
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-shield-check me-1"></i>Sürekli Gerekli Evraklar</h6>
+                <span class="badge bg-secondary">@GorunenSurekliKategoriler.Count() kategori</span>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    @foreach (var kategori in GorunenSurekliKategoriler)
+                    {
+                        var kategoriEvraklari = GetKategoriEvraklari(kategori);
+                        var oncelikliEvrak = GetKategoriOncelikliEvrak(kategoriEvraklari);
+                        var suresiDolacak = oncelikliEvrak?.BitisTarihi.HasValue == true && oncelikliEvrak.BitisTarihi!.Value <= DateTime.Today.AddDays(30);
+                        var suresiDolmus = oncelikliEvrak?.BitisTarihi.HasValue == true && oncelikliEvrak.BitisTarihi!.Value < DateTime.Today;
+
+                        <div class="col-md-6 col-lg-4">
+                            <div class="card h-100 @(suresiDolmus ? "border-danger" : suresiDolacak ? "border-warning" : oncelikliEvrak != null ? "border-success" : "border-secondary")">
+                                <div class="card-header d-flex justify-content-between align-items-center py-2 @(suresiDolmus ? "bg-danger text-white" : suresiDolacak ? "bg-warning" : oncelikliEvrak != null ? "bg-success text-white" : "bg-light")">
+                                    <span>
+                                        <i class="bi @GetKategoriIcon(kategori) me-1"></i>
+                                        @kategori
+                                    </span>
+                                    @if (oncelikliEvrak != null)
+                                    {
+                                        <span class="badge @(suresiDolmus ? "bg-light text-danger" : suresiDolacak ? "bg-dark" : "bg-light text-success")">
+                                            @(suresiDolmus ? "Süresi Dolmuş" : suresiDolacak ? "Yaklaşıyor" : "Aktif")
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">Eksik</span>
+                                    }
+                                </div>
+                                <div class="card-body py-2">
+                                    @if (oncelikliEvrak != null)
+                                    {
+                                        <table class="table table-borderless table-sm mb-0">
+                                            @if (oncelikliEvrak.BitisTarihi.HasValue)
+                                            {
+                                                <tr>
+                                                    <th width="95"><small>Bitiş:</small></th>
+                                                    <td>
+                                                        <strong class="@(suresiDolmus ? "text-danger" : suresiDolacak ? "text-warning" : "")">
+                                                            @oncelikliEvrak.BitisTarihi!.Value.ToString("dd.MM.yyyy")
+                                                        </strong>
+                                                    </td>
+                                                </tr>
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(oncelikliEvrak.PoliceNo))
+                                            {
+                                                <tr>
+                                                    <th><small>Poliçe:</small></th>
+                                                    <td>@oncelikliEvrak.PoliceNo</td>
+                                                </tr>
+                                            }
+                                            @if (oncelikliEvrak.Tutar.HasValue)
+                                            {
+                                                <tr>
+                                                    <th><small>Tutar:</small></th>
+                                                    <td>@oncelikliEvrak.Tutar!.Value.ToString("N2") TL</td>
+                                                </tr>
+                                            }
+                                        </table>
+                                        <div class="d-flex gap-1 mt-2">
+                                            <button class="btn btn-sm btn-outline-primary flex-grow-1" @onclick="() => EvrakDetayAc(oncelikliEvrak)">
+                                                <i class="bi bi-eye me-1"></i>Detay
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-info" @onclick="() => DosyaEkleAc(oncelikliEvrak)">
+                                                <i class="bi bi-paperclip"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => EvrakDuzenle(oncelikliEvrak)">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="text-center py-2">
+                                            <small class="text-muted">Bu kategoride evrak bulunamadı</small>
+                                            <br />
+                                            <button class="btn btn-sm btn-primary mt-2" @onclick="() => YeniEvrakAc(kategori)">
+                                                <i class="bi bi-plus-lg me-1"></i>Ekle
+                                            </button>
+                                        </div>
+                                    }
+                                </div>
+                                @if (kategoriEvraklari.Count > 1)
+                                {
+                                    <div class="card-footer py-1 bg-light">
+                                        <small class="text-muted">@kategoriEvraklari.Count evrak | </small>
+                                        <a href="#" class="small" @onclick="() => KategoriEvraklariniGoster(kategori)" @onclick:preventDefault>Tümü</a>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-archive me-1"></i>Diğer Evraklar</h6>
+                <span class="badge bg-secondary">@GorunenDigerKategoriler.Count() kategori</span>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    @foreach (var kategori in GorunenDigerKategoriler)
+                    {
+                        var kategoriEvraklari = GetKategoriEvraklari(kategori);
+                        var oncelikliEvrak = GetKategoriOncelikliEvrak(kategoriEvraklari);
+                        var suresiDolacak = oncelikliEvrak?.BitisTarihi.HasValue == true && oncelikliEvrak.BitisTarihi!.Value <= DateTime.Today.AddDays(30);
+                        var suresiDolmus = oncelikliEvrak?.BitisTarihi.HasValue == true && oncelikliEvrak.BitisTarihi!.Value < DateTime.Today;
+
+                        <div class="col-md-6 col-lg-4">
+                            <div class="card h-100 @(suresiDolmus ? "border-danger" : suresiDolacak ? "border-warning" : oncelikliEvrak != null ? "border-success" : "")">
+                                <div class="card-header d-flex justify-content-between align-items-center py-2 @(suresiDolmus ? "bg-danger text-white" : suresiDolacak ? "bg-warning" : oncelikliEvrak != null ? "bg-success text-white" : "")">
+                                    <span>
+                                        <i class="bi @GetKategoriIcon(kategori) me-1"></i>
+                                        @kategori
+                                    </span>
+                                    @if (oncelikliEvrak != null)
+                                    {
+                                        <span class="badge @(suresiDolmus ? "bg-light text-danger" : suresiDolacak ? "bg-dark" : "bg-light text-success")">
+                                            @(suresiDolmus ? "Süresi Dolmuş" : suresiDolacak ? "Yaklaşıyor" : "Aktif")
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">Evrak Yok</span>
+                                    }
+                                </div>
+                                <div class="card-body py-2">
+                                    @if (oncelikliEvrak != null)
+                                    {
+                                        <table class="table table-borderless table-sm mb-0">
+                                            @if (oncelikliEvrak.BitisTarihi.HasValue)
+                                            {
+                                                <tr>
+                                                    <th width="95"><small>Bitiş:</small></th>
+                                                    <td><strong class="@(suresiDolmus ? "text-danger" : suresiDolacak ? "text-warning" : "")">@oncelikliEvrak.BitisTarihi!.Value.ToString("dd.MM.yyyy")</strong></td>
+                                                </tr>
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(oncelikliEvrak.PoliceNo))
+                                            {
+                                                <tr>
+                                                    <th><small>Poliçe:</small></th>
+                                                    <td>@oncelikliEvrak.PoliceNo</td>
+                                                </tr>
+                                            }
+                                            @if (oncelikliEvrak.Tutar.HasValue)
+                                            {
+                                                <tr>
+                                                    <th><small>Tutar:</small></th>
+                                                    <td>@oncelikliEvrak.Tutar!.Value.ToString("N2") TL</td>
+                                                </tr>
+                                            }
+                                        </table>
+                                        <div class="d-flex gap-1 mt-2">
+                                            <button class="btn btn-sm btn-outline-primary flex-grow-1" @onclick="() => EvrakDetayAc(oncelikliEvrak)">
+                                                <i class="bi bi-eye me-1"></i>Detay
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-info" @onclick="() => DosyaEkleAc(oncelikliEvrak)">
+                                                <i class="bi bi-paperclip"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => EvrakDuzenle(oncelikliEvrak)">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="text-center py-2">
+                                            <small class="text-muted">Bu kategoride evrak yok</small>
+                                            <br />
+                                            <button class="btn btn-sm btn-primary mt-2" @onclick="() => YeniEvrakAc(kategori)">
+                                                <i class="bi bi-plus-lg me-1"></i>Ekle
+                                            </button>
+                                        </div>
+                                    }
+                                </div>
+                                @if (kategoriEvraklari.Count > 1)
+                                {
+                                    <div class="card-footer py-1 bg-light">
+                                        <small class="text-muted">@kategoriEvraklari.Count evrak | </small>
+                                        <a href="#" class="small" @onclick="() => KategoriEvraklariniGoster(kategori)" @onclick:preventDefault>Tümü</a>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
         </div>
     }
 </div>
@@ -355,6 +551,73 @@
     </div>
 }
 
+<!-- Kategori Evrak Listesi Modal -->
+@if (showKategoriModal)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-collection me-2"></i>@(seciliKategori ?? "Kategori") Evrakları</h5>
+                    <button type="button" class="btn-close" @onclick="KategoriModalKapat"></button>
+                </div>
+                <div class="modal-body">
+                    @if (!seciliKategoriEvraklari.Any())
+                    {
+                        <div class="text-muted">Bu kategoride listelenecek evrak bulunamadı.</div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Evrak</th>
+                                        <th>Başlangıç</th>
+                                        <th>Bitiş</th>
+                                        <th>Durum</th>
+                                        <th>Dosya</th>
+                                        <th class="text-end">İşlem</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var evrak in seciliKategoriEvraklari)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <div class="fw-semibold">@(string.IsNullOrWhiteSpace(evrak.EvrakAdi) ? evrak.EvrakKategorisi : evrak.EvrakAdi)</div>
+                                                @if (!string.IsNullOrWhiteSpace(evrak.PoliceNo))
+                                                {
+                                                    <div class="small text-muted">Poliçe: @evrak.PoliceNo</div>
+                                                }
+                                            </td>
+                                            <td>@evrak.BaslangicTarihi?.ToString("dd.MM.yyyy")</td>
+                                            <td>@evrak.BitisTarihi?.ToString("dd.MM.yyyy")</td>
+                                            <td><span class="badge @GetDurumClass(evrak.Durum)">@evrak.Durum</span></td>
+                                            <td>@(evrak.Dosyalar?.Count ?? 0)</td>
+                                            <td class="text-end" style="white-space:nowrap">
+                                                <button class="btn btn-sm btn-outline-primary" @onclick="() => EvrakDetayAc(evrak)">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-info ms-1" @onclick="() => DosyaEkleAc(evrak)">
+                                                    <i class="bi bi-paperclip"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="KategoriModalKapat">Kapat</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     [Parameter] public int TedarikciId { get; set; }
 
@@ -365,12 +628,67 @@
     private bool showEvrakModal = false;
     private bool showDosyaModal = false;
     private bool showDetayModal = false;
+    private bool showKategoriModal = false;
     private TedarikciEvrak editEvrak = new();
     private TedarikciEvrak? dosyaEvrak;
     private TedarikciEvrak? detayEvrak;
+    private string? seciliKategori;
+    private List<TedarikciEvrak> seciliKategoriEvraklari = new();
 
     private List<IBrowserFile> secilenDosyalar = new();
     private bool isUploading = false;
+    private string evrakArama = string.Empty;
+    private string? evrakDurumFiltre;
+    private string evrakGrupFiltre = "tum";
+
+    private static readonly HashSet<string> SurekliGerekliKategoriler = new(StringComparer.OrdinalIgnoreCase)
+    {
+        TedarikciEvrakKategorileri.TicaretSicil,
+        TedarikciEvrakKategorileri.VergiLevhasi,
+        TedarikciEvrakKategorileri.ImzaSirkuleri,
+        TedarikciEvrakKategorileri.YetkiBelgesi,
+        TedarikciEvrakKategorileri.FaaliyetBelgesi,
+        TedarikciEvrakKategorileri.SgkBelgesi,
+        TedarikciEvrakKategorileri.IsGuvenligi,
+        TedarikciEvrakKategorileri.SorumlulukSig
+    };
+
+    private List<string> DigerKategoriler => TedarikciEvrakKategorileri.TumKategoriler
+        .Where(k => !SurekliGerekliKategoriler.Contains(k))
+        .ToList();
+
+    private bool EvrakFiltreAktifMi =>
+        !string.IsNullOrWhiteSpace(evrakArama)
+        || !string.IsNullOrWhiteSpace(evrakDurumFiltre)
+        || !string.Equals(evrakGrupFiltre, "tum", StringComparison.OrdinalIgnoreCase);
+
+    private List<TedarikciEvrak> FiltreliEvraklar => evraklar
+        .Where(e => string.IsNullOrWhiteSpace(evrakArama)
+            || (e.EvrakKategorisi?.Contains(evrakArama, StringComparison.OrdinalIgnoreCase) ?? false)
+            || (e.EvrakAdi?.Contains(evrakArama, StringComparison.OrdinalIgnoreCase) ?? false)
+            || (e.PoliceNo?.Contains(evrakArama, StringComparison.OrdinalIgnoreCase) ?? false)
+            || (e.SigortaSirketi?.Contains(evrakArama, StringComparison.OrdinalIgnoreCase) ?? false)
+            || (e.Aciklama?.Contains(evrakArama, StringComparison.OrdinalIgnoreCase) ?? false))
+        .Where(e => string.IsNullOrWhiteSpace(evrakDurumFiltre)
+            || string.Equals(e.Durum.ToString(), evrakDurumFiltre, StringComparison.OrdinalIgnoreCase))
+        .Where(e => evrakGrupFiltre switch
+        {
+            "surekli" => SurekliGerekliKategoriler.Contains(e.EvrakKategorisi ?? string.Empty),
+            "diger" => !SurekliGerekliKategoriler.Contains(e.EvrakKategorisi ?? string.Empty),
+            _ => true
+        })
+        .ToList();
+
+    private IEnumerable<string> GorunenSurekliKategoriler => SurekliGerekliKategoriler
+        .Where(k => !EvrakFiltreAktifMi || GetKategoriEvraklari(k).Any());
+
+    private IEnumerable<string> GorunenDigerKategoriler => DigerKategoriler
+        .Where(k => !EvrakFiltreAktifMi || GetKategoriEvraklari(k).Any());
+
+    private int ToplamEvrakSayisi => evraklar.Count;
+    private int AktifEvrakSayisi => FiltreliEvraklar.Count(e => e.Durum == EvrakDurum.Aktif);
+    private int SuresiDolmusEvrakSayisi => FiltreliEvraklar.Count(e => e.Durum == EvrakDurum.SuresiDolmus || (e.BitisTarihi.HasValue && e.BitisTarihi.Value.Date < DateTime.Today));
+    private int EksikSurekliKategoriSayisi => SurekliGerekliKategoriler.Count(k => !FiltreliEvraklar.Any(e => string.Equals(e.EvrakKategorisi, k, StringComparison.OrdinalIgnoreCase)));
 
     protected override async Task OnInitializedAsync()
     {
@@ -537,11 +855,88 @@
         }
     }
 
+    private async Task TopluYazdir()
+    {
+        await JS.InvokeVoidAsync("window.print");
+    }
+
+    private async Task TopluZipIndir(bool filtreli)
+    {
+        try
+        {
+            var seciliEvrakIdleri = filtreli
+                ? FiltreliEvraklar.Select(e => e.Id).Distinct().ToList()
+                : null;
+
+            if (filtreli && (seciliEvrakIdleri == null || seciliEvrakIdleri.Count == 0))
+            {
+                ToastService.ShowWarning("Filtre kriterine uygun evrak bulunamadı.");
+                return;
+            }
+
+            var zipBytes = await TedarikciService.GetTedarikciEvraklariZipAsync(TedarikciId, seciliEvrakIdleri);
+            if (zipBytes.Length == 0)
+            {
+                ToastService.ShowWarning("ZIP oluşturulamadı. İndirilecek dosya bulunamadı.");
+                return;
+            }
+
+            var adEki = filtreli ? "filtreli_" : string.Empty;
+            var dosyaAdi = $"tedarikci_evraklari_{adEki}{TedarikciId}_{DateTime.Now:yyyyMMdd_HHmm}.zip";
+            await JS.InvokeVoidAsync("downloadFileFromBase64", dosyaAdi, Convert.ToBase64String(zipBytes));
+            ToastService.ShowSuccess(filtreli
+                ? "Filtrelenmiş tedarikçi evrakları ZIP olarak indirildi."
+                : "Tedarikçi evrakları ZIP olarak indirildi.");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Toplu ZIP indirme hatası: " + ex.Message);
+        }
+    }
+
+    private void KategoriEvraklariniGoster(string kategori)
+    {
+        seciliKategori = kategori;
+        seciliKategoriEvraklari = GetKategoriEvraklari(kategori);
+        showKategoriModal = true;
+    }
+
+    private List<TedarikciEvrak> GetKategoriEvraklari(string kategori)
+    {
+        return FiltreliEvraklar
+            .Where(e => string.Equals(e.EvrakKategorisi, kategori, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(e => e.Durum == EvrakDurum.Aktif)
+            .ThenBy(e => e.BitisTarihi ?? DateTime.MaxValue)
+            .ThenByDescending(e => e.Id)
+            .ToList();
+    }
+
+    private void TemizleEvrakFiltre()
+    {
+        evrakArama = string.Empty;
+        evrakDurumFiltre = null;
+        evrakGrupFiltre = "tum";
+    }
+
+    private TedarikciEvrak? GetKategoriOncelikliEvrak(List<TedarikciEvrak> kategoriEvraklari)
+    {
+        return kategoriEvraklari.FirstOrDefault(e => e.Durum == EvrakDurum.Aktif)
+            ?? kategoriEvraklari.FirstOrDefault();
+    }
+
+    private void KategoriModalKapat()
+    {
+        showKategoriModal = false;
+        seciliKategori = null;
+        seciliKategoriEvraklari = new();
+    }
+
     private void ModalKapat()
     {
         showEvrakModal = false;
         showDosyaModal = false;
         showDetayModal = false;
+        showKategoriModal = false;
     }
 
     private string GetKategoriIcon(string kategori) => kategori switch

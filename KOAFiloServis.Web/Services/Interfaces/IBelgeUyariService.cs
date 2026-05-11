@@ -1,4 +1,4 @@
-using KOAFiloServis.Shared.Entities;
+﻿using KOAFiloServis.Shared.Entities;
 
 namespace KOAFiloServis.Web.Services;
 
@@ -48,6 +48,9 @@ public class BelgeUyariOzet
     // Taşıma Tedarikçi Sözleşmeleri
     public List<BelgeUyari> TedarikciSozlesmeUyarilari { get; set; } = new();
 
+    // Kiralık C Plaka sözleşme bitiş uyarıları
+    public List<BelgeUyari> KiralikPlakaUyarilari { get; set; } = new();
+
     public List<BelgeUyari> TumUyarilar =>
         EhliyetUyarilari
          .Concat(SrcUyarilari)
@@ -61,6 +64,7 @@ public class BelgeUyariOzet
         .Concat(TrafikSigortasiUyarilari)
         .Concat(DigerAracEvrakUyarilari)
         .Concat(TedarikciSozlesmeUyarilari)
+        .Concat(KiralikPlakaUyarilari)
         .OrderBy(u => u.KalanGun)
         .ToList();
 }

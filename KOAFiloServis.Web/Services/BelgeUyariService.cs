@@ -1,4 +1,4 @@
-using System.IO.Compression;
+﻿using System.IO.Compression;
 using KOAFiloServis.Shared.Entities;
 using KOAFiloServis.Web.Data;
 using Microsoft.EntityFrameworkCore;
@@ -144,6 +144,36 @@ public class BelgeUyariService : IBelgeUyariService
                 BitisTarihi = cari.SozlesmeBitisTarihi!.Value,
                 DetayUrl = $"/cariler/{cari.Id}",
                 TasimaTedarikciUnvan = cari.Unvan
+            });
+        }
+
+        // Kiralık C Plaka sözleşme/kira bitiş uyarıları
+        var kiralikPlakalar = await context.KiralikPlakaTakipler
+            .AsNoTracking()
+            .Where(k => !k.IsDeleted && k.BitisTarihi <= limitTarih)
+            .OrderBy(k => k.BitisTarihi)
+            .Select(k => new
+            {
+                k.Id,
+                k.Plaka,
+                k.IsimSoyisim,
+                k.BitisTarihi,
+                k.AracId
+            })
+            .ToListAsync();
+
+        foreach (var k in kiralikPlakalar)
+        {
+            ozet.KiralikPlakaUyarilari.Add(new BelgeUyari
+            {
+                Id = k.Id,
+                Kaynak = "Kiralık Plaka",
+                Baslik = $"{k.Plaka} - {k.IsimSoyisim}",
+                BelgeTuru = "Kiralama Bitiş",
+                BitisTarihi = k.BitisTarihi,
+                DetayUrl = k.AracId.HasValue
+                    ? $"/araclar/{k.AracId.Value}/evraklar"
+                    : $"/araclar/plaka-takip/{k.Id}/duzenle"
             });
         }
 

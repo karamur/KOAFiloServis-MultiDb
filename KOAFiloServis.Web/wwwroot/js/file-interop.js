@@ -3,11 +3,7 @@
 (function () {
     function downloadFile(filename, base64Content, contentType) {
         try {
-            const byteCharacters = atob(base64Content);
-            const byteNumbers = new Uint8Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i);
-            }
+            const byteNumbers = base64ToUint8Array(base64Content);
             const blob = new Blob([byteNumbers], { type: contentType || 'application/octet-stream' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -19,6 +15,52 @@
             setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
         } catch (e) {
             console.error('downloadFile hatası:', e);
+            throw e;
+        }
+    }
+
+    function base64ToUint8Array(base64) {
+        // Whitespace ve satır sonlarını temizle (Blazor JSON serializer bazen ekleyebiliyor)
+        var clean = String(base64).replace(/[\r\n\s]/g, '');
+        // Base64 padding düzelt
+        var pad = clean.length % 4;
+        if (pad === 2) clean += '==';
+        else if (pad === 3) clean += '=';
+        else if (pad === 1) throw new Error('Geçersiz base64 uzunluğu');
+
+        var binary = atob(clean);
+        var len = binary.length;
+        var arr = new Uint8Array(len);
+        for (var i = 0; i < len; i++) arr[i] = binary.charCodeAt(i);
+        return arr;
+    }
+
+    function downloadFileFromBytes(filename, contentType, bytes) {
+        try {
+            let byteArray;
+            if (bytes instanceof Uint8Array) {
+                byteArray = bytes;
+            } else if (Array.isArray(bytes)) {
+                byteArray = new Uint8Array(bytes);
+            } else if (bytes && Array.isArray(bytes.data)) {
+                byteArray = new Uint8Array(bytes.data);
+            } else if (typeof bytes === 'string') {
+                byteArray = base64ToUint8Array(bytes);
+            } else {
+                throw new Error('Geçersiz byte dizisi (tip: ' + typeof bytes + ')');
+            }
+
+            const blob = new Blob([byteArray], { type: contentType || 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+        } catch (e) {
+            console.error('downloadFileFromBytes hatası:', e);
             throw e;
         }
     }
@@ -187,6 +229,7 @@
 
     // window scope'a açıkça bağla — Blazor IJSRuntime bu globalleri arar.
     window.downloadFile = downloadFile;
+    window.downloadFileFromBytes = downloadFileFromBytes;
     window.downloadFileFromBase64 = downloadFileFromBase64;
     window.downloadFileFromStream = downloadFileFromStream;
     window.printContent = printContent;
@@ -198,3 +241,5 @@
     window.printDocumentFiles = printDocumentFiles;
     window.scrollToElementById = scrollToElementById;
 })();
+
+

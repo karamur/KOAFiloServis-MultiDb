@@ -1,4 +1,4 @@
-﻿using KOAFiloServis.Web.Components;
+using KOAFiloServis.Web.Components;
 using KOAFiloServis.Web.Data;
 using KOAFiloServis.Web.Helpers;
 using KOAFiloServis.Web.Jobs;
@@ -228,6 +228,10 @@ builder.Services.AddScoped<IToastService, ToastService>();
 builder.Services.AddScoped<AppIssueStateService>();
 builder.Services.AddScoped<IPdfService, PdfService>();
 builder.Services.AddScoped<IBudgetService, BudgetService>();
+
+// OpenRouter AI Integration
+builder.Services.AddHttpClient<IOpenRouterService, OpenRouterService>();
+
 // Guvenlik: Master key (DPAPI) + AES-GCM dosya koruyucu
 builder.Services.AddSingleton<IMasterKeyProvider>(sp =>
 {
@@ -259,7 +263,9 @@ builder.Services.AddScoped<IPersonelOzlukService, PersonelOzlukService>(); // Pe
 builder.Services.AddScoped<IEbysService, EbysService>(); // EBYS Belge Merkezi Servisi
 builder.Services.AddScoped<IPersonelFinansService, PersonelFinansService>(); // Personel Finans (Avans/Borç) Servisi
 builder.Services.AddScoped<IBordroService, BordroService>(); // Bordro Servisi
-builder.Services.AddScoped<IFiloOperasyonService, FiloOperasyonService>(); // Filo Operasyon (Komisyonculuk, Alım/Satım, Plaka Dönüşüm)
+builder.Services.AddScoped<IFiloOperasyonService, FiloOperasyonService>();
+builder.Services.AddScoped<IKiralikPlakaTakipService, KiralikPlakaTakipService>();
+ // Filo Operasyon (Komisyonculuk, Alım/Satım, Kiralık C Plaka Takip)
 builder.Services.AddScoped<ITasimaTedarikciService, TasimaTedarikciService>(); // Personel Taşıma Tedarikçi (alt yüklenici) Modülü
 builder.Services.AddScoped<IServisKontratService, ServisKontratService>(); // Servis Operasyon (Özmal/Kiralık/Tedarikçi Kontrat + Puantaj)
 builder.Services.AddScoped<IIlanYayinService, IlanYayinService>(); // Araç İlan Yayın ve Kullanıcı Tercihleri
@@ -771,4 +777,5 @@ app.MapControllers(); // API Controller'larini haritalandir
 app.MapHub<AracTakipHub>("/hubs/aractakip"); // SignalR Araç Takip Hub'ı
 
 app.Run();
+
 

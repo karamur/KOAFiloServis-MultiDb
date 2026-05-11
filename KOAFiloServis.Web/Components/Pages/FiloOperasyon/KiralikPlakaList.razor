@@ -1,0 +1,345 @@
+﻿@page "/araclar/plaka-takip"
+@using KOAFiloServis.Shared.Entities
+@using KOAFiloServis.Web.Services.Interfaces
+@using KOAFiloServis.Web.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject IKiralikPlakaTakipService TakipService
+@inject IToastService ToastService
+@inject IJSRuntime JS
+
+<PageTitle>Kiralık C Plaka Takibi | KOA Filo Servis</PageTitle>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="/araclar">Araçlar</a></li>
+                    <li class="breadcrumb-item active">Plaka Takip</li>
+                </ol>
+            </nav>
+            <h3 class="mb-0"><i class="bi bi-card-text me-2"></i>Kiralık C Plaka Takibi</h3>
+            <small class="text-muted">Yeni kayıt yalnızca Excel ile yapılır.</small>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-warning" @onclick="OtomatikEslestir" disabled="@_eslestirmeCalisiyor">
+                @if (_eslestirmeCalisiyor)
+                {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                }
+                else
+                {
+                    <i class="bi bi-link-45deg me-1"></i>
+                }
+                Otomatik Eşleştir
+            </button>
+            <button class="btn btn-outline-info" @onclick="SablonIndir"><i class="bi bi-download me-1"></i> Şablon</button>
+            <button class="btn btn-success" @onclick="ExcelImportModalAc"><i class="bi bi-upload me-1"></i> Excel Aktar</button>
+        </div>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>
+    }
+    else if (!_liste.Any())
+    {
+        <div class="alert alert-info">Kayıt bulunamadı.</div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>S.NO</th>
+                            <th>PLAKA</th>
+                            <th>EŞLEŞEN ARAÇ</th>
+                            <th>İSİM SOYİSİM</th>
+                            <th>BAŞLAMA TARİHİ</th>
+                            <th>BİTİŞ TARİHİ</th>
+                            <th>DURUM</th>
+                            <th>KASA DURUMU</th>
+                            <th>FATURA</th>
+                            <th>AYLIK / YILLIK</th>
+                            <th>EK TUTAR</th>
+                            <th>TOPLAM</th>
+                            <th class="text-end">İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < _liste.Count; i++)
+                        {
+                            var item = _liste[i];
+                            var eslesmedi = item.Arac == null;
+                            var kalanGun = (item.BitisTarihi.Date - DateTime.Today).Days;
+                            var bitisClass = kalanGun < 0 ? "bg-danger text-white"
+                                : kalanGun <= 7 ? "bg-warning text-dark"
+                                : kalanGun <= 30 ? "bg-info text-dark"
+                                : "bg-success text-white";
+                            var bitisText = kalanGun < 0
+                                ? $"{item.BitisTarihi:dd.MM.yyyy} ({Math.Abs(kalanGun)} gün geçti)"
+                                : $"{item.BitisTarihi:dd.MM.yyyy} ({kalanGun} gün)";
+                            var durumLower = (item.Durum ?? string.Empty).Trim().ToLowerInvariant();
+                            var durumClass = durumLower switch
+                            {
+                                "aktif" or "devam" or "devam ediyor" or "açık" or "acik" => "bg-success",
+                                "pasif" or "iptal" or "kapalı" or "kapali" or "sona erdi" or "bitti" => "bg-secondary",
+                                "beklemede" or "bekleniyor" or "askıda" or "askida" => "bg-warning text-dark",
+                                _ => "bg-info text-dark"
+                            };
+                            var kasaLower = (item.KasaDurumu ?? string.Empty).Trim().ToLowerInvariant();
+                            var kasaClass = kasaLower switch
+                            {
+                                "ödendi" or "odendi" or "tamam" or "kapandı" or "kapandi" => "bg-success",
+                                "ödenmedi" or "odenmedi" or "açık" or "acik" or "borç" or "borc" => "bg-danger",
+                                "kısmi" or "kismi" or "parça" or "parca" or "eksik" => "bg-warning text-dark",
+                                _ => "bg-secondary"
+                            };
+                            <tr class="@(eslesmedi ? "table-danger" : "")">
+                                <td>@(i + 1)</td>
+                                <td><strong>@item.Plaka</strong></td>
+                                <td>
+                                    @if (!eslesmedi)
+                                    {
+                                        <a href="/araclar/@item.Arac!.Id/evraklar" class="text-decoration-none" title="Araç belge dosyalarına git">
+                                            @($"{item.Arac.AktifPlaka} - {item.Arac.Marka} {item.Arac.Model}")
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>Eşleşmedi</span>
+                                    }
+                                </td>
+                                <td>@item.IsimSoyisim</td>
+                                <td>@item.BaslamaTarihi.ToString("dd.MM.yyyy")</td>
+                                <td><span class="badge @bitisClass" title="Bitiş tarihi">@bitisText</span></td>
+                                <td><span class="badge @durumClass">@item.Durum</span></td>
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(item.KasaDurumu))
+                                    {
+                                        <span class="badge @kasaClass">@item.KasaDurumu</span>
+                                    }
+                                </td>
+                                <td>@item.FaturaOdemesi.ToString("N2")</td>
+                                <td>@item.Periyot <br /><small class="text-muted">@item.AylikVeyaYillikTutar.ToString("N2")</small></td>
+                                <td>@item.EkTutar.ToString("N2")</td>
+                                <td><strong>@item.Toplam.ToString("N2")</strong></td>
+                                <td class="text-end">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="/araclar/plaka-takip/@item.Id/duzenle" class="btn btn-outline-primary" title="Düzenle"><i class="bi bi-pencil"></i></a>
+                                        <button class="btn btn-outline-danger" title="Sil" @onclick="() => Sil(item)"><i class="bi bi-trash"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+@if (showImportModal)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="bi bi-file-earmark-excel me-2"></i>Excel'den Kiralık C Plaka Aktar</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="ImportModalKapat"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info py-2 mb-3">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Excel sütunları: <strong>PLAKA | İSİM SOYİSİM | BAŞLAMA TARİHİ | BİTİŞ TARİHİ | DURUM | KASA DURUMU | FATURA | AYLIK / YILLIK | TUTAR | EK TUTAR | TOPLAM</strong>
+                        <br /><small class="text-muted">TOPLAM otomatik hesaplanır: <strong>FATURA + EK TUTAR</strong></small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Excel Dosyası Seç *</label>
+                        <InputFile class="form-control" OnChange="DosyaSecildi" accept=".xlsx,.xls" />
+                    </div>
+
+                    @if (importResult != null)
+                    {
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-3 col-6"><div class="card bg-success text-white text-center py-2"><h4 class="mb-0">@importResult.ImportedCount</h4><small>Eklenen</small></div></div>
+                            <div class="col-md-3 col-6"><div class="card bg-warning text-dark text-center py-2"><h4 class="mb-0">@importResult.UpdatedCount</h4><small>Güncellenen</small></div></div>
+                            <div class="col-md-3 col-6"><div class="card bg-secondary text-white text-center py-2"><h4 class="mb-0">@importResult.SkippedCount</h4><small>Atlanan</small></div></div>
+                            <div class="col-md-3 col-6"><div class="card bg-danger text-white text-center py-2"><h4 class="mb-0">@importResult.ErrorCount</h4><small>Hata</small></div></div>
+                        </div>
+
+                        @if (importResult.SkippedRecords.Any())
+                        {
+                            <div class="alert alert-warning py-2" style="max-height: 160px; overflow-y: auto;">
+                                @foreach (var s in importResult.SkippedRecords.Take(30))
+                                {
+                                    <div><small>@s</small></div>
+                                }
+                            </div>
+                        }
+
+                        @if (importResult.Errors.Any())
+                        {
+                            <div class="alert alert-danger py-2" style="max-height: 200px; overflow-y: auto;">
+                                @foreach (var error in importResult.Errors.Take(30))
+                                {
+                                    <div><small>@error</small></div>
+                                }
+                            </div>
+                        }
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-info" @onclick="SablonIndir"><i class="bi bi-download me-1"></i>Şablon İndir</button>
+                    <button type="button" class="btn btn-secondary" @onclick="ImportModalKapat">Kapat</button>
+                    <button type="button" class="btn btn-success" @onclick="ExcelImportYap" disabled="@(isImporting || importFile == null)">
+                        @if (isImporting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        <i class="bi bi-upload me-1"></i>Aktarımı Başlat
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private List<KiralikPlakaTakip> _liste = new();
+
+    private bool showImportModal;
+    private bool isImporting;
+    private bool _eslestirmeCalisiyor;
+    private IBrowserFile? importFile;
+    private KiralikPlakaImportResult? importResult;
+
+    protected override async Task OnInitializedAsync() => await LoadData();
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        try
+        {
+            _liste = await TakipService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SablonIndir()
+    {
+        try
+        {
+            var content = await TakipService.GetExcelSablonAsync();
+            var fileName = $"kiralik-c-plaka-sablon-{DateTime.Now:yyyyMMdd-HHmm}.xlsx";
+            var base64 = Convert.ToBase64String(content);
+            await JS.InvokeVoidAsync("downloadFileFromBytes", fileName, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64);
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Şablon indirilemedi: {ex.Message}");
+        }
+    }
+
+    private async Task OtomatikEslestir()
+    {
+        if (_eslestirmeCalisiyor) return;
+        _eslestirmeCalisiyor = true;
+        try
+        {
+            var eslesen = await TakipService.EslestirmeYapAsync();
+            if (eslesen > 0)
+            {
+                ToastService.ShowSuccess($"{eslesen} kayıt araç ile eşleştirildi.");
+                await LoadData();
+            }
+            else
+            {
+                ToastService.ShowInfo("Eşleştirilecek yeni kayıt bulunamadı.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Eşleştirme başarısız: {ex.Message}");
+        }
+        finally
+        {
+            _eslestirmeCalisiyor = false;
+        }
+    }
+
+    private void ExcelImportModalAc()
+    {
+        showImportModal = true;
+        importResult = null;
+        importFile = null;
+    }
+
+    private void ImportModalKapat()
+    {
+        showImportModal = false;
+        importResult = null;
+        importFile = null;
+    }
+
+    private void DosyaSecildi(InputFileChangeEventArgs e)
+    {
+        importFile = e.File;
+        importResult = null;
+    }
+
+    private async Task ExcelImportYap()
+    {
+        if (importFile == null) return;
+
+        isImporting = true;
+        try
+        {
+            await using var stream = importFile.OpenReadStream(10 * 1024 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+
+            importResult = await TakipService.ImportFromExcelAsync(ms.ToArray());
+            if (importResult.Success)
+                ToastService.ShowSuccess("Excel aktarımı tamamlandı.");
+            else
+                ToastService.ShowWarning("Excel aktarımında uyarılar/hatalar oluştu.");
+
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Excel aktarım hatası: {ex.Message}");
+        }
+        finally
+        {
+            isImporting = false;
+        }
+    }
+
+    private async Task Sil(KiralikPlakaTakip item)
+    {
+        try
+        {
+            await TakipService.DeleteAsync(item.Id);
+            _liste.Remove(item);
+            ToastService.ShowSuccess("Silindi");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message);
+        }
+    }
+}
+
+

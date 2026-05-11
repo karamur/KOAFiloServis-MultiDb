@@ -1,0 +1,156 @@
+﻿@page "/araclar/plaka-takip/{Id:int}/duzenle"
+@using KOAFiloServis.Shared.Entities
+@using KOAFiloServis.Web.Services.Interfaces
+@inject IAracService AracService
+@inject IKiralikPlakaTakipService TakipService
+@inject NavigationManager NavManager
+@using KOAFiloServis.Web.Services
+@inject IToastService ToastService
+
+<PageTitle>@(_isEdit ? "Düzenle" : "Yeni") | Kiralık C Plaka</PageTitle>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="/araclar">Araçlar</a></li>
+                    <li class="breadcrumb-item"><a href="/araclar/plaka-takip">Plaka Takip</a></li>
+                    <li class="breadcrumb-item active">@(_isEdit ? "Düzenle" : "Yeni")</li>
+                </ol>
+            </nav>
+            <h3 class="mb-0"><i class="bi bi-card-text me-2"></i>@(_isEdit ? "Düzenle" : "Yeni Kayıt")</h3>
+        </div>
+    </div>
+
+    @if(_loading) { <div class="text-center py-5"><div class="spinner-border"></div></div> }
+    else {
+        <EditForm Model="_model" OnValidSubmit="Kaydet">
+            <DataAnnotationsValidator />
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Plaka</label>
+                            <input class="form-control" @bind="_model.Plaka" @onblur="PlakadanAracEslestir" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Eşleşen Araç</label>
+                            <select class="form-select" value="@(_model.AracId?.ToString() ?? "")"
+                                    @onchange="OnAracSecildi">
+                                <option value="">-- Eşleşme yok --</option>
+                                @foreach (var a in _araclar)
+                                {
+                                    <option value="@a.Id">@a.AktifPlaka - @a.Marka @a.Model (@a.SaseNo)</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">İsim Soyisim</label>
+                            <input class="form-control" @bind="_model.IsimSoyisim" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Başlama Tarihi</label>
+                            <input type="date" class="form-control" @bind="_model.BaslamaTarihi" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Bitiş Tarihi</label>
+                            <input type="date" class="form-control" @bind="_model.BitisTarihi" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Durum</label>
+                            <input class="form-control" @bind="_model.Durum" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Kasa Durumu</label>
+                            <input class="form-control" @bind="_model.KasaDurumu" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Fatura</label>
+                            <input type="number" step="0.01" class="form-control" @bind="_model.FaturaOdemesi" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Periyot (Aylık/Yıllık)</label>
+                            <select class="form-select" @bind="_model.Periyot">
+                                <option value="AYLIK">AYLIK</option>
+                                <option value="YILLIK">YILLIK</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Periyot Tutarı</label>
+                            <input type="number" step="0.01" class="form-control" @bind="_model.AylikVeyaYillikTutar" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Ek Tutar</label>
+                            <input type="number" step="0.01" class="form-control" @bind="_model.EkTutar" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Toplam (Fatura + Ek Tutar)</label>
+                            <input type="text" class="form-control bg-light fw-bold" value="@_model.Toplam.ToString("N2")" readonly />
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-between">
+                    <a href="/araclar/plaka-takip" class="btn btn-secondary">Geri</a>
+                    <button type="submit" class="btn btn-primary">Kaydet</button>
+                </div>
+            </div>
+        </EditForm>
+    }
+</div>
+
+@code {
+    [Parameter] public int? Id { get; set; }
+    private bool _isEdit => Id.HasValue;
+    private bool _loading = true;
+    private KiralikPlakaTakip _model = new();
+    private List<Arac> _araclar = new();
+
+    protected override async Task OnInitializedAsync() {
+        _araclar = await AracService.GetAllAsync();
+        if(_isEdit) {
+            var e = await TakipService.GetByIdAsync(Id.Value);
+            if(e != null) _model = e;
+            else NavManager.NavigateTo("/araclar/plaka-takip");
+        }
+        _loading = false;
+    }
+
+    private void PlakadanAracEslestir(FocusEventArgs _) {
+        if (string.IsNullOrWhiteSpace(_model.Plaka)) return;
+        var p = NormalizePlaka(_model.Plaka);
+        var arac = _araclar.FirstOrDefault(a => NormalizePlaka(a.AktifPlaka) == p)
+            ?? _araclar.FirstOrDefault(a => a.PlakaGecmisi != null && a.PlakaGecmisi.Any(pg => !pg.IsDeleted && NormalizePlaka(pg.Plaka) == p));
+        if (arac != null) _model.AracId = arac.Id;
+    }
+
+    private static string NormalizePlaka(string? plaka)
+    {
+        if (string.IsNullOrWhiteSpace(plaka)) return string.Empty;
+        return new string(plaka.Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+    }
+
+    private void OnAracSecildi(ChangeEventArgs e)
+    {
+        var v = e.Value?.ToString();
+        if (string.IsNullOrWhiteSpace(v)) _model.AracId = null;
+        else if (int.TryParse(v, out var id)) _model.AracId = id;
+    }
+
+    private async Task Kaydet() {
+        try {
+            if(_isEdit) await TakipService.UpdateAsync(_model);
+            else throw new InvalidOperationException("Yeni kayıt sadece Excel import ile yapılabilir.");
+            ToastService.ShowSuccess("Kaydedildi");
+            NavManager.NavigateTo("/araclar/plaka-takip");
+        } catch(Exception ex) {
+            ToastService.ShowError(ex.Message);
+        }
+    }
+}
+
+
+
+
+
+

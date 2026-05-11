@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace KOAFiloServis.Shared.Entities;
@@ -77,10 +77,10 @@ public class AracAlimSatim : BaseEntity
 
 #endregion
 
-#region C Plaka Dönüşüm Takibi
+#region Kiralık C Plaka Takibi
 
 /// <summary>
-/// C Plaka (Ticari) → Normal Plaka Dönüşüm Takibi
+/// C Plaka (Ticari) Kiralık Takibi ve Kıra Dönemi Yönetimi
 /// </summary>
 public class PlakaDonusum : BaseEntity
 {
@@ -125,6 +125,39 @@ public class PlakaDonusum : BaseEntity
     [StringLength(500)]
     public string? Notlar { get; set; }
 }
+
+#endregion
+
+#region Kiralık C Plaka Takibi
+
+/// <summary>
+/// Kiralık C Plaka Takibi İşlemleri
+/// </summary>
+public class KiralikCPlakaTakip : BaseEntity
+{
+    [Required, StringLength(20)]
+    public string Plaka { get; set; } = string.Empty;
+
+    [Required, StringLength(100)]
+    public string IsimSoyisim { get; set; } = string.Empty;
+
+    public DateTime BaslamaTarihi { get; set; }
+    public DateTime BitisTarihi { get; set; }
+
+    public KiralikCPlakaDurumu Durum { get; set; } = KiralikCPlakaDurumu.OnuAcik;
+
+    public KiralikCPlakaKasaDurumu KasaDurumu { get; set; } = KiralikCPlakaKasaDurumu.Plaka;
+
+    public decimal FaturaBedeli { get; set; }
+
+    public KiralikCPlakaPeriyot AylikYillik { get; set; } = KiralikCPlakaPeriyot.Aylik;
+
+    public decimal Toplam { get; set; }
+}
+
+public enum KiralikCPlakaDurumu { OnuAcik = 1, Kapali = 2 }
+public enum KiralikCPlakaKasaDurumu { Plaka = 1, Aracli = 2 }
+public enum KiralikCPlakaPeriyot { Aylik = 1, Yillik = 2 }
 
 #endregion
 
@@ -290,3 +323,4 @@ public enum AracOperasyonTipi
 }
 
 #endregion
+

@@ -3,17 +3,20 @@ using System;
 using KOAFiloServis.Web.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace KOAFiloServis.Web.Migrations
+namespace KOAFiloServis.Web.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260511090932_AddKiralikPlakaTakip")]
+    partial class AddKiralikPlakaTakip
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -6632,12 +6635,8 @@ namespace KOAFiloServis.Web.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("AracId")
-                        .HasColumnType("integer");
-
                     b.Property<decimal>("AylikVeyaYillikTutar")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
+                        .HasColumnType("numeric");
 
                     b.Property<DateTime>("BaslamaTarihi")
                         .HasColumnType("timestamp without time zone");
@@ -6653,12 +6652,8 @@ namespace KOAFiloServis.Web.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
-                    b.Property<decimal>("EkTutar")
-                        .HasColumnType("numeric");
-
                     b.Property<decimal>("FaturaOdemesi")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
+                        .HasColumnType("numeric");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
@@ -6687,8 +6682,6 @@ namespace KOAFiloServis.Web.Migrations
                         .HasColumnType("timestamp without time zone");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("AracId");
 
                     b.ToTable("KiralikPlakaTakipler");
                 });
@@ -13609,16 +13602,6 @@ namespace KOAFiloServis.Web.Migrations
                     b.Navigation("Firma");
 
                     b.Navigation("KiralayiciCari");
-                });
-
-            modelBuilder.Entity("KOAFiloServis.Shared.Entities.KiralikPlakaTakip", b =>
-                {
-                    b.HasOne("KOAFiloServis.Shared.Entities.Arac", "Arac")
-                        .WithMany()
-                        .HasForeignKey("AracId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Arac");
                 });
 
             modelBuilder.Entity("KOAFiloServis.Shared.Entities.KostMerkezi", b =>

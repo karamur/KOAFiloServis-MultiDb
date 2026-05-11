@@ -2,6 +2,8 @@
 using KOAFiloServis.Web.Data;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.EntityFrameworkCore;
+using System.IO.Compression;
+using System.Text;
 
 namespace KOAFiloServis.Web.Services;
 
@@ -38,6 +40,7 @@ public interface ITasimaTedarikciService
     Task<TedarikciEvrakDosya> UploadTedarikciEvrakDosyaAsync(int evrakId, IBrowserFile file);
     Task<byte[]> GetTedarikciEvrakDosyaAsync(int dosyaId);
     Task DeleteTedarikciEvrakDosyaAsync(int dosyaId);
+    Task<byte[]> GetTedarikciEvraklariZipAsync(int tedarikciId, IEnumerable<int>? evrakIds = null);
 }
 
 public class TasimaTedarikciService : ITasimaTedarikciService
@@ -383,7 +386,117 @@ public class TasimaTedarikciService : ITasimaTedarikciService
         }
     }
 
+    public async Task<byte[]> GetTedarikciEvraklariZipAsync(int tedarikciId, IEnumerable<int>? evrakIds = null)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        var tedarikci = await context.TasimaTedarikciler
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == tedarikciId);
+
+        if (tedarikci is null)
+            throw new InvalidOperationException("Tedarikçi bulunamadı.");
+
+        var evrakIdSet = evrakIds?
+            .Where(id => id > 0)
+            .Distinct()
+            .ToHashSet() ?? new HashSet<int>();
+
+        var evrakQuery = context.TedarikciEvraklari
+            .AsNoTracking()
+            .Include(e => e.Dosyalar)
+            .Where(e => e.TasimaTedarikciId == tedarikciId)
+            .AsQueryable();
+
+        if (evrakIdSet.Count > 0)
+            evrakQuery = evrakQuery.Where(e => evrakIdSet.Contains(e.Id));
+
+        var evraklar = await evrakQuery
+            .OrderBy(e => e.EvrakKategorisi)
+            .ThenBy(e => e.BitisTarihi)
+            .ThenBy(e => e.EvrakAdi)
+            .ToListAsync();
+
+        using var zipMs = new MemoryStream();
+        using var archive = new ZipArchive(zipMs, ZipArchiveMode.Create, leaveOpen: true);
+        var usedEntryNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var evrak in evraklar)
+        {
+            if (evrak.Dosyalar == null || evrak.Dosyalar.Count == 0)
+                continue;
+
+            var kategori = SanitizePathSegment(evrak.EvrakKategorisi, "Kategori");
+            var evrakAdi = SanitizePathSegment(evrak.EvrakAdi, $"Evrak_{evrak.Id}");
+
+            foreach (var dosya in evrak.Dosyalar.OrderBy(d => d.DosyaAdi))
+            {
+                var rawBytes = await _secureFileService.ReadDecryptedAsync(dosya.DosyaYolu);
+                if (rawBytes is null || rawBytes.Length == 0)
+                    continue;
+
+                var fileName = SanitizePathSegment(dosya.DosyaAdi, $"dosya_{dosya.Id}");
+                var entryName = $"{kategori}/{evrakAdi}/{fileName}";
+
+                if (!usedEntryNames.Add(entryName))
+                {
+                    var name = Path.GetFileNameWithoutExtension(fileName);
+                    var ext = Path.GetExtension(fileName);
+                    var i = 2;
+                    while (!usedEntryNames.Add(entryName))
+                    {
+                        entryName = $"{kategori}/{evrakAdi}/{name}_{i}{ext}";
+                        i++;
+                    }
+                }
+
+                var entry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
+                await using var entryStream = entry.Open();
+                await entryStream.WriteAsync(rawBytes);
+            }
+        }
+
+        var ozet = new StringBuilder();
+        ozet.AppendLine($"Tedarikçi: {tedarikci.Unvan}");
+        ozet.AppendLine($"Tarih: {DateTime.Now:dd.MM.yyyy HH:mm}");
+        ozet.AppendLine($"Toplam Evrak Kaydı: {evraklar.Count}");
+        ozet.AppendLine();
+
+        foreach (var grup in evraklar.GroupBy(e => e.EvrakKategorisi).OrderBy(g => g.Key))
+        {
+            ozet.AppendLine($"[{grup.Key}] ({grup.Count()} kayıt)");
+            foreach (var evrak in grup.OrderBy(e => e.BitisTarihi).ThenBy(e => e.EvrakAdi))
+            {
+                var bitis = evrak.BitisTarihi?.ToString("dd.MM.yyyy") ?? "-";
+                var dosyaSayisi = evrak.Dosyalar?.Count ?? 0;
+                ozet.AppendLine($"- {evrak.EvrakAdi ?? "(İsimsiz)"} | Bitiş: {bitis} | Dosya: {dosyaSayisi}");
+            }
+
+            ozet.AppendLine();
+        }
+
+        var ozetEntry = archive.CreateEntry("00_Ozet.txt", CompressionLevel.NoCompression);
+        await using (var ozetStream = ozetEntry.Open())
+        await using (var writer = new StreamWriter(ozetStream, Encoding.UTF8))
+        {
+            await writer.WriteAsync(ozet.ToString());
+        }
+
+        zipMs.Position = 0;
+        return zipMs.ToArray();
+    }
+
     #endregion
+
+    private static string SanitizePathSegment(string? value, string fallback)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return fallback;
+
+        var invalids = Path.GetInvalidFileNameChars();
+        var cleaned = new string(value.Trim().Select(c => invalids.Contains(c) ? '_' : c).ToArray());
+        return string.IsNullOrWhiteSpace(cleaned) ? fallback : cleaned;
+    }
 
     private static void MapFromCari(TasimaTedarikci hedef, Cari kaynak)
     {

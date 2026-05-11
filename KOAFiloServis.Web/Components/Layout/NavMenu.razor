@@ -203,6 +203,11 @@
                                                 <i class="bi bi-wrench-adjustable-circle me-2 text-danger"></i> Bakım-Onarım Kayıtları
                                             </NavLink>
                                         </div>
+                                        <div class="nav-item px-3">
+                                            <NavLink class="nav-link" href="araclar/plaka-takip">
+                                                <i class="bi bi-card-text me-2 text-primary"></i> Plaka Takip
+                                            </NavLink>
+                                        </div>
 
                                         <div class="nav-subsection mt-2 pt-2 border-top">
                                             <div class="nav-subsection-header" @onclick="() => ToggleSection(NavSection.LastikTakip)" style="cursor: pointer;">
@@ -672,8 +677,8 @@
                                 </NavLink>
                             </div>
                             <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="filo-operasyon/plaka-donusum">
-                                    <i class="bi bi-card-text me-2 text-primary"></i> Plaka Dönüşüm
+                                <NavLink class="nav-link" href="filo-operasyon/kiralık-c-plaka-takip">
+                                    <i class="bi bi-card-text me-2 text-primary"></i> Kiralık C Plaka Takip
                                 </NavLink>
                             </div>
 
@@ -1377,6 +1382,9 @@
 
     private bool IsExpanded(NavSection section) => expandedSections.Contains(section);
 }
+
+
+
 
 
 

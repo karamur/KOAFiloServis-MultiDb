@@ -2,9 +2,13 @@
 @page "/personel-tasima/tedarikciler/{Id:int}"
 @using KOAFiloServis.Shared.Entities
 @using KOAFiloServis.Web.Services
+@using System.IO.Compression
+@using System.Text
 @inject ITasimaTedarikciService TedarikciService
 @inject IGuzergahService GuzergahService
 @inject ICariService CariService
+@inject IToastService ToastService
+@inject IJSRuntime JS
 @inject NavigationManager Nav
 @rendermode InteractiveServer
 
@@ -182,6 +186,17 @@
         }
         else if (aktifTab == "personel" && Id.HasValue)
         {
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="text-muted small">Tedarikçiye bağlı personel kayıtları görev bazında listelenir.</div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-dark btn-sm" @onclick="TopluYazdir">
+                        <i class="bi bi-printer me-1"></i>Toplu Yazdır
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm" @onclick="PersonelZipIndir" disabled="@(personeller is null || !personeller.Any())">
+                        <i class="bi bi-file-earmark-zip me-1"></i>@(PersonelFiltreAktifMi ? "Filtreli ZIP Al" : "ZIP Al")
+                    </button>
+                </div>
+            </div>
             <div class="alert alert-info small mb-2">
                 Bu sekmede tedarikçiye atanan mevcut <strong>Personel</strong> kayıtları listelenir. Yeni personel eklemek için <a href="/personel/yeni">Personel modülünden</a> kayıt açıp <em>Taşıma Tedarikçisi</em> alanını seçmeniz yeterlidir.
             </div>
@@ -189,25 +204,118 @@
             { <div class="text-muted">Bu tedarikçiye bağlı personel bulunamadı.</div> }
             else
             {
-                <table class="table table-sm">
-                    <thead><tr><th>Ad Soyad</th><th>Görev</th><th>Telefon</th><th>TC</th><th></th></tr></thead>
-                    <tbody>
-                    @foreach (var p in personeller)
-                    {
-                        <tr>
-                            <td>@p.TamAd</td>
-                            <td>@p.Gorev</td>
-                            <td>@p.Telefon</td>
-                            <td>@p.TcKimlikNo</td>
-                            <td class="text-end"><a href="/personel/@p.Id" class="btn btn-sm btn-outline-primary">Detay</a></td>
-                        </tr>
-                    }
-                    </tbody>
-                </table>
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-body py-2">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-6">
+                                <label class="form-label small mb-1">Ara (Ad, Telefon, TC)</label>
+                                <input class="form-control form-control-sm" @bind="personelArama" placeholder="Örn: Ahmet, 05..., TC" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small mb-1">Görev</label>
+                                <select class="form-select form-select-sm" @bind="personelGorevFiltre">
+                                    <option value="">Tümü</option>
+                                    @foreach (var gorev in personeller.Select(x => x.Gorev.ToString()).Distinct().OrderBy(x => x))
+                                    {
+                                        <option value="@gorev">@gorev</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-2 d-grid">
+                                <button class="btn btn-outline-secondary btn-sm" @onclick="TemizlePersonelFiltre">Temizle</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                var filtreliPersoneller = GetFiltreliPersoneller();
+
+                <div class="row g-2 mb-3">
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 bg-light h-100">
+                            <div class="card-body py-2">
+                                <div class="small text-muted">Listelenen / Toplam</div>
+                                <div class="h5 mb-0">@filtreliPersoneller.Count / @personeller.Count</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 bg-info-subtle h-100">
+                            <div class="card-body py-2">
+                                <div class="small text-muted">Görev Grubu</div>
+                                <div class="h5 mb-0">@filtreliPersoneller.Select(x => x.Gorev).Distinct().Count()</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 bg-warning-subtle h-100">
+                            <div class="card-body py-2">
+                                <div class="small text-muted">Telefon Eksik</div>
+                                <div class="h5 mb-0">@filtreliPersoneller.Count(x => string.IsNullOrWhiteSpace(x.Telefon))</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 bg-success-subtle h-100">
+                            <div class="card-body py-2">
+                                <div class="small text-muted">TC Tam</div>
+                                <div class="h5 mb-0">@filtreliPersoneller.Count(x => !string.IsNullOrWhiteSpace(x.TcKimlikNo))</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                var personelGruplari = filtreliPersoneller
+                    .OrderBy(p => p.Gorev)
+                    .ThenBy(p => p.Ad)
+                    .ThenBy(p => p.Soyad)
+                    .GroupBy(p => p.Gorev.ToString());
+
+                if (!personelGruplari.Any())
+                {
+                    <div class="alert alert-warning py-2">Filtre kriterine uygun personel bulunamadı.</div>
+                }
+
+                @foreach (var grup in personelGruplari)
+                {
+                    <div class="card border-0 shadow-sm mb-3">
+                        <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold"><i class="bi bi-person-badge me-1"></i>@grup.Key</span>
+                            <span class="badge bg-primary">@grup.Count() personel</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead class="table-light"><tr><th>Ad Soyad</th><th>Telefon</th><th>TC</th><th></th></tr></thead>
+                                <tbody>
+                                @foreach (var p in grup)
+                                {
+                                    <tr>
+                                        <td>@p.TamAd</td>
+                                        <td>@p.Telefon</td>
+                                        <td>@p.TcKimlikNo</td>
+                                        <td class="text-end"><a href="/personel/@p.Id" class="btn btn-sm btn-outline-primary">Detay</a></td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                }
             }
         }
         else if (aktifTab == "arac" && Id.HasValue)
         {
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="text-muted small">Araçlar tip bazında gruplanır ve plaka sırasına göre listelenir.</div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-dark btn-sm" @onclick="TopluYazdir">
+                        <i class="bi bi-printer me-1"></i>Toplu Yazdır
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm" @onclick="AracZipIndir" disabled="@(araclar is null || !araclar.Any())">
+                        <i class="bi bi-file-earmark-zip me-1"></i>@(AracFiltreAktifMi ? "Filtreli ZIP Al" : "ZIP Al")
+                    </button>
+                </div>
+            </div>
             <div class="alert alert-info small mb-2">
                 Bu sekmede tedarikçiye atanan mevcut <strong>Araç</strong> kayıtları listelenir. Belge takibi (ruhsat, sigorta, muayene, vb.) <em>Araç Belgeleri</em> tablosu üzerinden tek kaynaktan yapılır.
             </div>
@@ -215,29 +323,187 @@
             { <div class="text-muted">Bu tedarikçiye bağlı araç bulunamadı.</div> }
             else
             {
-                <table class="table table-sm">
-                    <thead><tr><th>Plaka</th><th>Marka/Model</th><th>Tip</th><th>Koltuk</th><th></th></tr></thead>
-                    <tbody>
-                    @foreach (var a in araclar)
-                    {
-                        <tr>
-                            <td><strong>@a.AktifPlaka</strong></td>
-                            <td>@a.Marka @a.Model</td>
-                            <td>@a.AracTipi</td>
-                            <td>@a.KoltukSayisi</td>
-                            <td class="text-end"><a href="/araclar/@a.Id" class="btn btn-sm btn-outline-primary">Detay</a></td>
-                        </tr>
-                    }
-                    </tbody>
-                </table>
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-body py-2">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-6">
+                                <label class="form-label small mb-1">Ara (Plaka, Marka, Model)</label>
+                                <input class="form-control form-control-sm" @bind="aracArama" placeholder="Örn: 34ABC123, Mercedes" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small mb-1">Araç Tipi</label>
+                                <select class="form-select form-select-sm" @bind="aracTipFiltre">
+                                    <option value="">Tümü</option>
+                                    @foreach (var tip in araclar.Select(x => x.AracTipi.ToString()).Distinct().OrderBy(x => x))
+                                    {
+                                        <option value="@tip">@tip</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-2 d-grid">
+                                <button class="btn btn-outline-secondary btn-sm" @onclick="TemizleAracFiltre">Temizle</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                var filtreliAraclar = GetFiltreliAraclar();
+
+                <div class="row g-2 mb-3">
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 bg-light h-100">
+                            <div class="card-body py-2">
+                                <div class="small text-muted">Listelenen / Toplam</div>
+                                <div class="h5 mb-0">@filtreliAraclar.Count / @araclar.Count</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 bg-info-subtle h-100">
+                            <div class="card-body py-2">
+                                <div class="small text-muted">Araç Tipi</div>
+                                <div class="h5 mb-0">@filtreliAraclar.Select(x => x.AracTipi).Distinct().Count()</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 bg-success-subtle h-100">
+                            <div class="card-body py-2">
+                                <div class="small text-muted">Toplam Koltuk</div>
+                                <div class="h5 mb-0">@filtreliAraclar.Sum(x => x.KoltukSayisi)</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 bg-warning-subtle h-100">
+                            <div class="card-body py-2">
+                                <div class="small text-muted">Plaka Eksik</div>
+                                <div class="h5 mb-0">@filtreliAraclar.Count(x => string.IsNullOrWhiteSpace(x.AktifPlaka))</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                var aracGruplari = filtreliAraclar
+                    .OrderBy(a => a.AracTipi.ToString())
+                    .ThenBy(a => a.AktifPlaka)
+                    .GroupBy(a => string.IsNullOrWhiteSpace(a.AracTipi.ToString()) ? "Tip Tanımsız" : a.AracTipi.ToString());
+
+                if (!aracGruplari.Any())
+                {
+                    <div class="alert alert-warning py-2">Filtre kriterine uygun araç bulunamadı.</div>
+                }
+
+                @foreach (var grup in aracGruplari)
+                {
+                    <div class="card border-0 shadow-sm mb-3">
+                        <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold"><i class="bi bi-truck me-1"></i>@grup.Key</span>
+                            <span class="badge bg-info text-dark">@grup.Count() araç</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead class="table-light"><tr><th>Plaka</th><th>Marka/Model</th><th>Koltuk</th><th></th></tr></thead>
+                                <tbody>
+                                @foreach (var a in grup)
+                                {
+                                    <tr>
+                                        <td><strong>@a.AktifPlaka</strong></td>
+                                        <td>@a.Marka @a.Model</td>
+                                        <td>@a.KoltukSayisi</td>
+                                        <td class="text-end"><a href="/araclar/@a.Id" class="btn btn-sm btn-outline-primary">Detay</a></td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                }
             }
         }
         else if (aktifTab == "is" && Id.HasValue)
         {
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <div class="text-muted small">Tedarikçinin hizmet verdiği güzergahlar / iş sözleşmeleri.</div>
-                <button class="btn btn-sm btn-success" @onclick="YeniIsAc"><i class="bi bi-plus-circle me-1"></i> Yeni İş</button>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-dark" @onclick="TopluYazdir">
+                        <i class="bi bi-printer me-1"></i>Toplu Yazdır
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary" @onclick="IsZipIndir" disabled="@(isler is null || !isler.Any())">
+                        <i class="bi bi-file-earmark-zip me-1"></i>@(IsFiltreAktifMi ? "Filtreli ZIP Al" : "ZIP Al")
+                    </button>
+                    <button class="btn btn-sm btn-success" @onclick="YeniIsAc"><i class="bi bi-plus-circle me-1"></i> Yeni İş</button>
+                </div>
             </div>
+
+            @if (isler is not null && isler.Any())
+            {
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-body py-2">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-5">
+                                <label class="form-label small mb-1">Ara (Güzergah Kodu/Adı, Araç, Şoför)</label>
+                                <input class="form-control form-control-sm" @bind="isArama" placeholder="Örn: GZH-01, 34ABC123, Ali" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small mb-1">Durum</label>
+                                <select class="form-select form-select-sm" @bind="isDurumFiltre">
+                                    <option value="">Tümü</option>
+                                    @foreach (var d in Enum.GetValues<TasimaTedarikciIsDurum>())
+                                    {
+                                        <option value="@d.ToString()">@d</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-2 d-grid">
+                                <button class="btn btn-outline-secondary btn-sm" @onclick="TemizleIsFiltre">Temizle</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                var filtreliIsler = GetFiltreliIsler();
+
+                <div class="row g-2 mb-3">
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 bg-light h-100">
+                            <div class="card-body py-2">
+                                <div class="small text-muted">Listelenen / Toplam</div>
+                                <div class="h5 mb-0">@filtreliIsler.Count / @isler.Count</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 bg-success-subtle h-100">
+                            <div class="card-body py-2">
+                                <div class="small text-muted">Aktif</div>
+                                <div class="h5 mb-0">@filtreliIsler.Count(x => x.Durum == TasimaTedarikciIsDurum.Aktif)</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 bg-warning-subtle h-100">
+                            <div class="card-body py-2">
+                                <div class="small text-muted">Beklemede</div>
+                                <div class="h5 mb-0">@filtreliIsler.Count(x => x.Durum == TasimaTedarikciIsDurum.Beklemede)</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 bg-secondary-subtle h-100">
+                            <div class="card-body py-2">
+                                <div class="small text-muted">Tamamlanan</div>
+                                <div class="h5 mb-0">@filtreliIsler.Count(x => x.Durum == TasimaTedarikciIsDurum.Tamamlandi)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                if (!filtreliIsler.Any())
+                {
+                    <div class="alert alert-warning py-2">Filtre kriterine uygun iş/güzergah kaydı bulunamadı.</div>
+                }
+            }
 
             @if (yeniIsAcik)
             {
@@ -307,23 +573,36 @@
             { <div class="text-muted">Henüz iş kaydı yok.</div> }
             else
             {
-                <div class="table-responsive">
-                <table class="table table-sm table-hover align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Güzergah</th>
-                            <th>Araç</th>
-                            <th>Şoför</th>
-                            <th>Başlangıç</th>
-                            <th>Bitiş</th>
-                            <th class="text-end">Sefer ₺</th>
-                            <th class="text-end">Aylık ₺</th>
-                            <th>Durum</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    @foreach (var i in isler)
+                var isGruplari = GetFiltreliIsler()
+                    .OrderBy(i => i.Durum)
+                    .ThenBy(i => i.BitisTarihi ?? DateTime.MaxValue)
+                    .ThenBy(i => i.Guzergah?.GuzergahKodu)
+                    .GroupBy(i => i.Durum);
+
+                @foreach (var durumGrubu in isGruplari)
+                {
+                    <div class="card border-0 shadow-sm mb-3">
+                        <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold">Durum: <span class="badge @GetIsDurumBadge(durumGrubu.Key)">@durumGrubu.Key</span></span>
+                            <span class="badge bg-light text-dark border">@durumGrubu.Count() iş</span>
+                        </div>
+                        <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Güzergah</th>
+                                    <th>Araç</th>
+                                    <th>Şoför</th>
+                                    <th>Başlangıç</th>
+                                    <th>Bitiş</th>
+                                    <th class="text-end">Sefer ₺</th>
+                                    <th class="text-end">Aylık ₺</th>
+                                    <th>Durum</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    @foreach (var i in durumGrubu)
                     {
                         @if (formDuzenlenenIsId == i.Id && formDuzenlenenIs != null)
                         {
@@ -424,9 +703,11 @@
                             </tr>
                         }
                     }
-                    </tbody>
-                </table>
-                </div>
+                            </tbody>
+                        </table>
+                        </div>
+                    </div>
+                }
             }
         }
     }
@@ -453,6 +734,21 @@
     private int? formDuzenlenenIsId;
     private TasimaTedarikciIs? formDuzenlenenIs;
     private bool formDuzenlemeYukleniyor = false;
+    private string personelArama = string.Empty;
+    private string? personelGorevFiltre;
+    private string aracArama = string.Empty;
+    private string? aracTipFiltre;
+    private string isArama = string.Empty;
+    private string? isDurumFiltre;
+
+    private bool PersonelFiltreAktifMi =>
+        !string.IsNullOrWhiteSpace(personelArama) || !string.IsNullOrWhiteSpace(personelGorevFiltre);
+
+    private bool AracFiltreAktifMi =>
+        !string.IsNullOrWhiteSpace(aracArama) || !string.IsNullOrWhiteSpace(aracTipFiltre);
+
+    private bool IsFiltreAktifMi =>
+        !string.IsNullOrWhiteSpace(isArama) || !string.IsNullOrWhiteSpace(isDurumFiltre);
 
     protected override async Task OnParametersSetAsync()
     {
@@ -625,4 +921,170 @@
         TasimaTedarikciIsDurum.IptalEdildi => "bg-danger",
         _ => "bg-light text-dark"
     };
+
+    private void TemizlePersonelFiltre()
+    {
+        personelArama = string.Empty;
+        personelGorevFiltre = null;
+    }
+
+    private void TemizleAracFiltre()
+    {
+        aracArama = string.Empty;
+        aracTipFiltre = null;
+    }
+
+    private void TemizleIsFiltre()
+    {
+        isArama = string.Empty;
+        isDurumFiltre = null;
+    }
+
+    private List<Sofor> GetFiltreliPersoneller()
+    {
+        return (personeller ?? new())
+            .Where(p => string.IsNullOrWhiteSpace(personelArama)
+                || ($"{p.Ad} {p.Soyad}".Contains(personelArama, StringComparison.OrdinalIgnoreCase)
+                    || (p.Telefon?.Contains(personelArama, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (p.TcKimlikNo?.Contains(personelArama, StringComparison.OrdinalIgnoreCase) ?? false)))
+            .Where(p => string.IsNullOrWhiteSpace(personelGorevFiltre)
+                || string.Equals(p.Gorev.ToString(), personelGorevFiltre, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private List<Arac> GetFiltreliAraclar()
+    {
+        return (araclar ?? new())
+            .Where(a => string.IsNullOrWhiteSpace(aracArama)
+                || ((a.AktifPlaka?.Contains(aracArama, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (a.Marka?.Contains(aracArama, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (a.Model?.Contains(aracArama, StringComparison.OrdinalIgnoreCase) ?? false)))
+            .Where(a => string.IsNullOrWhiteSpace(aracTipFiltre)
+                || string.Equals(a.AracTipi.ToString(), aracTipFiltre, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private List<TasimaTedarikciIs> GetFiltreliIsler()
+    {
+        return (isler ?? new())
+            .Where(i => string.IsNullOrWhiteSpace(isArama)
+                || ((i.Guzergah?.GuzergahKodu?.Contains(isArama, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (i.Guzergah?.GuzergahAdi?.Contains(isArama, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (i.Arac?.AktifPlaka?.Contains(isArama, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || ($"{i.Sofor?.Ad} {i.Sofor?.Soyad}".Contains(isArama, StringComparison.OrdinalIgnoreCase))))
+            .Where(i => string.IsNullOrWhiteSpace(isDurumFiltre)
+                || string.Equals(i.Durum.ToString(), isDurumFiltre, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private async Task TopluYazdir() => await JS.InvokeVoidAsync("window.print");
+
+    private async Task PersonelZipIndir()
+    {
+        try
+        {
+            var kaynak = GetFiltreliPersoneller();
+            if (!kaynak.Any())
+            {
+                ToastService.ShowWarning("ZIP için filtreye uygun personel kaydı bulunamadı.");
+                return;
+            }
+
+            using var ms = new MemoryStream();
+            using (var archive = new ZipArchive(ms, ZipArchiveMode.Create, true))
+            {
+                var entry = archive.CreateEntry("personel_listesi.csv", CompressionLevel.Optimal);
+                await using var es = entry.Open();
+                await using var sw = new StreamWriter(es, Encoding.UTF8);
+                await sw.WriteLineAsync("AdSoyad,Gorev,Telefon,TC");
+                foreach (var p in kaynak.OrderBy(x => x.Gorev).ThenBy(x => x.Ad).ThenBy(x => x.Soyad))
+                {
+                    await sw.WriteLineAsync($"\"{CsvEscape(p.TamAd)}\",\"{CsvEscape(p.Gorev.ToString())}\",\"{CsvEscape(p.Telefon)}\",\"{CsvEscape(p.TcKimlikNo)}\"");
+                }
+            }
+
+            var fileName = $"tedarikci_{Id}_personel_{DateTime.Now:yyyyMMdd_HHmm}.zip";
+            await JS.InvokeVoidAsync("downloadFileFromBase64", fileName, Convert.ToBase64String(ms.ToArray()));
+            ToastService.ShowSuccess(PersonelFiltreAktifMi ? "Filtreli personel listesi ZIP olarak indirildi." : "Personel listesi ZIP olarak indirildi.");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Personel ZIP oluşturulamadı: " + ex.Message);
+        }
+    }
+
+    private async Task AracZipIndir()
+    {
+        try
+        {
+            var kaynak = GetFiltreliAraclar();
+            if (!kaynak.Any())
+            {
+                ToastService.ShowWarning("ZIP için filtreye uygun araç kaydı bulunamadı.");
+                return;
+            }
+
+            using var ms = new MemoryStream();
+            using (var archive = new ZipArchive(ms, ZipArchiveMode.Create, true))
+            {
+                var entry = archive.CreateEntry("arac_listesi.csv", CompressionLevel.Optimal);
+                await using var es = entry.Open();
+                await using var sw = new StreamWriter(es, Encoding.UTF8);
+                await sw.WriteLineAsync("Plaka,MarkaModel,Tip,Koltuk");
+                foreach (var a in kaynak.OrderBy(x => x.AracTipi.ToString()).ThenBy(x => x.AktifPlaka))
+                {
+                    var markaModel = $"{a.Marka} {a.Model}".Trim();
+                    await sw.WriteLineAsync($"\"{CsvEscape(a.AktifPlaka)}\",\"{CsvEscape(markaModel)}\",\"{CsvEscape(a.AracTipi.ToString())}\",\"{a.KoltukSayisi}\"");
+                }
+            }
+
+            var fileName = $"tedarikci_{Id}_arac_{DateTime.Now:yyyyMMdd_HHmm}.zip";
+            await JS.InvokeVoidAsync("downloadFileFromBase64", fileName, Convert.ToBase64String(ms.ToArray()));
+            ToastService.ShowSuccess(AracFiltreAktifMi ? "Filtreli araç listesi ZIP olarak indirildi." : "Araç listesi ZIP olarak indirildi.");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Araç ZIP oluşturulamadı: " + ex.Message);
+        }
+    }
+
+    private async Task IsZipIndir()
+    {
+        try
+        {
+            var kaynak = GetFiltreliIsler();
+            if (!kaynak.Any())
+            {
+                ToastService.ShowWarning("ZIP için filtreye uygun iş/güzergah kaydı bulunamadı.");
+                return;
+            }
+
+            using var ms = new MemoryStream();
+            using (var archive = new ZipArchive(ms, ZipArchiveMode.Create, true))
+            {
+                var entry = archive.CreateEntry("is_guzergah_listesi.csv", CompressionLevel.Optimal);
+                await using var es = entry.Open();
+                await using var sw = new StreamWriter(es, Encoding.UTF8);
+                await sw.WriteLineAsync("Durum,GuzergahKodu,GuzergahAdi,Arac,Sofor,Baslangic,Bitis,SeferUcreti,AylikUcret");
+                foreach (var i in kaynak.OrderBy(x => x.Durum).ThenBy(x => x.BitisTarihi ?? DateTime.MaxValue).ThenBy(x => x.Guzergah?.GuzergahKodu))
+                {
+                    var sofor = i.Sofor is null ? "" : $"{i.Sofor.Ad} {i.Sofor.Soyad}".Trim();
+                    await sw.WriteLineAsync($"\"{CsvEscape(i.Durum.ToString())}\",\"{CsvEscape(i.Guzergah?.GuzergahKodu)}\",\"{CsvEscape(i.Guzergah?.GuzergahAdi)}\",\"{CsvEscape(i.Arac?.AktifPlaka)}\",\"{CsvEscape(sofor)}\",\"{i.BaslangicTarihi:dd.MM.yyyy}\",\"{(i.BitisTarihi.HasValue ? i.BitisTarihi.Value.ToString("dd.MM.yyyy") : "")}\",\"{i.SeferUcreti?.ToString("N2") ?? ""}\",\"{i.AylikUcret?.ToString("N2") ?? ""}\"");
+                }
+            }
+
+            var fileName = $"tedarikci_{Id}_is_guzergah_{DateTime.Now:yyyyMMdd_HHmm}.zip";
+            await JS.InvokeVoidAsync("downloadFileFromBase64", fileName, Convert.ToBase64String(ms.ToArray()));
+            ToastService.ShowSuccess(IsFiltreAktifMi ? "Filtreli iş/güzergah listesi ZIP olarak indirildi." : "İş/Güzergah listesi ZIP olarak indirildi.");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("İş/Güzergah ZIP oluşturulamadı: " + ex.Message);
+        }
+    }
+
+    private static string CsvEscape(string? value)
+    {
+        return (value ?? string.Empty).Replace("\"", "\"\"");
+    }
 }

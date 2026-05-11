@@ -1,4 +1,4 @@
-﻿using KOAFiloServis.Shared.Entities;
+using KOAFiloServis.Shared.Entities;
 using KOAFiloServis.Web.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -142,6 +142,9 @@ public class ApplicationDbContext : DbContext
     public DbSet<PersonelPuantaj> PersonelPuantajlar { get; set; }
     public DbSet<GunlukPuantaj> GunlukPuantajlar { get; set; }
 
+    // Kiralık Plaka Takip
+    public DbSet<KiralikPlakaTakip> KiralikPlakaTakipler { get; set; }
+
     // Filo Komisyon ve Araç Operasyon Puantaj Modülü
     public DbSet<FiloGuzergahEslestirme> FiloGuzergahEslestirmeleri { get; set; }
     public DbSet<FiloGunlukPuantaj> FiloGunlukPuantajlar { get; set; }
@@ -152,10 +155,11 @@ public class ApplicationDbContext : DbContext
     public DbSet<AracMarkaModel> AracMarkaModeller { get; set; }
     public DbSet<PiyasaKaynak> PiyasaKaynaklar { get; set; }
 
-    // Filo Operasyon Modülü (Araç Alım/Satım, Plaka Dönüşüm)
+    // Filo Operasyon Modülü (Araç Alım/Satım, Kiralık C Plaka Takip)
     public DbSet<AracAlimSatim> AracAlimSatimlar { get; set; }
     public DbSet<PlakaDonusum> PlakaDonusumler { get; set; }
     public DbSet<AracOperasyonDurum> AracOperasyonDurumlari { get; set; }
+    public DbSet<KiralikCPlakaTakip> KiralikCPlakaTakipler { get; set; }
 
     // CRM Modulu
     public DbSet<Bildirim> Bildirimler { get; set; }
@@ -1205,6 +1209,25 @@ public class ApplicationDbContext : DbContext
             entity.HasQueryFilter(e => !e.IsDeleted);
         });
 
+
+        // KiralikPlakaTakip
+        modelBuilder.Entity<KiralikPlakaTakip>(entity =>
+        {
+            entity.Property(e => e.Plaka).HasMaxLength(15).IsRequired();
+            entity.Property(e => e.IsimSoyisim).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Durum).HasMaxLength(50);
+            entity.Property(e => e.KasaDurumu).HasMaxLength(50);
+            entity.Property(e => e.Periyot).HasMaxLength(20);
+            entity.Property(e => e.FaturaOdemesi).HasPrecision(18, 2);
+            entity.Property(e => e.AylikVeyaYillikTutar).HasPrecision(18, 2);
+
+            entity.HasOne(e => e.Arac)
+                .WithMany()
+                .HasForeignKey(e => e.AracId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
         // AracOperasyonDurum
         modelBuilder.Entity<AracOperasyonDurum>(entity =>
         {
@@ -2801,3 +2824,6 @@ public class ApplicationDbContext : DbContext
         }
     }
 }
+
+
+
