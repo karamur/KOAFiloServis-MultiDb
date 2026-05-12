@@ -160,11 +160,89 @@ window.filoKpiCharts = (function () {
         });
     }
 
+    function renderVadeKategori(canvasId, labels, data) {
+        destroy(canvasId);
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return;
+        const palette = [
+            '#dc3545', '#fd7e14', '#ffc107', '#198754', '#0dcaf0',
+            '#0d6efd', '#6f42c1', '#d63384', '#20c997', '#6c757d'
+        ];
+        instances[canvasId] = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: labels.map((_, i) => palette[i % palette.length]),
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'right' },
+                    tooltip: {
+                        callbacks: {
+                            label: function (c) {
+                                const total = c.dataset.data.reduce((a, b) => a + b, 0);
+                                const pct = total > 0 ? ((c.parsed / total) * 100).toFixed(1) : 0;
+                                return c.label + ': ' + c.parsed + ' (%' + pct + ')';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderVadePencere(canvasId, labels, data) {
+        destroy(canvasId);
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return;
+        // Renk skalası: kırmızıdan yeşile
+        const colors = [
+            '#dc3545', '#fd7e14', '#ffc107', '#0dcaf0',
+            '#198754', '#20c997', '#6c757d'
+        ];
+        instances[canvasId] = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Belge Sayısı',
+                    data: data,
+                    backgroundColor: labels.map((_, i) => colors[i % colors.length]),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function (c) { return c.parsed.y + ' belge'; }
+                        }
+                    }
+                },
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision: 0 } }
+                }
+            }
+        });
+    }
+
     return {
         renderHakedisTip: renderHakedisTip,
         renderSeferTrend: renderSeferTrend,
         renderKurumTrend: renderKurumTrend,
         renderKurumToplamBar: renderKurumToplamBar,
+        renderVadeKategori: renderVadeKategori,
+        renderVadePencere: renderVadePencere,
         destroyAll: destroyAll
     };
 })();
