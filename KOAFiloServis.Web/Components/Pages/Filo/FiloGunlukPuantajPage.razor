@@ -1,4 +1,4 @@
-@page "/filo-gunluk-puantaj"
+﻿@page "/filo-gunluk-puantaj"
 @using KOAFiloServis.Shared.Entities
 @using KOAFiloServis.Web.Data
 @using KOAFiloServis.Web.Services
@@ -384,7 +384,7 @@
             if (!string.IsNullOrEmpty(filtreServisTuru) && Enum.TryParse<ServisTuru>(filtreServisTuru, out var st))
                 q = q.Where(p => p.ServisTuru == st);
 
-            kayitlar = await q.OrderByDescending(p => p.Tarih).ThenBy(p => p.Arac!.Plaka).ToListAsync();
+            kayitlar = await q.OrderByDescending(p => p.Tarih).ThenBy(p => p.Arac!.AktifPlaka).ToListAsync();
         }
         finally { yukleniyor = false; }
     }
