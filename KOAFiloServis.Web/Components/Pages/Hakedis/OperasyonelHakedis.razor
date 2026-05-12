@@ -1,0 +1,482 @@
+﻿@page "/operasyonel-hakedis"
+@using KOAFiloServis.Shared.Entities
+@using KOAFiloServis.Web.Services
+@using KOAFiloServis.Web.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@inject IOperasyonelHakedisService HakedisService
+@inject IFirmaService FirmaService
+@inject ITasimaTedarikciService TedarikciService
+@inject IAracService AracService
+@inject IToastService ToastService
+@inject IJSRuntime JS
+@attribute [Authorize]
+
+<PageTitle>Operasyonel Hakediş</PageTitle>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-receipt-cutoff me-2"></i>Operasyonel Hakediş</h2>
+            <p class="text-muted mb-0">Kurum / Tedarikçi / Araç bazlı dönemsel hakediş üretimi, onayı ve faturaya dönüştürme</p>
+        </div>
+        <button class="btn btn-primary" @onclick="UretModalAc">
+            <i class="bi bi-plus-lg me-1"></i> Hakediş Üret
+        </button>
+    </div>
+
+    <!-- Filtreler -->
+    <div class="card mb-3">
+        <div class="card-body py-3">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-2">
+                    <label class="form-label small">Yıl</label>
+                    <select class="form-select form-select-sm" @bind="filtreYil" @bind:after="LoadAsync">
+                        @for (int y = DateTime.Now.Year + 1; y >= 2020; y--)
+                        {
+                            <option value="@y">@y</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Ay</label>
+                    <select class="form-select form-select-sm" @bind="filtreAy" @bind:after="LoadAsync">
+                        @for (int a = 1; a <= 12; a++)
+                        {
+                            <option value="@a">@AyAdi(a)</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Tip</label>
+                    <select class="form-select form-select-sm" @bind="filtreTip" @bind:after="LoadAsync">
+                        <option value="">Tümü</option>
+                        <option value="Kurum">Kurum</option>
+                        <option value="Tedarikci">Tedarikçi</option>
+                        <option value="Arac">Araç</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Durum</label>
+                    <select class="form-select form-select-sm" @bind="filtreDurum" @bind:after="LoadAsync">
+                        <option value="">Tümü</option>
+                        <option value="Taslak">Taslak</option>
+                        <option value="Onaylandi">Onaylandı</option>
+                        <option value="Faturalandi">Faturalandı</option>
+                        <option value="TahsilEdildi">Tahsil Edildi</option>
+                        <option value="Odendi">Ödendi</option>
+                        <option value="Iptal">İptal</option>
+                    </select>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="FiltreyiTemizle">
+                        <i class="bi bi-x-lg me-1"></i>Filtreyi Temizle
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liste -->
+    <div class="card">
+        <div class="card-body p-0">
+            @if (yukleniyor)
+            {
+                <div class="p-4 text-center text-muted">
+                    <div class="spinner-border spinner-border-sm me-2"></div> Yükleniyor...
+                </div>
+            }
+            else if (!hakedisler.Any())
+            {
+                <div class="p-4 text-center text-muted">
+                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                    Bu kriterlere uygun hakediş bulunamadı. Üst sağdaki "Hakediş Üret" ile yeni hakediş oluşturabilirsiniz.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Dönem</th>
+                                <th>Tip</th>
+                                <th>Referans</th>
+                                <th class="text-end">Sefer</th>
+                                <th class="text-end">Tutar</th>
+                                <th class="text-end">KDV</th>
+                                <th class="text-end">Genel Toplam</th>
+                                <th>Durum</th>
+                                <th class="text-center" style="width:240px;">İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var h in hakedisler)
+                            {
+                                <tr>
+                                    <td>@h.Yil/@h.Ay.ToString("D2")</td>
+                                    <td><span class="badge @TipBadge(h.Tip)">@h.Tip</span></td>
+                                    <td>@ReferansAdi(h)</td>
+                                    <td class="text-end">@h.ToplamSeferSayisi.ToString("N2")</td>
+                                    <td class="text-end">@h.Tutar.ToString("N2") ₺</td>
+                                    <td class="text-end">@h.KdvTutar.ToString("N2") ₺</td>
+                                    <td class="text-end fw-semibold">@h.GenelToplam.ToString("N2") ₺</td>
+                                    <td><span class="badge @DurumBadge(h.Durum)">@h.Durum</span></td>
+                                    <td class="text-center">
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-secondary" title="Detaylar" @onclick="() => DetayAc(h)">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            @if (h.Durum == HakedisDurum.Taslak)
+                                            {
+                                                <button class="btn btn-outline-success" title="Onayla" @onclick="() => Onayla(h)">
+                                                    <i class="bi bi-check2-circle"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger" title="Sil" @onclick="() => Sil(h)">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            }
+                                            @if (h.Durum == HakedisDurum.Onaylandi && h.Tip != HakedisTipi.Arac)
+                                            {
+                                                <button class="btn btn-outline-primary" title="Faturaya Dönüştür" @onclick="() => FaturayaDonustur(h)">
+                                                    <i class="bi bi-receipt"></i>
+                                                </button>
+                                            }
+                                            @if (h.Durum != HakedisDurum.Faturalandi && h.Durum != HakedisDurum.Iptal)
+                                            {
+                                                <button class="btn btn-outline-warning" title="İptal" @onclick="() => IptalEt(h)">
+                                                    <i class="bi bi-x-circle"></i>
+                                                </button>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                                @if (acikDetayId == h.Id)
+                                {
+                                    <tr>
+                                        <td colspan="9" class="bg-light">
+                                            <div class="p-2">
+                                                <h6 class="mb-2">Detay Satırları (@(h.Detaylar?.Count ?? 0))</h6>
+                                                @if (h.Detaylar == null || !h.Detaylar.Any())
+                                                {
+                                                    <div class="text-muted small">Bu hakedişe ait detay bulunamadı.</div>
+                                                }
+                                                else
+                                                {
+                                                    <table class="table table-sm table-bordered mb-0">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Tarih</th>
+                                                                <th>Servis Türü</th>
+                                                                <th>Araç</th>
+                                                                <th>Şoför</th>
+                                                                <th>Güzergah</th>
+                                                                <th class="text-end">Sefer</th>
+                                                                <th class="text-end">Birim ₺</th>
+                                                                <th class="text-end">Tutar ₺</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach (var d in h.Detaylar.OrderBy(x => x.Tarih))
+                                                            {
+                                                                <tr>
+                                                                    <td>@d.Tarih.ToString("dd.MM.yyyy")</td>
+                                                                    <td>@d.ServisTuru</td>
+                                                                    <td>@d.Arac?.Plaka</td>
+                                                                    <td>@(d.Sofor?.TamAd ?? "-")</td>
+                                                                    <td>@(d.Guzergah?.GuzergahAdi ?? "-")</td>
+                                                                    <td class="text-end">@d.SeferSayisi.ToString("N2")</td>
+                                                                    <td class="text-end">@d.BirimFiyat.ToString("N2")</td>
+                                                                    <td class="text-end">@d.Tutar.ToString("N2")</td>
+                                                                </tr>
+                                                            }
+                                                        </tbody>
+                                                    </table>
+                                                }
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Üretim Modal -->
+@if (uretModalAcik)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-plus-lg me-2"></i>Yeni Hakediş Üret</h5>
+                    <button type="button" class="btn-close" @onclick="UretModalKapat"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label small">Yıl</label>
+                            <select class="form-select form-select-sm" @bind="uretYil">
+                                @for (int y = DateTime.Now.Year + 1; y >= 2020; y--)
+                                {
+                                    <option value="@y">@y</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">Ay</label>
+                            <select class="form-select form-select-sm" @bind="uretAy">
+                                @for (int a = 1; a <= 12; a++)
+                                {
+                                    <option value="@a">@AyAdi(a)</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small">Tip</label>
+                            <select class="form-select form-select-sm" @bind="uretTip">
+                                <option value="Kurum">Kurum (Gelir)</option>
+                                <option value="Tedarikci">Tedarikçi (Gider)</option>
+                                <option value="Arac">Araç (İç Karlılık)</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small">Referans</label>
+                            @if (uretTip == "Kurum")
+                            {
+                                <select class="form-select form-select-sm" @bind="uretReferansId">
+                                    <option value="0">-- Seçiniz --</option>
+                                    @foreach (var f in firmalar)
+                                    {
+                                        <option value="@f.Id">@f.FirmaAdi</option>
+                                    }
+                                </select>
+                            }
+                            else if (uretTip == "Tedarikci")
+                            {
+                                <select class="form-select form-select-sm" @bind="uretReferansId">
+                                    <option value="0">-- Seçiniz --</option>
+                                    @foreach (var t in tedarikciler)
+                                    {
+                                        <option value="@t.Id">@t.Unvan</option>
+                                    }
+                                </select>
+                            }
+                            else
+                            {
+                                <select class="form-select form-select-sm" @bind="uretReferansId">
+                                    <option value="0">-- Seçiniz --</option>
+                                    @foreach (var a in araclar)
+                                    {
+                                        <option value="@a.Id">@a.Plaka</option>
+                                    }
+                                </select>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary btn-sm" @onclick="UretModalKapat">İptal</button>
+                    <button class="btn btn-primary btn-sm" @onclick="UretOnayla" disabled="@(uretReferansId <= 0 || isleniyor)">
+                        @if (isleniyor)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        Üret
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool yukleniyor = true;
+    private bool isleniyor = false;
+    private bool uretModalAcik = false;
+
+    private int filtreYil = DateTime.Now.Year;
+    private int filtreAy = DateTime.Now.Month;
+    private string filtreTip = "";
+    private string filtreDurum = "";
+
+    private int uretYil = DateTime.Now.Year;
+    private int uretAy = DateTime.Now.Month;
+    private string uretTip = "Kurum";
+    private int uretReferansId = 0;
+
+    private int? acikDetayId = null;
+
+    private List<Hakedis> hakedisler = new();
+    private List<Firma> firmalar = new();
+    private List<TasimaTedarikci> tedarikciler = new();
+    private List<Arac> araclar = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        firmalar = await FirmaService.GetAktifFirmalarAsync();
+        tedarikciler = await TedarikciService.GetAllAsync(sadeceAktif: true);
+        araclar = await AracService.GetActiveAsync();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        yukleniyor = true;
+        StateHasChanged();
+        try
+        {
+            HakedisTipi? tip = string.IsNullOrEmpty(filtreTip) ? null : Enum.Parse<HakedisTipi>(filtreTip);
+            HakedisDurum? durum = string.IsNullOrEmpty(filtreDurum) ? null : Enum.Parse<HakedisDurum>(filtreDurum);
+            hakedisler = await HakedisService.GetHakedislerAsync(filtreYil, filtreAy, tip, null, durum);
+        }
+        finally
+        {
+            yukleniyor = false;
+        }
+    }
+
+    private async Task FiltreyiTemizle()
+    {
+        filtreYil = DateTime.Now.Year;
+        filtreAy = DateTime.Now.Month;
+        filtreTip = "";
+        filtreDurum = "";
+        await LoadAsync();
+    }
+
+    private void UretModalAc()
+    {
+        uretYil = filtreYil;
+        uretAy = filtreAy;
+        uretTip = "Kurum";
+        uretReferansId = 0;
+        uretModalAcik = true;
+    }
+
+    private void UretModalKapat() => uretModalAcik = false;
+
+    private async Task UretOnayla()
+    {
+        if (uretReferansId <= 0) return;
+        isleniyor = true;
+        try
+        {
+            Hakedis? h = uretTip switch
+            {
+                "Kurum" => await HakedisService.KurumHakedisiUretAsync(uretReferansId, uretYil, uretAy),
+                "Tedarikci" => await HakedisService.TedarikciHakedisiUretAsync(uretReferansId, uretYil, uretAy),
+                "Arac" => await HakedisService.AracHakedisiUretAsync(uretReferansId, uretYil, uretAy),
+                _ => null
+            };
+
+            if (h != null)
+            {
+                ToastService.ShowSuccess($"Hakediş üretildi: {h.ToplamSeferSayisi:N2} sefer / {h.GenelToplam:N2} ₺");
+                uretModalAcik = false;
+                filtreYil = uretYil;
+                filtreAy = uretAy;
+                await LoadAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Hata: {ex.Message}");
+        }
+        finally
+        {
+            isleniyor = false;
+        }
+    }
+
+    private async Task Onayla(Hakedis h)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", $"{h.Yil}/{h.Ay:D2} {h.Tip} hakedişi onaylansın mı?")) return;
+        try
+        {
+            await HakedisService.OnaylaAsync(h.Id, "Kullanıcı");
+            ToastService.ShowSuccess("Hakediş onaylandı.");
+            await LoadAsync();
+        }
+        catch (Exception ex) { ToastService.ShowError(ex.Message); }
+    }
+
+    private async Task IptalEt(Hakedis h)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", "Hakediş iptal edilsin mi?")) return;
+        try
+        {
+            await HakedisService.IptalEtAsync(h.Id);
+            ToastService.ShowWarning("Hakediş iptal edildi.");
+            await LoadAsync();
+        }
+        catch (Exception ex) { ToastService.ShowError(ex.Message); }
+    }
+
+    private async Task Sil(Hakedis h)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", "Hakediş silinsin mi?")) return;
+        try
+        {
+            await HakedisService.SilAsync(h.Id);
+            ToastService.ShowSuccess("Hakediş silindi.");
+            await LoadAsync();
+        }
+        catch (Exception ex) { ToastService.ShowError(ex.Message); }
+    }
+
+    private async Task FaturayaDonustur(Hakedis h)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", $"Hakediş #{h.Id} faturaya dönüştürülsün mü?")) return;
+        try
+        {
+            var f = await HakedisService.FaturayaDonustureAsync(h.Id, DateTime.Today);
+            ToastService.ShowSuccess($"Fatura oluşturuldu: {f.FaturaNo}");
+            await LoadAsync();
+        }
+        catch (Exception ex) { ToastService.ShowError(ex.Message); }
+    }
+
+    private void DetayAc(Hakedis h)
+    {
+        acikDetayId = (acikDetayId == h.Id) ? null : h.Id;
+    }
+
+    private string AyAdi(int a) => a switch
+    {
+        1 => "Ocak", 2 => "Şubat", 3 => "Mart", 4 => "Nisan",
+        5 => "Mayıs", 6 => "Haziran", 7 => "Temmuz", 8 => "Ağustos",
+        9 => "Eylül", 10 => "Ekim", 11 => "Kasım", 12 => "Aralık",
+        _ => a.ToString()
+    };
+
+    private string ReferansAdi(Hakedis h) => h.Tip switch
+    {
+        HakedisTipi.Kurum => firmalar.FirstOrDefault(f => f.Id == h.ReferansId)?.FirmaAdi ?? $"#{h.ReferansId}",
+        HakedisTipi.Tedarikci => tedarikciler.FirstOrDefault(t => t.Id == h.ReferansId)?.Unvan ?? $"#{h.ReferansId}",
+        HakedisTipi.Arac => araclar.FirstOrDefault(a => a.Id == h.ReferansId)?.Plaka ?? $"#{h.ReferansId}",
+        _ => h.ReferansId.ToString()
+    };
+
+    private string TipBadge(HakedisTipi t) => t switch
+    {
+        HakedisTipi.Kurum => "bg-success",
+        HakedisTipi.Tedarikci => "bg-warning text-dark",
+        HakedisTipi.Arac => "bg-info text-dark",
+        _ => "bg-secondary"
+    };
+
+    private string DurumBadge(HakedisDurum d) => d switch
+    {
+        HakedisDurum.Taslak => "bg-secondary",
+        HakedisDurum.Onaylandi => "bg-primary",
+        HakedisDurum.Faturalandi => "bg-info text-dark",
+        HakedisDurum.TahsilEdildi => "bg-success",
+        HakedisDurum.Odendi => "bg-success",
+        HakedisDurum.Iptal => "bg-danger",
+        _ => "bg-light text-dark"
+    };
+}
