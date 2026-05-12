@@ -298,7 +298,7 @@
                     <div class="row g-2">
                         <div class="col-6">
                             <label class="form-label small">Yıl</label>
-                            <select class="form-select form-select-sm" @bind="uretYil">
+                            <select class="form-select form-select-sm" @bind="uretYil" @bind:after="OnizlemeYukle">
                                 @for (int y = DateTime.Now.Year + 1; y >= 2020; y--)
                                 {
                                     <option value="@y">@y</option>
@@ -307,7 +307,7 @@
                         </div>
                         <div class="col-6">
                             <label class="form-label small">Ay</label>
-                            <select class="form-select form-select-sm" @bind="uretAy">
+                            <select class="form-select form-select-sm" @bind="uretAy" @bind:after="OnizlemeYukle">
                                 @for (int a = 1; a <= 12; a++)
                                 {
                                     <option value="@a">@AyAdi(a)</option>
@@ -316,7 +316,7 @@
                         </div>
                         <div class="col-12">
                             <label class="form-label small">Tip</label>
-                            <select class="form-select form-select-sm" @bind="uretTip">
+                            <select class="form-select form-select-sm" @bind="uretTip" @bind:after="OnizlemeYukle">
                                 <option value="Kurum">Kurum (Gelir)</option>
                                 <option value="Tedarikci">Tedarikçi (Gider)</option>
                                 <option value="Arac">Araç (İç Karlılık)</option>
@@ -326,7 +326,7 @@
                             <label class="form-label small">Referans</label>
                             @if (uretTip == "Kurum")
                             {
-                                <select class="form-select form-select-sm" @bind="uretReferansId">
+                                <select class="form-select form-select-sm" @bind="uretReferansId" @bind:after="OnizlemeYukle">
                                     <option value="0">-- Seçiniz --</option>
                                     @foreach (var f in firmalar)
                                     {
@@ -336,7 +336,7 @@
                             }
                             else if (uretTip == "Tedarikci")
                             {
-                                <select class="form-select form-select-sm" @bind="uretReferansId">
+                                <select class="form-select form-select-sm" @bind="uretReferansId" @bind:after="OnizlemeYukle">
                                     <option value="0">-- Seçiniz --</option>
                                     @foreach (var t in tedarikciler)
                                     {
@@ -346,13 +346,50 @@
                             }
                             else
                             {
-                                <select class="form-select form-select-sm" @bind="uretReferansId">
+                                <select class="form-select form-select-sm" @bind="uretReferansId" @bind:after="OnizlemeYukle">
                                     <option value="0">-- Seçiniz --</option>
                                     @foreach (var a in araclar)
                                     {
                                         <option value="@a.Id">@a.Plaka</option>
                                     }
                                 </select>
+                            }
+                        </div>
+                        <div class="col-12">
+                            @if (onizlemeYukleniyor)
+                            {
+                                <div class="alert alert-light border py-2 mb-0 small">
+                                    <span class="spinner-border spinner-border-sm me-1"></span>Önizleme hesaplanıyor...
+                                </div>
+                            }
+                            else if (onizleme != null)
+                            {
+                                <div class="alert @(onizleme.PuantajSayisi == 0 ? "alert-warning" : "alert-info") py-2 mb-0 small">
+                                    <div class="d-flex justify-content-between">
+                                        <span><i class="bi bi-list-check me-1"></i>Puantaj Kaydı</span>
+                                        <strong>@onizleme.PuantajSayisi</strong>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span><i class="bi bi-truck me-1"></i>Toplam Sefer</span>
+                                        <strong>@onizleme.ToplamSefer.ToString("N2")</strong>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span><i class="bi bi-cash me-1"></i>Tahmini Tutar (KDV hariç)</span>
+                                        <strong>@onizleme.TahminiTutar.ToString("N2") ₺</strong>
+                                    </div>
+                                    @if (onizleme.PuantajSayisi == 0)
+                                    {
+                                        <div class="mt-1 text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Bu döneme ait puantaj bulunamadı; üretim boş olacaktır.</div>
+                                    }
+                                    @if (onizleme.MevcutTaslakVar)
+                                    {
+                                        <div class="mt-1 text-warning"><i class="bi bi-info-circle me-1"></i>Bu dönem için mevcut <strong>Taslak</strong> hakediş üzerine yazılacaktır (#@onizleme.MevcutHakedisId).</div>
+                                    }
+                                    else if (onizleme.MevcutOnayliVar)
+                                    {
+                                        <div class="mt-1 text-danger"><i class="bi bi-shield-exclamation me-1"></i>Bu dönem için <strong>@onizleme.MevcutHakedisDurum</strong> durumunda mevcut hakediş var (#@onizleme.MevcutHakedisId). Yeni üretim ek kayıt oluşturur.</div>
+                                    }
+                                </div>
                             }
                         </div>
                     </div>
@@ -387,6 +424,10 @@
     private int uretAy = DateTime.Now.Month;
     private string uretTip = "Kurum";
     private int uretReferansId = 0;
+
+    private HakedisOnizleme? onizleme = null;
+    private bool onizlemeYukleniyor = false;
+    private CancellationTokenSource? onizlemeCts;
 
     private int? acikDetayId = null;
     private int? detayYukleniyorId = null;
@@ -447,10 +488,49 @@
         uretAy = filtreAy;
         uretTip = "Kurum";
         uretReferansId = 0;
+        onizleme = null;
         uretModalAcik = true;
     }
 
-    private void UretModalKapat() => uretModalAcik = false;
+    private void UretModalKapat()
+    {
+        uretModalAcik = false;
+        onizleme = null;
+        onizlemeCts?.Cancel();
+    }
+
+    private async Task OnizlemeYukle()
+    {
+        if (uretReferansId <= 0)
+        {
+            onizleme = null;
+            return;
+        }
+
+        onizlemeCts?.Cancel();
+        onizlemeCts = new CancellationTokenSource();
+        var token = onizlemeCts.Token;
+
+        onizlemeYukleniyor = true;
+        StateHasChanged();
+        try
+        {
+            var tip = Enum.Parse<HakedisTipi>(uretTip);
+            var sonuc = await HakedisService.OnizleAsync(tip, uretReferansId, uretYil, uretAy);
+            if (token.IsCancellationRequested) return;
+            onizleme = sonuc;
+        }
+        catch (Exception ex)
+        {
+            if (!token.IsCancellationRequested)
+                ToastService.ShowError($"Önizleme alınamadı: {ex.Message}");
+        }
+        finally
+        {
+            if (!token.IsCancellationRequested)
+                onizlemeYukleniyor = false;
+        }
+    }
 
     private async Task UretOnayla()
     {

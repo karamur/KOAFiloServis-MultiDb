@@ -286,4 +286,67 @@ public class OperasyonelHakedisService : IOperasyonelHakedisService
         await context.SaveChangesAsync();
         return true;
     }
+
+    public async Task<HakedisOnizleme> OnizleAsync(HakedisTipi tip, int referansId, int yil, int ay)
+    {
+        if (yil < 2000 || ay < 1 || ay > 12)
+            throw new ArgumentException("Geçersiz dönem (yıl/ay).");
+
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        var donemBas = new DateTime(yil, ay, 1);
+        var donemSon = donemBas.AddMonths(1);
+
+        IQueryable<FiloGunlukPuantaj> q = context.FiloGunlukPuantajlar
+            .Where(p => p.Tarih >= donemBas && p.Tarih < donemSon);
+
+        switch (tip)
+        {
+            case HakedisTipi.Kurum:
+                q = q.Where(p => p.KurumFirmaId == referansId);
+                break;
+            case HakedisTipi.Tedarikci:
+                q = q.Where(p => p.Arac != null
+                                 && p.Arac.SahiplikTipi == AracSahiplikTipi.Tedarikci
+                                 && p.Arac.TasimaTedarikciId == referansId);
+                break;
+            case HakedisTipi.Arac:
+                q = q.Where(p => p.AracId == referansId);
+                break;
+        }
+
+        var ozet = await q.GroupBy(_ => 1).Select(g => new
+        {
+            Adet = g.Count(),
+            Sefer = g.Sum(x => (decimal?)x.SeferSayisi) ?? 0m,
+            Kurum = g.Sum(x => (decimal?)x.TahakkukEdenKurumUcreti) ?? 0m,
+            Taseron = g.Sum(x => (decimal?)x.TahakkukEdenTaseronUcreti) ?? 0m,
+            Ozmal = g.Sum(x => (decimal?)((x.MaliyetOzmalKiralik ?? 0m) * x.SeferSayisi)) ?? 0m
+        }).FirstOrDefaultAsync();
+
+        decimal tahminiTutar = tip switch
+        {
+            HakedisTipi.Kurum => ozet?.Kurum ?? 0m,
+            HakedisTipi.Tedarikci => ozet?.Taseron ?? 0m,
+            HakedisTipi.Arac => ozet?.Ozmal ?? 0m,
+            _ => 0m
+        };
+
+        var mevcut = await context.Hakedisler
+            .Where(h => h.Tip == tip && h.ReferansId == referansId && h.Yil == yil && h.Ay == ay
+                        && h.Durum != HakedisDurum.Iptal)
+            .OrderByDescending(h => h.Id)
+            .Select(h => new { h.Id, h.Durum })
+            .FirstOrDefaultAsync();
+
+        return new HakedisOnizleme(
+            PuantajSayisi: ozet?.Adet ?? 0,
+            ToplamSefer: ozet?.Sefer ?? 0m,
+            TahminiTutar: tahminiTutar,
+            MevcutTaslakVar: mevcut?.Durum == HakedisDurum.Taslak,
+            MevcutOnayliVar: mevcut != null && mevcut.Durum != HakedisDurum.Taslak,
+            MevcutHakedisId: mevcut?.Id,
+            MevcutHakedisDurum: mevcut?.Durum
+        );
+    }
 }

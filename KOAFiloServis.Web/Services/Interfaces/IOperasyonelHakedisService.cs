@@ -43,4 +43,20 @@ public interface IOperasyonelHakedisService
     Task<Fatura> FaturayaDonustureAsync(int hakedisId, DateTime faturaTarihi, string? faturaNo = null);
 
     Task<bool> SilAsync(int hakedisId);
+
+    /// <summary>
+    /// Hakediş üretmeden önce tahmini değerleri döndürür (puantaj sayısı, sefer, tutar, çakışma uyarısı).
+    /// </summary>
+    Task<HakedisOnizleme> OnizleAsync(HakedisTipi tip, int referansId, int yil, int ay);
 }
+
+/// <summary>Hakediş üretim önizleme sonucu.</summary>
+public record HakedisOnizleme(
+    int PuantajSayisi,
+    decimal ToplamSefer,
+    decimal TahminiTutar,
+    bool MevcutTaslakVar,
+    bool MevcutOnayliVar,
+    int? MevcutHakedisId,
+    HakedisDurum? MevcutHakedisDurum
+);
