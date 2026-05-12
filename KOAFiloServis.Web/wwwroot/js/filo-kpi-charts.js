@@ -78,9 +78,93 @@ window.filoKpiCharts = (function () {
         });
     }
 
+    function renderKurumTrend(canvasId, labels, datasets) {
+        destroy(canvasId);
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return;
+        const palette = [
+            '#0d6efd', '#198754', '#dc3545', '#fd7e14', '#6f42c1',
+            '#20c997', '#ffc107', '#0dcaf0', '#d63384', '#6c757d',
+            '#212529', '#adb5bd'
+        ];
+        const ds = (datasets || []).map((d, i) => ({
+            label: d.label,
+            data: d.data,
+            borderColor: palette[i % palette.length],
+            backgroundColor: palette[i % palette.length] + '33',
+            borderWidth: 2,
+            tension: 0.25,
+            fill: false,
+            pointRadius: 3
+        }));
+        instances[canvasId] = new Chart(ctx, {
+            type: 'line',
+            data: { labels: labels, datasets: ds },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function (c) { return c.dataset.label + ': ' + fmtTL(c.parsed.y); }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: function (v) { return fmtTL(v); } }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderKurumToplamBar(canvasId, labels, data) {
+        destroy(canvasId);
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return;
+        instances[canvasId] = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Yıllık Toplam',
+                    data: data,
+                    backgroundColor: 'rgba(25, 135, 84, 0.6)',
+                    borderColor: '#198754',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function (c) { return fmtTL(c.parsed.x); }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: { callback: function (v) { return fmtTL(v); } }
+                    }
+                }
+            }
+        });
+    }
+
     return {
         renderHakedisTip: renderHakedisTip,
         renderSeferTrend: renderSeferTrend,
+        renderKurumTrend: renderKurumTrend,
+        renderKurumToplamBar: renderKurumToplamBar,
         destroyAll: destroyAll
     };
 })();
