@@ -1,4 +1,4 @@
-@page "/operasyonel-hakedis"
+﻿@page "/operasyonel-hakedis"
 @using System.IO
 @using System.IO.Compression
 @using ClosedXML.Excel
@@ -710,7 +710,7 @@
                         </div>
                         <div class="table-responsive" style="max-height:380px;overflow-y:auto;">
                             <table class="table table-sm table-hover">
-                                <thead class="table-light"><tr><th>Hakediş #</th><th>Sonuç</th><th>Mesaj</th></tr></thead>
+                                <thead class="table-light"><tr><th>Hakediş #</th><th>Sonuç</th><th>Mesaj</th><th>Fatura</th></tr></thead>
                                 <tbody>
                                     @foreach (var s in topluFaturaSonuc.Satirlar)
                                     {
@@ -718,6 +718,18 @@
                                             <td>#@s.HakedisId</td>
                                             <td><span class="badge bg-@(s.Sonuc == "Tamam" ? "success" : s.Sonuc == "Atlandı" ? "warning" : "danger")">@s.Sonuc</span></td>
                                             <td class="small">@s.Mesaj</td>
+                                            <td class="small">
+                                                @if (s.FaturaId.HasValue)
+                                                {
+                                                    <a href="/faturalar/@s.FaturaId.Value" target="_blank" class="text-decoration-none">
+                                                        <i class="bi bi-box-arrow-up-right me-1"></i>@(s.FaturaNo ?? $"#{s.FaturaId.Value}")
+                                                    </a>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">—</span>
+                                                }
+                                            </td>
                                         </tr>
                                     }
                                 </tbody>
@@ -979,7 +991,7 @@
         }
         catch (Exception ex)
         {
-            ToastService.ShowError($"Toplu onay hatası: {ex.Message}");
+            ToastService.ShowError($"Toplu onay işlemi başarısız: {ex.GetBaseException().Message}");
         }
         finally
         {
@@ -1009,7 +1021,7 @@
         }
         catch (Exception ex)
         {
-            ToastService.ShowError($"Toplu silme hatası: {ex.Message}");
+            ToastService.ShowError($"Toplu silme işlemi başarısız: {ex.GetBaseException().Message}");
         }
         finally
         {
@@ -1049,7 +1061,7 @@
         }
         catch (Exception ex)
         {
-            ToastService.ShowError($"Toplu faturalama hatası: {ex.Message}");
+            ToastService.ShowError($"Toplu faturalama işlemi başarısız: {ex.GetBaseException().Message}");
         }
         finally
         {
@@ -1105,7 +1117,7 @@
         catch (Exception ex)
         {
             if (!token.IsCancellationRequested)
-                ToastService.ShowError($"Önizleme alınamadı: {ex.Message}");
+                ToastService.ShowError($"Hakediş önizlemesi alınamadı: {ex.GetBaseException().Message}");
         }
         finally
         {
@@ -1145,7 +1157,7 @@
         }
         catch (Exception ex)
         {
-            ToastService.ShowError($"Toplu üretim hatası: {ex.Message}");
+            ToastService.ShowError($"Toplu hakediş üretimi başarısız: {ex.GetBaseException().Message}");
         }
         finally
         {
@@ -1178,7 +1190,7 @@
         }
         catch (Exception ex)
         {
-            ToastService.ShowError($"Hata: {ex.Message}");
+            ToastService.ShowError($"Hakediş üretimi başarısız: {ex.GetBaseException().Message}");
         }
         finally
         {
@@ -1195,7 +1207,7 @@
             ToastService.ShowSuccess("Hakediş onaylandı.");
             await LoadAsync();
         }
-        catch (Exception ex) { ToastService.ShowError(ex.Message); }
+        catch (Exception ex) { ToastService.ShowError($"Hakediş onaylanamadı: {ex.GetBaseException().Message}"); }
     }
 
     private async Task IptalEt(Hakedis h)
@@ -1207,7 +1219,7 @@
             ToastService.ShowWarning("Hakediş iptal edildi.");
             await LoadAsync();
         }
-        catch (Exception ex) { ToastService.ShowError(ex.Message); }
+        catch (Exception ex) { ToastService.ShowError($"Hakediş iptal edilemedi: {ex.GetBaseException().Message}"); }
     }
 
     private async Task Sil(Hakedis h)
@@ -1219,7 +1231,7 @@
             ToastService.ShowSuccess("Hakediş silindi.");
             await LoadAsync();
         }
-        catch (Exception ex) { ToastService.ShowError(ex.Message); }
+        catch (Exception ex) { ToastService.ShowError($"Hakediş silinemedi: {ex.GetBaseException().Message}"); }
     }
 
     private async Task FaturayaDonustur(Hakedis h)
@@ -1231,7 +1243,7 @@
             ToastService.ShowSuccess($"Fatura oluşturuldu: {f.FaturaNo}");
             Nav.NavigateTo($"/faturalar/{f.Id}");
         }
-        catch (Exception ex) { ToastService.ShowError(ex.Message); }
+        catch (Exception ex) { ToastService.ShowError($"Hakediş faturaya dönüştürülemedi: {ex.GetBaseException().Message}"); }
     }
 
     private void FaturaAc(Hakedis h)

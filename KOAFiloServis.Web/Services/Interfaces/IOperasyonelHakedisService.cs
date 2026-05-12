@@ -112,5 +112,7 @@ public record TopluIslemSonuc(
 public record TopluIslemSatir(
     int HakedisId,
     string Sonuc,        // "Tamam" | "Atlandı" | "Hata"
-    string? Mesaj
+    string? Mesaj,
+    int? FaturaId = null,
+    string? FaturaNo = null
 );

@@ -1,4 +1,4 @@
-﻿@page "/araclar/plaka-takip/{Id:int}/duzenle"
+@page "/araclar/plaka-takip/{Id:int}/duzenle"
 @using KOAFiloServis.Shared.Entities
 @using KOAFiloServis.Web.Services.Interfaces
 @inject IAracService AracService
@@ -108,8 +108,8 @@
 
     protected override async Task OnInitializedAsync() {
         _araclar = await AracService.GetAllAsync();
-        if(_isEdit) {
-            var e = await TakipService.GetByIdAsync(Id.Value);
+        if (Id is int editId) {
+            var e = await TakipService.GetByIdAsync(editId);
             if(e != null) _model = e;
             else NavManager.NavigateTo("/araclar/plaka-takip");
         }

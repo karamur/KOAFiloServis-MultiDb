@@ -613,7 +613,7 @@ public class OperasyonelHakedisService : IOperasyonelHakedisService
                 {
                     var fatura = await FaturayaDonustureAsync(id, faturaTarihi);
                     basarili++;
-                    satirlar.Add(new TopluIslemSatir(id, "Tamam", $"Fatura #{fatura.Id} ({fatura.FaturaNo})"));
+                    satirlar.Add(new TopluIslemSatir(id, "Tamam", $"Fatura #{fatura.Id} ({fatura.FaturaNo})", fatura.Id, fatura.FaturaNo));
                 }
                 catch (Exception ex)
                 {
