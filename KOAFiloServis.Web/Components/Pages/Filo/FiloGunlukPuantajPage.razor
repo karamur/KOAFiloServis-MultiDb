@@ -1,4 +1,4 @@
-﻿@page "/filo-gunluk-puantaj"
+@page "/filo-gunluk-puantaj"
 @using KOAFiloServis.Shared.Entities
 @using KOAFiloServis.Web.Data
 @using KOAFiloServis.Web.Services
@@ -185,7 +185,7 @@
                         </div>
                         <div class="col-md-4">
                             <label class="form-label small">Servis Türü *</label>
-                            <select class="form-select form-select-sm" @bind="form.ServisTuru">
+                            <select class="form-select form-select-sm" @bind="form.ServisTuru" @bind:after="ServisTuruDegisti">
                                 <option value="@ServisTuru.Sabah">Sabah</option>
                                 <option value="@ServisTuru.Aksam">Akşam</option>
                                 <option value="@ServisTuru.SabahAksam">Sabah + Akşam</option>
@@ -195,7 +195,7 @@
                         </div>
                         <div class="col-md-4">
                             <label class="form-label small">Sefer Sayısı *</label>
-                            <input type="number" step="0.5" min="0" class="form-control form-control-sm" @bind="form.SeferSayisi" />
+                            <input type="number" step="0.5" min="0" class="form-control form-control-sm" @bind="form.SeferSayisi" @bind:after="SeferSayisiHataGider" />
                         </div>
 
                         <div class="col-md-6">
@@ -210,7 +210,7 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small">Güzergah *</label>
-                            <select class="form-select form-select-sm" @bind="form.GuzergahId">
+                            <select class="form-select form-select-sm" @bind="form.GuzergahId" @bind:after="GuzergahDegisti">
                                 <option value="0">-- Seçiniz --</option>
                                 @foreach (var g in guzergahlar)
                                 {
@@ -312,6 +312,13 @@
                     </div>
                 </div>
                 <div class="modal-footer">
+                    @if (form.Id == 0)
+                    {
+                        <div class="form-check me-auto">
+                            <input class="form-check-input" type="checkbox" id="kaydetVeYeni" @bind="kaydetVeYeniKayit">
+                            <label class="form-check-label small" for="kaydetVeYeni">Kaydet ve Yeni Ekle</label>
+                        </div>
+                    }
                     <button class="btn btn-secondary btn-sm" @onclick="() => kayitModalAcik = false">İptal</button>
                     <button class="btn btn-primary btn-sm" @onclick="Kaydet" disabled="@(isSaving || !FormGecerli())">
                         @if (isSaving)
@@ -347,6 +354,7 @@
     private AracSahiplikTipi? secilenSahiplik = null;
     private decimal? maliyetOzmalKiralikInput;
     private decimal? taksiFisInput;
+    private bool kaydetVeYeniKayit = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -406,6 +414,7 @@
 
     private void Duzenle(FiloGunlukPuantaj k)
     {
+        kaydetVeYeniKayit = false;
         form = new FiloGunlukPuantaj
         {
             Id = k.Id,
@@ -443,6 +452,46 @@
     {
         var a = araclar.FirstOrDefault(x => x.Id == form.AracId);
         secilenSahiplik = a?.SahiplikTipi;
+
+        // Arac uzerinde VarsayilanSoforId yokmus, kaldirildi
+
+        HesaplaMaliyetVeKurumFiyat();
+    }
+
+    private void ServisTuruDegisti()
+    {
+        if (form.ServisTuru == ServisTuru.Sabah || form.ServisTuru == ServisTuru.Aksam || form.ServisTuru == ServisTuru.YardaMesai) form.SeferSayisi = 0.5m;
+        else if (form.ServisTuru == ServisTuru.SabahAksam) form.SeferSayisi = 1.0m;
+
+        HesaplaMaliyetVeKurumFiyat();
+    }
+
+    private void SeferSayisiHataGider() => HesaplaMaliyetVeKurumFiyat();
+
+    private void GuzergahDegisti()
+    {
+        var g = guzergahlar.FirstOrDefault(x => x.Id == form.GuzergahId);
+        if (g != null)
+        {
+            if (form.KurumFirmaId == 0 && g.FirmaId.HasValue) form.KurumFirmaId = g.FirmaId.Value;
+            if (form.AracId == 0 && g.VarsayilanAracId.HasValue) { form.AracId = g.VarsayilanAracId.Value; AracDegisti(); }
+            if (form.SoforId == 0 && g.VarsayilanSoforId.HasValue) form.SoforId = g.VarsayilanSoforId.Value;
+        }
+        HesaplaMaliyetVeKurumFiyat();
+    }
+
+    private void HesaplaMaliyetVeKurumFiyat()
+    {
+        if (form.GuzergahId > 0)
+        {
+            var g = guzergahlar.FirstOrDefault(x => x.Id == form.GuzergahId);
+            if (g != null && g.BirimFiyat > 0) form.TahakkukEdenKurumUcreti = (g.BirimFiyat * form.SeferSayisi);
+        }
+
+        if (form.AracId > 0 && secilenSahiplik == AracSahiplikTipi.Tedarikci)
+        {
+            if (form.TahakkukEdenTaseronUcreti == 0 && form.TahakkukEdenKurumUcreti > 0) form.TahakkukEdenTaseronUcreti = form.TahakkukEdenKurumUcreti * 0.8m;
+        }
     }
 
     private bool FormGecerli() =>
@@ -490,7 +539,14 @@
 
             await ctx.SaveChangesAsync();
             ToastService.ShowSuccess("Kayıt kaydedildi.");
-            kayitModalAcik = false;
+            if (kaydetVeYeniKayit && form.Id > 0)
+            {
+                var k = form;
+                form = new FiloGunlukPuantaj { Tarih = k.Tarih, KurumFirmaId = k.KurumFirmaId, GuzergahId = k.GuzergahId, AracId = k.AracId, SoforId = k.SoforId, Durum = k.Durum, ServisTuru = k.ServisTuru == ServisTuru.Sabah ? ServisTuru.Aksam : k.ServisTuru == ServisTuru.Aksam ? ServisTuru.Sabah : k.ServisTuru, TahakkukEdenKurumUcreti = k.TahakkukEdenKurumUcreti, TahakkukEdenTaseronUcreti = k.TahakkukEdenTaseronUcreti, MaliyetOzmalKiralik = k.MaliyetOzmalKiralik, SeferSayisi = k.SeferSayisi };
+                ServisTuruDegisti();
+                kayitModalAcik = true;
+            }
+            else { kayitModalAcik = false; }
             await LoadAsync();
         }
         catch (Exception ex)
