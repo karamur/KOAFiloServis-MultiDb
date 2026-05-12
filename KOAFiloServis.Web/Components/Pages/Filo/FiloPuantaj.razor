@@ -1,9 +1,10 @@
-@page "/filo/puantaj"
+﻿@page "/filo/puantaj"
 @using KOAFiloServis.Shared.Entities
 @using KOAFiloServis.Web.Services
 @using KOAFiloServis.Web.Services.Interfaces
 @using KOAFiloServis.Web.Data
 @using Microsoft.EntityFrameworkCore
+@using Microsoft.JSInterop
 @inject ISoforService SoforService
 @inject IAracService AracService
 @inject IGuzergahService GuzergahService
@@ -12,6 +13,7 @@
 @inject IDbContextFactory<ApplicationDbContext> DbContextFactory
 @inject IToastService ToastService
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 @rendermode InteractiveServer
 
 <PageTitle>Filo Puantaj</PageTitle>
@@ -645,10 +647,43 @@
         filtreliGuzergahlar = new();
     }
 
+    // Sefer çakışma kontrolü (aynı gün, aynı sefer dilimi, aynı şoför veya araç)
+    private static bool ServisCakisir(ServisTuru a, ServisTuru b)
+    {
+        if (a == b) return true;
+        if (a == ServisTuru.Ozel || b == ServisTuru.Ozel) return false;
+        if (a == ServisTuru.SabahAksam && (b == ServisTuru.Sabah || b == ServisTuru.Aksam)) return true;
+        if (b == ServisTuru.SabahAksam && (a == ServisTuru.Sabah || a == ServisTuru.Aksam)) return true;
+        return false;
+    }
+
+    private List<ServisCalisma> CakisanKayitlar()
+    {
+        if (secilenSoforId == 0 && secilenAracId == 0) return new();
+        return gunKayitlari
+            .Where(k => ServisCakisir(k.ServisTuru, secilenServisTuru) &&
+                        ((secilenSoforId > 0 && k.SoforId == secilenSoforId) ||
+                         (secilenAracId > 0 && k.AracId == secilenAracId)))
+            .ToList();
+    }
+
     // Kaydet & devam
     private async Task KaydetVeDevam()
     {
         if (secilenSoforId == 0 || secilenAracId == 0 || secilenGuzergahId == 0) return;
+
+        // Çakışma varsa kullanıcıdan onay al
+        var cakisan = CakisanKayitlar();
+        if (cakisan.Any())
+        {
+            var ilk = cakisan.First();
+            var mesaj = $"Bu tarih ve sefer için çakışma tespit edildi:\n\n" +
+                        $"• {GetServisTuruAdi(ilk.ServisTuru)} - {ilk.Sofor?.TamAd} / {ilk.Arac?.AktifPlaka} ({ilk.Guzergah?.GuzergahAdi})\n" +
+                        (cakisan.Count > 1 ? $"  ve {cakisan.Count - 1} kayıt daha...\n\n" : "\n") +
+                        "Yine de kaydetmek istiyor musunuz?";
+            var onay = await JS.InvokeAsync<bool>("confirm", mesaj);
+            if (!onay) return;
+        }
 
         isSaving = true;
         try
