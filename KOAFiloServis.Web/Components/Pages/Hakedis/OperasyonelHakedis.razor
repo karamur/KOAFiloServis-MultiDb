@@ -1,4 +1,6 @@
 ﻿@page "/operasyonel-hakedis"
+@using System.IO
+@using ClosedXML.Excel
 @using KOAFiloServis.Shared.Entities
 @using KOAFiloServis.Web.Services
 @using KOAFiloServis.Web.Services.Interfaces
@@ -155,15 +157,37 @@
                                     <tr>
                                         <td colspan="9" class="bg-light">
                                             <div class="p-2">
-                                                <h6 class="mb-2">Detay Satırları (@(h.Detaylar?.Count ?? 0))</h6>
-                                                @if (h.Detaylar == null || !h.Detaylar.Any())
+                                                @{
+                                                    var aktifH = detayCache.TryGetValue(h.Id, out var dh) ? dh : h;
+                                                }
+                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                    <h6 class="mb-0">
+                                                        Detay Satırları (@(aktifH.Detaylar?.Count ?? 0))
+                                                        @if (aktifH.Detaylar != null && aktifH.Detaylar.Any())
+                                                        {
+                                                            <span class="text-muted small ms-2">
+                                                                Toplam: @aktifH.Detaylar.Sum(x => x.SeferSayisi).ToString("N2") sefer • @aktifH.Detaylar.Sum(x => x.Tutar).ToString("N2") ₺
+                                                            </span>
+                                                        }
+                                                    </h6>
+                                                    <div>
+                                                        <button class="btn btn-sm btn-outline-success" @onclick="() => DetayExcelIndir(aktifH)" disabled="@(aktifH.Detaylar == null || !aktifH.Detaylar.Any())">
+                                                            <i class="bi bi-file-earmark-excel me-1"></i>Excel
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                @if (detayYukleniyorId == h.Id)
+                                                {
+                                                    <div class="text-muted small"><span class="spinner-border spinner-border-sm me-1"></span>Detaylar yükleniyor...</div>
+                                                }
+                                                else if (aktifH.Detaylar == null || !aktifH.Detaylar.Any())
                                                 {
                                                     <div class="text-muted small">Bu hakedişe ait detay bulunamadı.</div>
                                                 }
                                                 else
                                                 {
                                                     <table class="table table-sm table-bordered mb-0">
-                                                        <thead>
+                                                        <thead class="table-light">
                                                             <tr>
                                                                 <th>Tarih</th>
                                                                 <th>Servis Türü</th>
@@ -176,20 +200,28 @@
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            @foreach (var d in h.Detaylar.OrderBy(x => x.Tarih))
+                                                            @foreach (var d in aktifH.Detaylar.OrderBy(x => x.Tarih))
                                                             {
                                                                 <tr>
                                                                     <td>@d.Tarih.ToString("dd.MM.yyyy")</td>
                                                                     <td>@d.ServisTuru</td>
-                                                                    <td>@d.Arac?.Plaka</td>
+                                                                    <td>@(d.Arac?.Plaka ?? "-")</td>
                                                                     <td>@(d.Sofor?.TamAd ?? "-")</td>
                                                                     <td>@(d.Guzergah?.GuzergahAdi ?? "-")</td>
                                                                     <td class="text-end">@d.SeferSayisi.ToString("N2")</td>
                                                                     <td class="text-end">@d.BirimFiyat.ToString("N2")</td>
-                                                                    <td class="text-end">@d.Tutar.ToString("N2")</td>
+                                                                    <td class="text-end fw-semibold">@d.Tutar.ToString("N2")</td>
                                                                 </tr>
                                                             }
                                                         </tbody>
+                                                        <tfoot class="table-light">
+                                                            <tr class="fw-bold">
+                                                                <td colspan="5" class="text-end">TOPLAM</td>
+                                                                <td class="text-end">@aktifH.Detaylar.Sum(x => x.SeferSayisi).ToString("N2")</td>
+                                                                <td></td>
+                                                                <td class="text-end">@aktifH.Detaylar.Sum(x => x.Tutar).ToString("N2")</td>
+                                                            </tr>
+                                                        </tfoot>
                                                     </table>
                                                 }
                                             </div>
@@ -309,6 +341,8 @@
     private int uretReferansId = 0;
 
     private int? acikDetayId = null;
+    private int? detayYukleniyorId = null;
+    private Dictionary<int, Hakedis> detayCache = new();
 
     private List<Hakedis> hakedisler = new();
     private List<Firma> firmalar = new();
@@ -332,6 +366,8 @@
             HakedisTipi? tip = string.IsNullOrEmpty(filtreTip) ? null : Enum.Parse<HakedisTipi>(filtreTip);
             HakedisDurum? durum = string.IsNullOrEmpty(filtreDurum) ? null : Enum.Parse<HakedisDurum>(filtreDurum);
             hakedisler = await HakedisService.GetHakedislerAsync(filtreYil, filtreAy, tip, null, durum);
+            detayCache.Clear();
+            acikDetayId = null;
         }
         finally
         {
@@ -440,9 +476,81 @@
         catch (Exception ex) { ToastService.ShowError(ex.Message); }
     }
 
-    private void DetayAc(Hakedis h)
+    private async Task DetayAc(Hakedis h)
     {
-        acikDetayId = (acikDetayId == h.Id) ? null : h.Id;
+        if (acikDetayId == h.Id)
+        {
+            acikDetayId = null;
+            return;
+        }
+
+        acikDetayId = h.Id;
+        if (!detayCache.ContainsKey(h.Id))
+        {
+            detayYukleniyorId = h.Id;
+            try
+            {
+                var dolu = await HakedisService.GetByIdAsync(h.Id);
+                if (dolu != null) detayCache[h.Id] = dolu;
+            }
+            catch (Exception ex) { ToastService.ShowError($"Detay yüklenemedi: {ex.Message}"); }
+            finally { detayYukleniyorId = null; }
+        }
+    }
+
+    private async Task DetayExcelIndir(Hakedis h)
+    {
+        try
+        {
+            using var wb = new XLWorkbook();
+            var ws = wb.Worksheets.Add($"Hakedis_{h.Id}");
+            ws.Cell(1, 1).Value = $"HAKEDİŞ DETAYI #{h.Id} • {h.Yil}/{h.Ay:D2} • {h.Tip} • {ReferansAdi(h)}";
+            ws.Cell(1, 1).Style.Font.Bold = true;
+            ws.Cell(1, 1).Style.Font.FontSize = 12;
+            ws.Range(1, 1, 1, 8).Merge();
+
+            var basliklar = new[] { "Tarih", "Servis Türü", "Araç", "Şoför", "Güzergah", "Sefer", "Birim ₺", "Tutar ₺" };
+            for (int i = 0; i < basliklar.Length; i++)
+            {
+                ws.Cell(3, i + 1).Value = basliklar[i];
+                ws.Cell(3, i + 1).Style.Font.Bold = true;
+                ws.Cell(3, i + 1).Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
+            }
+
+            int r = 4;
+            if (h.Detaylar != null)
+            {
+                foreach (var d in h.Detaylar.OrderBy(x => x.Tarih))
+                {
+                    ws.Cell(r, 1).Value = d.Tarih;
+                    ws.Cell(r, 1).Style.DateFormat.Format = "dd.MM.yyyy";
+                    ws.Cell(r, 2).Value = d.ServisTuru.ToString();
+                    ws.Cell(r, 3).Value = d.Arac?.Plaka ?? "-";
+                    ws.Cell(r, 4).Value = d.Sofor?.TamAd ?? "-";
+                    ws.Cell(r, 5).Value = d.Guzergah?.GuzergahAdi ?? "-";
+                    ws.Cell(r, 6).Value = d.SeferSayisi;
+                    ws.Cell(r, 7).Value = d.BirimFiyat;
+                    ws.Cell(r, 8).Value = d.Tutar;
+                    r++;
+                }
+                ws.Cell(r, 5).Value = "TOPLAM";
+                ws.Cell(r, 5).Style.Font.Bold = true;
+                ws.Cell(r, 6).Value = h.Detaylar.Sum(x => x.SeferSayisi);
+                ws.Cell(r, 8).Value = h.Detaylar.Sum(x => x.Tutar);
+                ws.Range(r, 5, r, 8).Style.Font.Bold = true;
+            }
+            ws.Columns().AdjustToContents();
+
+            using var ms = new MemoryStream();
+            wb.SaveAs(ms);
+            var fileName = $"hakedis_{h.Id}_{h.Yil}_{h.Ay:D2}.xlsx";
+            await JS.InvokeVoidAsync("downloadFileFromBase64", fileName, Convert.ToBase64String(ms.ToArray()));
+            ToastService.ShowSuccess("Detay Excel indirildi.");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Excel indirilemedi: {ex.GetBaseException().Message}");
+        }
     }
 
     private string AyAdi(int a) => a switch

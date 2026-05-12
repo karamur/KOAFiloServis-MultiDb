@@ -39,7 +39,9 @@ public class OperasyonelHakedisService : IOperasyonelHakedisService
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         return await context.Hakedisler
-            .Include(h => h.Detaylar)
+            .Include(h => h.Detaylar).ThenInclude(d => d.Arac)
+            .Include(h => h.Detaylar).ThenInclude(d => d.Sofor)
+            .Include(h => h.Detaylar).ThenInclude(d => d.Guzergah)
             .FirstOrDefaultAsync(h => h.Id == id);
     }
 
