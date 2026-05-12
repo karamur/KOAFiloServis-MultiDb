@@ -24,6 +24,17 @@
             <p class="text-muted mb-0">Kurum / Tedarikçi / Araç bazlı dönemsel hakediş üretimi, onayı ve faturaya dönüştürme</p>
         </div>
         <div class="btn-group">
+            <button class="btn btn-outline-success" @onclick="ListeyiExceleAktar" disabled="@(!hakedisler.Any() || listeExcelCalisiyor)" title="Filtrelenmiş hakediş listesini Excel olarak indir">
+                @if (listeExcelCalisiyor)
+                {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                }
+                else
+                {
+                    <i class="bi bi-file-earmark-excel me-1"></i>
+                }
+                Listeyi Excel
+            </button>
             <button class="btn btn-outline-primary" @onclick="TopluModalAc" title="Dönem içindeki tüm referanslar için tek tıkla hakediş üret">
                 <i class="bi bi-stack me-1"></i> Toplu Üret
             </button>
@@ -146,6 +157,9 @@
                 </button>
                 <button class="btn btn-sm btn-outline-danger" @onclick="TopluPdfZipIndir" disabled="@topluIslemCalisiyor">
                     <i class="bi bi-file-earmark-zip me-1"></i> Toplu PDF (ZIP)
+                </button>
+                <button class="btn btn-sm btn-outline-success" @onclick="TopluExcelIndir" disabled="@topluIslemCalisiyor">
+                    <i class="bi bi-file-earmark-excel me-1"></i> Toplu Excel
                 </button>
                 <button class="btn btn-sm btn-outline-danger" @onclick="TopluSil" disabled="@topluIslemCalisiyor">
                     <i class="bi bi-trash me-1"></i> Toplu Sil
@@ -1087,6 +1101,215 @@
             }
             catch (Exception ex) { ToastService.ShowError($"Detay yüklenemedi: {ex.Message}"); }
             finally { detayYukleniyorId = null; }
+        }
+    }
+
+    private bool listeExcelCalisiyor = false;
+
+    private async Task ListeyiExceleAktar()
+    {
+        if (!hakedisler.Any()) return;
+        listeExcelCalisiyor = true;
+        StateHasChanged();
+        try
+        {
+            using var wb = new XLWorkbook();
+            var ws = wb.Worksheets.Add("Hakedisler");
+
+            var baslik = $"OPERASYONEL HAKEDİŞ LİSTESİ • {filtreYil}/{filtreAy:D2}"
+                + (string.IsNullOrEmpty(filtreTip) ? "" : $" • {filtreTip}")
+                + (string.IsNullOrEmpty(filtreDurum) ? "" : $" • {filtreDurum}");
+            ws.Cell(1, 1).Value = baslik;
+            ws.Cell(1, 1).Style.Font.Bold = true;
+            ws.Cell(1, 1).Style.Font.FontSize = 13;
+            ws.Range(1, 1, 1, 10).Merge();
+
+            var headers = new[] { "#", "Dönem", "Tip", "Referans", "Sefer", "Tutar ₺", "KDV %", "KDV ₺", "Genel Toplam ₺", "Durum" };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                ws.Cell(3, i + 1).Value = headers[i];
+                ws.Cell(3, i + 1).Style.Font.Bold = true;
+                ws.Cell(3, i + 1).Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
+            }
+
+            int r = 4;
+            foreach (var h in hakedisler)
+            {
+                ws.Cell(r, 1).Value = h.Id;
+                ws.Cell(r, 2).Value = $"{h.Yil}/{h.Ay:D2}";
+                ws.Cell(r, 3).Value = h.Tip.ToString();
+                ws.Cell(r, 4).Value = ReferansAdi(h);
+                ws.Cell(r, 5).Value = h.ToplamSeferSayisi;
+                ws.Cell(r, 6).Value = h.Tutar;
+                ws.Cell(r, 7).Value = h.KdvOran;
+                ws.Cell(r, 8).Value = h.KdvTutar;
+                ws.Cell(r, 9).Value = h.GenelToplam;
+                ws.Cell(r, 10).Value = h.Durum.ToString();
+                r++;
+            }
+
+            // Toplam satırı
+            ws.Cell(r, 4).Value = "TOPLAM";
+            ws.Cell(r, 5).Value = hakedisler.Sum(h => h.ToplamSeferSayisi);
+            ws.Cell(r, 6).Value = hakedisler.Sum(h => h.Tutar);
+            ws.Cell(r, 8).Value = hakedisler.Sum(h => h.KdvTutar);
+            ws.Cell(r, 9).Value = hakedisler.Sum(h => h.GenelToplam);
+            ws.Range(r, 4, r, 10).Style.Font.Bold = true;
+            ws.Range(r, 4, r, 10).Style.Fill.BackgroundColor = XLColor.LightYellow;
+
+            ws.Range(4, 5, r, 9).Style.NumberFormat.Format = "#,##0.00";
+            ws.Columns().AdjustToContents();
+            ws.SheetView.FreezeRows(3);
+
+            using var ms = new MemoryStream();
+            wb.SaveAs(ms);
+            var fileName = $"Hakedis_Liste_{filtreYil}_{filtreAy:D2}_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+            await JS.InvokeVoidAsync("downloadFileFromBase64", fileName, Convert.ToBase64String(ms.ToArray()));
+            ToastService.ShowSuccess($"Excel indirildi: {hakedisler.Count} kayıt.");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Excel oluşturulamadı: {ex.GetBaseException().Message}");
+        }
+        finally
+        {
+            listeExcelCalisiyor = false;
+        }
+    }
+
+    private async Task TopluExcelIndir()
+    {
+        if (seciliIds.Count == 0) return;
+        if (!await JS.InvokeAsync<bool>("confirm", $"{seciliIds.Count} hakediş için detay Excel (her biri ayrı sayfa) indirilsin mi?"))
+            return;
+
+        topluIslemCalisiyor = true;
+        StateHasChanged();
+        int basarili = 0, hata = 0;
+        try
+        {
+            using var wb = new XLWorkbook();
+
+            // Özet sayfası
+            var ozet = wb.Worksheets.Add("Özet");
+            ozet.Cell(1, 1).Value = $"SEÇİLİ HAKEDİŞLER • {DateTime.Now:dd.MM.yyyy HH:mm}";
+            ozet.Cell(1, 1).Style.Font.Bold = true;
+            ozet.Cell(1, 1).Style.Font.FontSize = 13;
+            ozet.Range(1, 1, 1, 8).Merge();
+            var oh = new[] { "#", "Dönem", "Tip", "Referans", "Sefer", "Tutar ₺", "KDV ₺", "Genel Toplam ₺" };
+            for (int i = 0; i < oh.Length; i++)
+            {
+                ozet.Cell(3, i + 1).Value = oh[i];
+                ozet.Cell(3, i + 1).Style.Font.Bold = true;
+                ozet.Cell(3, i + 1).Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
+            }
+            int orow = 4;
+
+            foreach (var id in seciliIds.ToList())
+            {
+                try
+                {
+                    Hakedis? full;
+                    if (!detayCache.TryGetValue(id, out full!))
+                    {
+                        full = await HakedisService.GetByIdAsync(id);
+                        if (full != null) detayCache[id] = full;
+                    }
+                    if (full == null) { hata++; continue; }
+
+                    // Özet satırı
+                    ozet.Cell(orow, 1).Value = full.Id;
+                    ozet.Cell(orow, 2).Value = $"{full.Yil}/{full.Ay:D2}";
+                    ozet.Cell(orow, 3).Value = full.Tip.ToString();
+                    ozet.Cell(orow, 4).Value = ReferansAdi(full);
+                    ozet.Cell(orow, 5).Value = full.ToplamSeferSayisi;
+                    ozet.Cell(orow, 6).Value = full.Tutar;
+                    ozet.Cell(orow, 7).Value = full.KdvTutar;
+                    ozet.Cell(orow, 8).Value = full.GenelToplam;
+                    orow++;
+
+                    // Detay sayfası
+                    var sheetName = $"H{full.Id}_{full.Tip}_{full.Yil}{full.Ay:D2}";
+                    if (sheetName.Length > 31) sheetName = sheetName.Substring(0, 31);
+                    var ws = wb.Worksheets.Add(sheetName);
+
+                    ws.Cell(1, 1).Value = $"HAKEDİŞ #{full.Id} • {full.Yil}/{full.Ay:D2} • {full.Tip} • {ReferansAdi(full)}";
+                    ws.Cell(1, 1).Style.Font.Bold = true;
+                    ws.Cell(1, 1).Style.Font.FontSize = 12;
+                    ws.Range(1, 1, 1, 8).Merge();
+
+                    var dh = new[] { "Tarih", "Servis Türü", "Araç", "Şoför", "Güzergah", "Sefer", "Birim ₺", "Tutar ₺" };
+                    for (int i = 0; i < dh.Length; i++)
+                    {
+                        ws.Cell(3, i + 1).Value = dh[i];
+                        ws.Cell(3, i + 1).Style.Font.Bold = true;
+                        ws.Cell(3, i + 1).Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
+                    }
+
+                    int dr = 4;
+                    if (full.Detaylar != null)
+                    {
+                        foreach (var d in full.Detaylar.OrderBy(x => x.Tarih))
+                        {
+                            ws.Cell(dr, 1).Value = d.Tarih;
+                            ws.Cell(dr, 1).Style.DateFormat.Format = "dd.MM.yyyy";
+                            ws.Cell(dr, 2).Value = d.ServisTuru.ToString();
+                            ws.Cell(dr, 3).Value = d.Arac?.Plaka ?? "-";
+                            ws.Cell(dr, 4).Value = d.Sofor?.TamAd ?? "-";
+                            ws.Cell(dr, 5).Value = d.Guzergah?.GuzergahAdi ?? "-";
+                            ws.Cell(dr, 6).Value = d.SeferSayisi;
+                            ws.Cell(dr, 7).Value = d.BirimFiyat;
+                            ws.Cell(dr, 8).Value = d.Tutar;
+                            dr++;
+                        }
+                        ws.Cell(dr, 5).Value = "TOPLAM";
+                        ws.Cell(dr, 6).Value = full.Detaylar.Sum(x => x.SeferSayisi);
+                        ws.Cell(dr, 8).Value = full.Detaylar.Sum(x => x.Tutar);
+                        ws.Range(dr, 5, dr, 8).Style.Font.Bold = true;
+                        ws.Range(dr, 5, dr, 8).Style.Fill.BackgroundColor = XLColor.LightYellow;
+                    }
+                    ws.Range(4, 6, Math.Max(dr, 4), 8).Style.NumberFormat.Format = "#,##0.00";
+                    ws.Columns().AdjustToContents();
+                    ws.SheetView.FreezeRows(3);
+                    basarili++;
+                }
+                catch
+                {
+                    hata++;
+                }
+            }
+
+            // Özet toplam
+            ozet.Cell(orow, 4).Value = "TOPLAM";
+            ozet.Cell(orow, 5).Value = hakedisler.Where(x => seciliIds.Contains(x.Id)).Sum(x => x.ToplamSeferSayisi);
+            ozet.Cell(orow, 6).Value = hakedisler.Where(x => seciliIds.Contains(x.Id)).Sum(x => x.Tutar);
+            ozet.Cell(orow, 7).Value = hakedisler.Where(x => seciliIds.Contains(x.Id)).Sum(x => x.KdvTutar);
+            ozet.Cell(orow, 8).Value = hakedisler.Where(x => seciliIds.Contains(x.Id)).Sum(x => x.GenelToplam);
+            ozet.Range(orow, 4, orow, 8).Style.Font.Bold = true;
+            ozet.Range(orow, 4, orow, 8).Style.Fill.BackgroundColor = XLColor.LightYellow;
+            ozet.Range(4, 5, orow, 8).Style.NumberFormat.Format = "#,##0.00";
+            ozet.Columns().AdjustToContents();
+            ozet.SheetView.FreezeRows(3);
+
+            if (basarili == 0)
+            {
+                ToastService.ShowWarning("Excel üretilemedi.");
+                return;
+            }
+
+            using var ms = new MemoryStream();
+            wb.SaveAs(ms);
+            var fileName = $"Hakedisler_Detay_{filtreYil}_{filtreAy:D2}_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+            await JS.InvokeVoidAsync("downloadFileFromBase64", fileName, Convert.ToBase64String(ms.ToArray()));
+            ToastService.ShowSuccess($"Excel indirildi: {basarili} hakediş" + (hata > 0 ? $", {hata} hata" : "") + ".");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Toplu Excel hatası: {ex.GetBaseException().Message}");
+        }
+        finally
+        {
+            topluIslemCalisiyor = false;
         }
     }
 
