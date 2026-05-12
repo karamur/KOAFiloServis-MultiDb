@@ -167,6 +167,55 @@
             </div>
         }
 
+        <!-- BÜTÇE MODÜLÜ -->
+        @if (HasMenuYetki("menu.butce"))
+        {
+            <div class="nav-section">
+                <div class="nav-section-header" @onclick="() => ToggleSection(NavSection.Butce)" style="cursor: pointer;">
+                    <span><i class="bi bi-wallet2 me-2"></i>BÜTÇE MODÜLÜ</span>
+                    <i class="bi @(IsExpanded(NavSection.Butce) ? "bi-chevron-up" : "bi-chevron-down")"></i>
+                </div>
+                @if (IsExpanded(NavSection.Butce))
+                {
+                    <div class="nav-section-content">
+                        @if (HasYetki("butceanaliz.oku"))
+                        {
+                            <div class="nav-item px-3">
+                                <NavLink class="nav-link" href="butce">
+                                    <i class="bi bi-graph-up me-2 text-primary"></i> Bütçe Analiz
+                                </NavLink>
+                            </div>
+                        }
+                        @if (HasYetki("odemeyonetim.oku"))
+                        {
+                            <div class="nav-item px-3">
+                                <NavLink class="nav-link" href="butce/odemeler">
+                                    <i class="bi bi-credit-card me-2 text-warning"></i> Ödeme Yönetimi
+                                </NavLink>
+                            </div>
+                        }
+                        @if (HasYetki("tekrarlayanodem.oku"))
+                        {
+                            <div class="nav-item px-3">
+                                <NavLink class="nav-link" href="butce/kredi-taksitler">
+                                    <i class="bi bi-calendar-plus me-2 text-danger"></i> Kredi/Taksitler
+                                </NavLink>
+                            </div>
+                        }
+                        @if (HasYetki("butceanaliz.oku"))
+                        {
+                            <div class="nav-item px-3">
+                                <NavLink class="nav-link" href="butce/risk-analiz-aktar">
+                                    <i class="bi bi-shield-exclamation me-2 text-danger"></i> Risk Analiz Aktar
+                                </NavLink>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+
+
         <!-- FILO SERVIS -->
         @if (HasMenuYetki("menu.filoservis"))
         {
@@ -348,6 +397,46 @@
                 }
             </div>
         }
+
+        <!-- BANKA / KASA -->
+        @if (HasMenuYetki("menu.bankakasa"))
+        {
+            <div class="nav-section">
+                <div class="nav-section-header" @onclick="() => ToggleSection(NavSection.BankaKasa)" style="cursor: pointer;">
+                    <span><i class="bi bi-bank me-2"></i>BANKA / KASA</span>
+                    <i class="bi @(IsExpanded(NavSection.BankaKasa) ? "bi-chevron-up" : "bi-chevron-down")"></i>
+                </div>
+                @if (IsExpanded(NavSection.BankaKasa))
+                {
+                    <div class="nav-section-content">
+                        @if (HasYetki("bankahesap.oku"))
+                        {
+                            <div class="nav-item px-3">
+                                <NavLink class="nav-link" href="banka-hesaplari">
+                                    <i class="bi bi-bank2 me-2"></i> Banka Hesapları
+                                </NavLink>
+                            </div>
+                        }
+                        @if (HasYetki("bankahareket.oku"))
+                        {
+                            <div class="nav-item px-3">
+                                <NavLink class="nav-link" href="banka-hareketleri">
+                                    <i class="bi bi-arrow-left-right me-2"></i> Hareketler
+                                </NavLink>
+                            </div>
+                            <div class="nav-item px-3">
+                                <NavLink class="nav-link" href="kasa-banka/gelir-gider-islem">
+                                    <i class="bi bi-cash-stack me-2"></i> Gelir/Gider İşlem
+                                </NavLink>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+
+
+
 
         <!-- MUHASEBE -->
         @if (HasMenuYetki("menu.muhasebe"))
@@ -572,91 +661,6 @@
                                 <i class="bi bi-briefcase-fill me-2 text-warning"></i> İhale Projeleri
                             </NavLink>
                         </div>
-                    </div>
-                }
-            </div>
-        }
-
-        <!-- BANKA / KASA -->
-        @if (HasMenuYetki("menu.bankakasa"))
-        {
-            <div class="nav-section">
-                <div class="nav-section-header" @onclick="() => ToggleSection(NavSection.BankaKasa)" style="cursor: pointer;">
-                    <span><i class="bi bi-bank me-2"></i>BANKA / KASA</span>
-                    <i class="bi @(IsExpanded(NavSection.BankaKasa) ? "bi-chevron-up" : "bi-chevron-down")"></i>
-                </div>
-                @if (IsExpanded(NavSection.BankaKasa))
-                {
-                    <div class="nav-section-content">
-                        @if (HasYetki("bankahesap.oku"))
-                        {
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="banka-hesaplari">
-                                    <i class="bi bi-bank2 me-2"></i> Banka Hesapları
-                                </NavLink>
-                            </div>
-                        }
-                        @if (HasYetki("bankahareket.oku"))
-                        {
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="banka-hareketleri">
-                                    <i class="bi bi-arrow-left-right me-2"></i> Hareketler
-                                </NavLink>
-                            </div>
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="kasa-banka/gelir-gider-islem">
-                                    <i class="bi bi-cash-stack me-2"></i> Gelir/Gider İşlem
-                                </NavLink>
-                            </div>
-                        }
-                    </div>
-                }
-            </div>
-        }
-
-        <!-- BÜTÇE MODÜLÜ -->
-        @if (HasMenuYetki("menu.butce"))
-        {
-            <div class="nav-section">
-                <div class="nav-section-header" @onclick="() => ToggleSection(NavSection.Butce)" style="cursor: pointer;">
-                    <span><i class="bi bi-wallet2 me-2"></i>BÜTÇE MODÜLÜ</span>
-                    <i class="bi @(IsExpanded(NavSection.Butce) ? "bi-chevron-up" : "bi-chevron-down")"></i>
-                </div>
-                @if (IsExpanded(NavSection.Butce))
-                {
-                    <div class="nav-section-content">
-                        @if (HasYetki("butceanaliz.oku"))
-                        {
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="butce">
-                                    <i class="bi bi-graph-up me-2 text-primary"></i> Bütçe Analiz
-                                </NavLink>
-                            </div>
-                        }
-                        @if (HasYetki("odemeyonetim.oku"))
-                        {
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="butce/odemeler">
-                                    <i class="bi bi-credit-card me-2 text-warning"></i> Ödeme Yönetimi
-                                </NavLink>
-                            </div>
-                        }
-                        @if (HasYetki("tekrarlayanodem.oku"))
-                        {
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="butce/kredi-taksitler">
-                                    <i class="bi bi-calendar-plus me-2 text-danger"></i> Kredi/Taksitler
-                                </NavLink>
-                            </div>
-                        }
-                        @if (HasYetki("butceanaliz.oku"))
-                        {
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="butce/risk-analiz-aktar">
-                                    <i class="bi bi-shield-exclamation me-2 text-danger"></i> Risk Analiz Aktar
-                                </NavLink>
-                            </div>
-                        }
                     </div>
                 }
             </div>
