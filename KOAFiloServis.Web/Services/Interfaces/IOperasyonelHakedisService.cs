@@ -61,6 +61,12 @@ public interface IOperasyonelHakedisService
 
     /// <summary>Verilen id listesindeki Taslak hakedişleri toplu siler (faturalanmamış olanlar).</summary>
     Task<TopluIslemSonuc> TopluSilAsync(IEnumerable<int> hakedisIds);
+
+    /// <summary>
+    /// Verilen id listesindeki Onaylı hakedişleri toplu olarak faturaya dönüştürür.
+    /// Faturalanmış / Taslak / İptal kayıtlar atlanır.
+    /// </summary>
+    Task<TopluIslemSonuc> TopluFaturalaAsync(IEnumerable<int> hakedisIds, DateTime faturaTarihi);
 }
 
 /// <summary>Hakediş üretim önizleme sonucu.</summary>

@@ -139,6 +139,9 @@
                 <button class="btn btn-sm btn-success" @onclick="TopluOnayla" disabled="@topluIslemCalisiyor">
                     <i class="bi bi-check2-circle me-1"></i> Toplu Onayla
                 </button>
+                <button class="btn btn-sm btn-primary" @onclick="TopluFaturalaAc" disabled="@topluIslemCalisiyor">
+                    <i class="bi bi-receipt me-1"></i> Toplu Faturala
+                </button>
                 <button class="btn btn-sm btn-outline-danger" @onclick="TopluSil" disabled="@topluIslemCalisiyor">
                     <i class="bi bi-trash me-1"></i> Toplu Sil
                 </button>
@@ -595,6 +598,79 @@
     </div>
 }
 
+<!-- Toplu Faturalama Modal -->
+@if (topluFaturaModalAcik)
+{
+    <div class="modal d-block" tabindex="-1" style="background:rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-receipt me-2"></i>Toplu Faturalama</h5>
+                    <button type="button" class="btn-close" @onclick="TopluFaturaKapat"></button>
+                </div>
+                <div class="modal-body">
+                    @if (topluFaturaSonuc == null)
+                    {
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-1"></i>
+                            <strong>@seciliIds.Count</strong> seçili hakediş faturaya dönüştürülecek.
+                            Sadece <strong>Onaylanmış</strong> ve <strong>Kurum/Tedarikçi</strong> tipindekiler işleme alınır;
+                            <strong>Araç</strong> tipi ve diğer durumlardakiler atlanır.
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label">Fatura Tarihi</label>
+                                <input type="date" class="form-control" @bind="topluFaturaTarihi" />
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="row g-2 mb-3">
+                            <div class="col"><div class="card border-primary"><div class="card-body py-2 text-center"><div class="small text-muted">Seçili</div><div class="h4 mb-0">@topluFaturaSonuc.ToplamSecili</div></div></div></div>
+                            <div class="col"><div class="card border-success"><div class="card-body py-2 text-center"><div class="small text-muted">Faturalandı</div><div class="h4 mb-0 text-success">@topluFaturaSonuc.BasariliAdet</div></div></div></div>
+                            <div class="col"><div class="card border-warning"><div class="card-body py-2 text-center"><div class="small text-muted">Atlandı</div><div class="h4 mb-0 text-warning">@topluFaturaSonuc.AtlananAdet</div></div></div></div>
+                            <div class="col"><div class="card border-danger"><div class="card-body py-2 text-center"><div class="small text-muted">Hata</div><div class="h4 mb-0 text-danger">@topluFaturaSonuc.HataliAdet</div></div></div></div>
+                        </div>
+                        <div class="table-responsive" style="max-height:380px;overflow-y:auto;">
+                            <table class="table table-sm table-hover">
+                                <thead class="table-light"><tr><th>Hakediş #</th><th>Sonuç</th><th>Mesaj</th></tr></thead>
+                                <tbody>
+                                    @foreach (var s in topluFaturaSonuc.Satirlar)
+                                    {
+                                        <tr>
+                                            <td>#@s.HakedisId</td>
+                                            <td><span class="badge bg-@(s.Sonuc == "Tamam" ? "success" : s.Sonuc == "Atlandı" ? "warning" : "danger")">@s.Sonuc</span></td>
+                                            <td class="small">@s.Mesaj</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    @if (topluFaturaSonuc == null)
+                    {
+                        <button class="btn btn-secondary" @onclick="TopluFaturaKapat" disabled="@topluFaturaCalisiyor">İptal</button>
+                        <button class="btn btn-primary" @onclick="TopluFaturalaCalistir" disabled="@topluFaturaCalisiyor">
+                            @if (topluFaturaCalisiyor)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            <i class="bi bi-receipt me-1"></i> Faturaları Üret
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-primary" @onclick="TopluFaturaKapat">Kapat</button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private bool yukleniyor = true;
     private bool isleniyor = false;
@@ -627,6 +703,12 @@
     private HashSet<int> seciliIds = new();
     private bool topluIslemCalisiyor = false;
     private bool TumuSecili => hakedisler.Count > 0 && hakedisler.All(h => seciliIds.Contains(h.Id));
+
+    // Toplu Faturalama
+    private bool topluFaturaModalAcik = false;
+    private bool topluFaturaCalisiyor = false;
+    private DateTime topluFaturaTarihi = DateTime.Today;
+    private TopluIslemSonuc? topluFaturaSonuc = null;
 
     private int? acikDetayId = null;
     private int? detayYukleniyorId = null;
@@ -755,6 +837,46 @@
         finally
         {
             topluIslemCalisiyor = false;
+        }
+    }
+
+    private void TopluFaturalaAc()
+    {
+        if (seciliIds.Count == 0) return;
+        topluFaturaTarihi = DateTime.Today;
+        topluFaturaSonuc = null;
+        topluFaturaCalisiyor = false;
+        topluFaturaModalAcik = true;
+    }
+
+    private void TopluFaturaKapat()
+    {
+        topluFaturaModalAcik = false;
+        if (topluFaturaSonuc != null)
+        {
+            // sonuç görüntülendi -> seçimi temizle ve listeyi yenile
+            seciliIds.Clear();
+            topluFaturaSonuc = null;
+            _ = LoadAsync();
+        }
+    }
+
+    private async Task TopluFaturalaCalistir()
+    {
+        if (seciliIds.Count == 0) return;
+        topluFaturaCalisiyor = true;
+        try
+        {
+            topluFaturaSonuc = await HakedisService.TopluFaturalaAsync(seciliIds.ToList(), topluFaturaTarihi);
+            ToastService.ShowSuccess($"Toplu faturalama: {topluFaturaSonuc.BasariliAdet} fatura, {topluFaturaSonuc.AtlananAdet} atlandı, {topluFaturaSonuc.HataliAdet} hata.");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Toplu faturalama hatası: {ex.Message}");
+        }
+        finally
+        {
+            topluFaturaCalisiyor = false;
         }
     }
 

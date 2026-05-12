@@ -565,4 +565,65 @@ public class OperasyonelHakedisService : IOperasyonelHakedisService
         return new TopluIslemSonuc(ids.Count, basarili, atlanan, hatali,
             satirlar.OrderBy(s => s.HakedisId).ToList());
     }
+
+    public async Task<TopluIslemSonuc> TopluFaturalaAsync(IEnumerable<int> hakedisIds, DateTime faturaTarihi)
+    {
+        var ids = hakedisIds?.Distinct().ToList() ?? new List<int>();
+        var satirlar = new List<TopluIslemSatir>();
+        int basarili = 0, atlanan = 0, hatali = 0;
+
+        if (ids.Count == 0)
+            return new TopluIslemSonuc(0, 0, 0, 0, satirlar);
+
+        // Önce hızlı ön-tarama: bulunmayanları ve uygun olmayanları işaretle
+        await using (var ctx = await _contextFactory.CreateDbContextAsync())
+        {
+            var mevcut = await ctx.Hakedisler
+                .Where(h => ids.Contains(h.Id))
+                .Select(h => new { h.Id, h.Durum, h.Tip })
+                .ToListAsync();
+
+            var mevcutMap = mevcut.ToDictionary(x => x.Id);
+
+            foreach (var id in ids)
+            {
+                if (!mevcutMap.TryGetValue(id, out var info))
+                {
+                    hatali++;
+                    satirlar.Add(new TopluIslemSatir(id, "Hata", "Hakediş bulunamadı."));
+                    continue;
+                }
+
+                if (info.Tip == HakedisTipi.Arac)
+                {
+                    atlanan++;
+                    satirlar.Add(new TopluIslemSatir(id, "Atlandı", "Araç tipi hakediş faturalanmaz."));
+                    continue;
+                }
+
+                if (info.Durum != HakedisDurum.Onaylandi)
+                {
+                    atlanan++;
+                    satirlar.Add(new TopluIslemSatir(id, "Atlandı", $"Durum {info.Durum}; sadece Onaylanmış faturalanabilir."));
+                    continue;
+                }
+
+                // Faturalanabilir → asıl çağrıyı yap
+                try
+                {
+                    var fatura = await FaturayaDonustureAsync(id, faturaTarihi);
+                    basarili++;
+                    satirlar.Add(new TopluIslemSatir(id, "Tamam", $"Fatura #{fatura.Id} ({fatura.FaturaNo})"));
+                }
+                catch (Exception ex)
+                {
+                    hatali++;
+                    satirlar.Add(new TopluIslemSatir(id, "Hata", ex.GetBaseException().Message));
+                }
+            }
+        }
+
+        return new TopluIslemSonuc(ids.Count, basarili, atlanan, hatali,
+            satirlar.OrderBy(s => s.HakedisId).ToList());
+    }
 }
