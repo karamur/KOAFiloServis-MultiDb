@@ -196,7 +196,8 @@
                                 <th style="width:32px;" class="text-center">
                                     <input type="checkbox" class="form-check-input"
                                            checked="@TumuSecili"
-                                           @onchange="OnTumuSecChanged" />
+                                           @onchange="OnTumuSecChanged"
+                                           title="Bu sayfadaki tüm kayıtları seç" />
                                 </th>
                                 <th class="user-select-none" style="cursor:pointer;" @onclick='() => SiralamaDegistir("Donem")'>Dönem @SiralamaIkon("Donem")</th>
                                 <th class="user-select-none" style="cursor:pointer;" @onclick='() => SiralamaDegistir("Tip")'>Tip @SiralamaIkon("Tip")</th>
@@ -210,7 +211,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var h in SiraliHakedisler)
+                            @foreach (var h in SayfaliHakedisler)
                             {
                                 <tr class="@(seciliIds.Contains(h.Id) ? "table-active" : null)">
                                     <td class="text-center">
@@ -341,6 +342,49 @@
                         </tbody>
                     </table>
                 </div>
+                @if (ToplamSayfa > 1 || hakedisler.Count > 10)
+                {
+                    <div class="card-footer bg-light py-2 d-flex flex-wrap gap-2 align-items-center justify-content-between small">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="text-muted">Sayfa boyutu:</span>
+                            <select class="form-select form-select-sm" style="width:auto;" @bind="sayfaBoyutu" @bind:after="SayfaBoyutuDegisti">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                                <option value="9999">Tümü</option>
+                            </select>
+                            <span class="text-muted ms-2">
+                                @SayfaBaslangic - @SayfaBitis / <strong>@hakedisler.Count</strong>
+                            </span>
+                        </div>
+                        @if (ToplamSayfa > 1)
+                        {
+                            <nav>
+                                <ul class="pagination pagination-sm mb-0">
+                                    <li class="page-item @(aktifSayfa == 1 ? "disabled" : null)">
+                                        <button class="page-link" @onclick="() => SayfayaGit(1)" disabled="@(aktifSayfa == 1)" title="İlk sayfa"><i class="bi bi-chevron-double-left"></i></button>
+                                    </li>
+                                    <li class="page-item @(aktifSayfa == 1 ? "disabled" : null)">
+                                        <button class="page-link" @onclick="() => SayfayaGit(aktifSayfa - 1)" disabled="@(aktifSayfa == 1)"><i class="bi bi-chevron-left"></i></button>
+                                    </li>
+                                    @foreach (var p in SayfaNumaralari())
+                                    {
+                                        <li class="page-item @(p == aktifSayfa ? "active" : null)">
+                                            <button class="page-link" @onclick="() => SayfayaGit(p)">@p</button>
+                                        </li>
+                                    }
+                                    <li class="page-item @(aktifSayfa == ToplamSayfa ? "disabled" : null)">
+                                        <button class="page-link" @onclick="() => SayfayaGit(aktifSayfa + 1)" disabled="@(aktifSayfa == ToplamSayfa)"><i class="bi bi-chevron-right"></i></button>
+                                    </li>
+                                    <li class="page-item @(aktifSayfa == ToplamSayfa ? "disabled" : null)">
+                                        <button class="page-link" @onclick="() => SayfayaGit(ToplamSayfa)" disabled="@(aktifSayfa == ToplamSayfa)" title="Son sayfa"><i class="bi bi-chevron-double-right"></i></button>
+                                    </li>
+                                </ul>
+                            </nav>
+                        }
+                    </div>
+                }
             }
         </div>
     </div>
@@ -727,7 +771,14 @@
     // Toplu Onay/Silme seçimi
     private HashSet<int> seciliIds = new();
     private bool topluIslemCalisiyor = false;
-    private bool TumuSecili => hakedisler.Count > 0 && hakedisler.All(h => seciliIds.Contains(h.Id));
+    private bool TumuSecili
+    {
+        get
+        {
+            var sayfa = SayfaliHakedisler.ToList();
+            return sayfa.Count > 0 && sayfa.All(h => seciliIds.Contains(h.Id));
+        }
+    }
 
     // Toplu Faturalama
     private bool topluFaturaModalAcik = false;
@@ -783,6 +834,7 @@
             siralamaKolon = kolon;
             siralamaAzalan = false;
         }
+        aktifSayfa = 1;
     }
 
     private MarkupString SiralamaIkon(string kolon)
@@ -792,6 +844,47 @@
         return new MarkupString(siralamaAzalan
             ? "<i class=\"bi bi-arrow-down small ms-1\"></i>"
             : "<i class=\"bi bi-arrow-up small ms-1\"></i>");
+    }
+
+    // Sayfalama state
+    private int sayfaBoyutu = 25;
+    private int aktifSayfa = 1;
+
+    private int ToplamSayfa => sayfaBoyutu <= 0 ? 1 : Math.Max(1, (int)Math.Ceiling(hakedisler.Count / (double)sayfaBoyutu));
+    private int SayfaBaslangic => hakedisler.Count == 0 ? 0 : ((aktifSayfa - 1) * sayfaBoyutu) + 1;
+    private int SayfaBitis => Math.Min(aktifSayfa * sayfaBoyutu, hakedisler.Count);
+
+    private IEnumerable<Hakedis> SayfaliHakedisler
+    {
+        get
+        {
+            if (aktifSayfa > ToplamSayfa) aktifSayfa = ToplamSayfa;
+            if (aktifSayfa < 1) aktifSayfa = 1;
+            return SiraliHakedisler.Skip((aktifSayfa - 1) * sayfaBoyutu).Take(sayfaBoyutu);
+        }
+    }
+
+    private void SayfayaGit(int sayfa)
+    {
+        if (sayfa < 1 || sayfa > ToplamSayfa) return;
+        aktifSayfa = sayfa;
+    }
+
+    private void SayfaBoyutuDegisti()
+    {
+        aktifSayfa = 1;
+    }
+
+    private IEnumerable<int> SayfaNumaralari()
+    {
+        const int max = 7;
+        if (ToplamSayfa <= max)
+            return Enumerable.Range(1, ToplamSayfa);
+        var half = max / 2;
+        var start = Math.Max(1, aktifSayfa - half);
+        var end = Math.Min(ToplamSayfa, start + max - 1);
+        if (end - start + 1 < max) start = Math.Max(1, end - max + 1);
+        return Enumerable.Range(start, end - start + 1);
     }
 
     protected override async Task OnInitializedAsync()
@@ -817,6 +910,7 @@
             // listede artık olmayan seçimleri temizle
             var mevcutIds = hakedisler.Select(h => h.Id).ToHashSet();
             seciliIds.RemoveWhere(id => !mevcutIds.Contains(id));
+            aktifSayfa = 1;
         }
         finally
         {
@@ -843,13 +937,14 @@
     private void OnTumuSecChanged(ChangeEventArgs e)
     {
         var secili = (bool)(e.Value ?? false);
+        var sayfa = SayfaliHakedisler.ToList();
         if (secili)
         {
-            foreach (var h in hakedisler) seciliIds.Add(h.Id);
+            foreach (var h in sayfa) seciliIds.Add(h.Id);
         }
         else
         {
-            foreach (var h in hakedisler) seciliIds.Remove(h.Id);
+            foreach (var h in sayfa) seciliIds.Remove(h.Id);
         }
     }
 
