@@ -1,10 +1,13 @@
 ﻿@page "/karlilik-raporu"
+@using System.IO
+@using ClosedXML.Excel
 @using KOAFiloServis.Shared.Entities
 @using KOAFiloServis.Web.Data
 @using KOAFiloServis.Web.Services
 @using KOAFiloServis.Web.Services.Interfaces
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.EntityFrameworkCore
+@using Microsoft.JSInterop
 @inject IDbContextFactory<ApplicationDbContext> DbContextFactory
 @inject IFirmaService FirmaService
 @inject ITasimaTedarikciService TedarikciService
@@ -12,6 +15,7 @@
 @inject IOperasyonelHakedisService HakedisService
 @inject IAracMaliyetService MaliyetService
 @inject IToastService ToastService
+@inject IJSRuntime JS
 @attribute [Authorize]
 
 <PageTitle>Karlılık Raporu</PageTitle>
@@ -503,9 +507,161 @@
         return liste.OrderByDescending(x => x.KarZarar).ToList();
     }
 
-    private void ExcelIndir()
+    private async Task ExcelIndir()
     {
-        ToastService.ShowInfo("Excel export ileride eklenecek.");
+        try
+        {
+            using var workbook = new XLWorkbook();
+            int ayMin = Math.Min(filtreAyBaslangic, filtreAyBitis);
+            int ayMax = Math.Max(filtreAyBaslangic, filtreAyBitis);
+            var donemBaslik = $"{filtreYil} {AyAdi(ayMin)} - {AyAdi(ayMax)}";
+
+            // 1) Genel Özet
+            var wsOzet = workbook.Worksheets.Add("Genel Ozet");
+            wsOzet.Cell(1, 1).Value = $"KARLILIK RAPORU - {donemBaslik}";
+            wsOzet.Cell(1, 1).Style.Font.Bold = true;
+            wsOzet.Cell(1, 1).Style.Font.FontSize = 14;
+            wsOzet.Range(1, 1, 1, 4).Merge();
+
+            var ozetBasliklar = new[] { "Metrik", "Değer", "", "" };
+            for (int i = 0; i < ozetBasliklar.Length; i++)
+            {
+                wsOzet.Cell(3, i + 1).Value = ozetBasliklar[i];
+                wsOzet.Cell(3, i + 1).Style.Font.Bold = true;
+                wsOzet.Cell(3, i + 1).Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
+            }
+
+            decimal toplamGider = toplamTedarikciGider + toplamOzmalMaliyet;
+            decimal netKar = toplamGelir - toplamGider;
+            decimal marj = toplamGelir > 0 ? Math.Round(netKar / toplamGelir * 100m, 2) : 0m;
+
+            int r = 4;
+            wsOzet.Cell(r, 1).Value = "Toplam Gelir (Kurum Hakediş)"; wsOzet.Cell(r++, 2).Value = toplamGelir;
+            wsOzet.Cell(r, 1).Value = "Toplam Sefer (Gelir)";        wsOzet.Cell(r++, 2).Value = toplamGelirSefer;
+            wsOzet.Cell(r, 1).Value = "Tedarikçi Gideri";              wsOzet.Cell(r++, 2).Value = toplamTedarikciGider;
+            wsOzet.Cell(r, 1).Value = "Özmal/Kiralık Maliyet";        wsOzet.Cell(r++, 2).Value = toplamOzmalMaliyet;
+            wsOzet.Cell(r, 1).Value = "Toplam Gider";                  wsOzet.Cell(r++, 2).Value = toplamGider;
+            wsOzet.Cell(r, 1).Value = "Net Kar/Zarar";                 wsOzet.Cell(r++, 2).Value = netKar;
+            wsOzet.Cell(r, 1).Value = "Kar Marjı (%)";                wsOzet.Cell(r++, 2).Value = marj;
+            wsOzet.Columns().AdjustToContents();
+
+            // 2) Sahiplik Özeti
+            var wsSah = workbook.Worksheets.Add("Sahiplik");
+            var sahBaslik = new[] { "Sahiplik", "Sefer", "Gelir", "Gider", "Kar/Zarar" };
+            for (int i = 0; i < sahBaslik.Length; i++)
+            {
+                wsSah.Cell(1, i + 1).Value = sahBaslik[i];
+                wsSah.Cell(1, i + 1).Style.Font.Bold = true;
+                wsSah.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
+            }
+            int sr = 2;
+            foreach (var s in SahiplikOzeti())
+            {
+                wsSah.Cell(sr, 1).Value = s.Sahiplik.ToString();
+                wsSah.Cell(sr, 2).Value = s.Sefer;
+                wsSah.Cell(sr, 3).Value = s.Gelir;
+                wsSah.Cell(sr, 4).Value = s.Gider;
+                wsSah.Cell(sr, 5).Value = s.KarZarar;
+                sr++;
+            }
+            wsSah.Columns().AdjustToContents();
+
+            // 3) Aylık
+            var wsAy = workbook.Worksheets.Add("Aylik");
+            var ayBaslik = new[] { "Ay", "Sefer", "Gelir", "Tedarikçi Gider", "Özmal Maliyet", "Toplam Gider", "Kar/Zarar", "Marj %" };
+            for (int i = 0; i < ayBaslik.Length; i++)
+            {
+                wsAy.Cell(1, i + 1).Value = ayBaslik[i];
+                wsAy.Cell(1, i + 1).Style.Font.Bold = true;
+                wsAy.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
+            }
+            int ar = 2;
+            foreach (var a in AylikOzet())
+            {
+                wsAy.Cell(ar, 1).Value = AyAdi(a.Ay);
+                wsAy.Cell(ar, 2).Value = a.Sefer;
+                wsAy.Cell(ar, 3).Value = a.Gelir;
+                wsAy.Cell(ar, 4).Value = a.TedarikciGider;
+                wsAy.Cell(ar, 5).Value = a.OzmalMaliyet;
+                wsAy.Cell(ar, 6).Value = a.ToplamGider;
+                wsAy.Cell(ar, 7).Value = a.KarZarar;
+                wsAy.Cell(ar, 8).Value = a.Marj;
+                ar++;
+            }
+            wsAy.Columns().AdjustToContents();
+
+            // 4) Kurum
+            var wsKurum = workbook.Worksheets.Add("Kurum");
+            var kBaslik = new[] { "Kurum", "Sefer", "Hakediş Adedi", "Tutar" };
+            for (int i = 0; i < kBaslik.Length; i++)
+            {
+                wsKurum.Cell(1, i + 1).Value = kBaslik[i];
+                wsKurum.Cell(1, i + 1).Style.Font.Bold = true;
+                wsKurum.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
+            }
+            int kr = 2;
+            foreach (var k in KurumOzet())
+            {
+                wsKurum.Cell(kr, 1).Value = k.Ad;
+                wsKurum.Cell(kr, 2).Value = k.Sefer;
+                wsKurum.Cell(kr, 3).Value = k.HakedisAdet;
+                wsKurum.Cell(kr, 4).Value = k.Tutar;
+                kr++;
+            }
+            wsKurum.Columns().AdjustToContents();
+
+            // 5) Tedarikçi
+            var wsTed = workbook.Worksheets.Add("Tedarikci");
+            var tBaslik = new[] { "Tedarikçi", "Sefer", "Hakediş Adedi", "Tutar" };
+            for (int i = 0; i < tBaslik.Length; i++)
+            {
+                wsTed.Cell(1, i + 1).Value = tBaslik[i];
+                wsTed.Cell(1, i + 1).Style.Font.Bold = true;
+                wsTed.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
+            }
+            int tr = 2;
+            foreach (var t in TedarikciOzet())
+            {
+                wsTed.Cell(tr, 1).Value = t.Ad;
+                wsTed.Cell(tr, 2).Value = t.Sefer;
+                wsTed.Cell(tr, 3).Value = t.HakedisAdet;
+                wsTed.Cell(tr, 4).Value = t.Tutar;
+                tr++;
+            }
+            wsTed.Columns().AdjustToContents();
+
+            // 6) Araç
+            var wsArac = workbook.Worksheets.Add("Arac");
+            var aBaslik = new[] { "Plaka", "Sahiplik", "Sefer", "Gelir", "Maliyet", "Kar/Zarar" };
+            for (int i = 0; i < aBaslik.Length; i++)
+            {
+                wsArac.Cell(1, i + 1).Value = aBaslik[i];
+                wsArac.Cell(1, i + 1).Style.Font.Bold = true;
+                wsArac.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
+            }
+            int avr = 2;
+            foreach (var a in AracOzet())
+            {
+                wsArac.Cell(avr, 1).Value = a.Plaka;
+                wsArac.Cell(avr, 2).Value = a.Sahiplik.ToString();
+                wsArac.Cell(avr, 3).Value = a.Sefer;
+                wsArac.Cell(avr, 4).Value = a.Gelir;
+                wsArac.Cell(avr, 5).Value = a.Maliyet;
+                wsArac.Cell(avr, 6).Value = a.KarZarar;
+                avr++;
+            }
+            wsArac.Columns().AdjustToContents();
+
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            var fileName = $"karlilik_raporu_{filtreYil}_{ayMin:00}_{ayMax:00}.xlsx";
+            await JS.InvokeVoidAsync("downloadFileFromBase64", fileName, Convert.ToBase64String(stream.ToArray()));
+            ToastService.ShowSuccess("Excel indirildi.");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Excel indirilemedi: {ex.GetBaseException().Message}");
+        }
     }
 
     private static string AyAdi(int a) => a switch
