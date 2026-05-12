@@ -236,6 +236,47 @@ window.filoKpiCharts = (function () {
         });
     }
 
+    function renderSoforSkor(canvasId, labels, data) {
+        destroy(canvasId);
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return;
+        // Skor renk skalası: 0-40 kırmızı, 40-60 turuncu, 60-80 mavi, 80-100 yeşil
+        const colors = data.map(v => {
+            if (v >= 80) return '#198754';
+            if (v >= 60) return '#0dcaf0';
+            if (v >= 40) return '#fd7e14';
+            return '#dc3545';
+        });
+        instances[canvasId] = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Performans Skoru',
+                    data: data,
+                    backgroundColor: colors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function (c) { return 'Skor: ' + c.parsed.x.toFixed(1); }
+                        }
+                    }
+                },
+                scales: {
+                    x: { beginAtZero: true, max: 100, ticks: { precision: 0 } }
+                }
+            }
+        });
+    }
+
     return {
         renderHakedisTip: renderHakedisTip,
         renderSeferTrend: renderSeferTrend,
@@ -243,6 +284,7 @@ window.filoKpiCharts = (function () {
         renderKurumToplamBar: renderKurumToplamBar,
         renderVadeKategori: renderVadeKategori,
         renderVadePencere: renderVadePencere,
+        renderSoforSkor: renderSoforSkor,
         destroyAll: destroyAll
     };
 })();
