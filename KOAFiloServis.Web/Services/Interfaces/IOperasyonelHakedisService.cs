@@ -55,6 +55,12 @@ public interface IOperasyonelHakedisService
     /// Taslak kayıtların üzerine yazılır.
     /// </summary>
     Task<TopluHakedisSonuc> TopluUretAsync(HakedisTipi tip, int yil, int ay, int? sirketId = null);
+
+    /// <summary>Verilen id listesindeki Taslak hakedişleri toplu onaylar.</summary>
+    Task<TopluIslemSonuc> TopluOnaylaAsync(IEnumerable<int> hakedisIds, string onaylayanKisi);
+
+    /// <summary>Verilen id listesindeki Taslak hakedişleri toplu siler (faturalanmamış olanlar).</summary>
+    Task<TopluIslemSonuc> TopluSilAsync(IEnumerable<int> hakedisIds);
 }
 
 /// <summary>Hakediş üretim önizleme sonucu.</summary>
@@ -86,4 +92,19 @@ public record TopluHakedisSatir(
     int? HakedisId,
     decimal Tutar,
     decimal Sefer
+);
+
+/// <summary>Toplu onay/silme gibi basit toplu işlemler için sonuç.</summary>
+public record TopluIslemSonuc(
+    int ToplamSecili,
+    int BasariliAdet,
+    int AtlananAdet,
+    int HataliAdet,
+    List<TopluIslemSatir> Satirlar
+);
+
+public record TopluIslemSatir(
+    int HakedisId,
+    string Sonuc,        // "Tamam" | "Atlandı" | "Hata"
+    string? Mesaj
 );

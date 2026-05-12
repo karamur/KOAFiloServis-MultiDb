@@ -132,6 +132,25 @@
                 <span><i class="bi bi-receipt me-1"></i>Genel Toplam: <strong>@hakedisler.Sum(h => h.GenelToplam).ToString("N2") ₺</strong></span>
             </div>
         }
+        @if (seciliIds.Count > 0)
+        {
+            <div class="card-body py-2 border-top bg-warning-subtle d-flex flex-wrap gap-2 align-items-center">
+                <span class="me-2"><i class="bi bi-check2-square me-1"></i><strong>@seciliIds.Count</strong> kayıt seçili</span>
+                <button class="btn btn-sm btn-success" @onclick="TopluOnayla" disabled="@topluIslemCalisiyor">
+                    <i class="bi bi-check2-circle me-1"></i> Toplu Onayla
+                </button>
+                <button class="btn btn-sm btn-outline-danger" @onclick="TopluSil" disabled="@topluIslemCalisiyor">
+                    <i class="bi bi-trash me-1"></i> Toplu Sil
+                </button>
+                <button class="btn btn-sm btn-outline-secondary ms-auto" @onclick="SecimiTemizle" disabled="@topluIslemCalisiyor">
+                    <i class="bi bi-x-lg me-1"></i> Seçimi Temizle
+                </button>
+                @if (topluIslemCalisiyor)
+                {
+                    <span class="text-muted small"><span class="spinner-border spinner-border-sm me-1"></span> İşleniyor...</span>
+                }
+            </div>
+        }
         <div class="card-body p-0">
             @if (yukleniyor)
             {
@@ -152,6 +171,11 @@
                     <table class="table table-hover table-sm align-middle mb-0">
                         <thead class="table-light">
                             <tr>
+                                <th style="width:32px;" class="text-center">
+                                    <input type="checkbox" class="form-check-input"
+                                           checked="@TumuSecili"
+                                           @onchange="OnTumuSecChanged" />
+                                </th>
                                 <th>Dönem</th>
                                 <th>Tip</th>
                                 <th>Referans</th>
@@ -166,7 +190,12 @@
                         <tbody>
                             @foreach (var h in hakedisler)
                             {
-                                <tr>
+                                <tr class="@(seciliIds.Contains(h.Id) ? "table-active" : null)">
+                                    <td class="text-center">
+                                        <input type="checkbox" class="form-check-input"
+                                               checked="@seciliIds.Contains(h.Id)"
+                                               @onchange="(e) => OnSatirSecChanged(h.Id, (bool)e.Value!)" />
+                                    </td>
                                     <td>@h.Yil/@h.Ay.ToString("D2")</td>
                                     <td><span class="badge @TipBadge(h.Tip)">@h.Tip</span></td>
                                     <td>@ReferansAdi(h)</td>
@@ -207,7 +236,7 @@
                                 @if (acikDetayId == h.Id)
                                 {
                                     <tr>
-                                        <td colspan="9" class="bg-light">
+                                        <td colspan="10" class="bg-light">
                                             <div class="p-2">
                                                 @{
                                                     var aktifH = detayCache.TryGetValue(h.Id, out var dh) ? dh : h;
@@ -594,6 +623,11 @@
     private string topluTip = "Kurum";
     private TopluHakedisSonuc? topluSonuc = null;
 
+    // Toplu Onay/Silme seçimi
+    private HashSet<int> seciliIds = new();
+    private bool topluIslemCalisiyor = false;
+    private bool TumuSecili => hakedisler.Count > 0 && hakedisler.All(h => seciliIds.Contains(h.Id));
+
     private int? acikDetayId = null;
     private int? detayYukleniyorId = null;
     private Dictionary<int, Hakedis> detayCache = new();
@@ -623,6 +657,9 @@
             hakedisler = await HakedisService.GetHakedislerAsync(filtreYil, filtreAy, tip, refId, durum);
             detayCache.Clear();
             acikDetayId = null;
+            // listede artık olmayan seçimleri temizle
+            var mevcutIds = hakedisler.Select(h => h.Id).ToHashSet();
+            seciliIds.RemoveWhere(id => !mevcutIds.Contains(id));
         }
         finally
         {
@@ -638,6 +675,87 @@
         filtreDurum = "";
         filtreReferansId = 0;
         await LoadAsync();
+    }
+
+    private void OnSatirSecChanged(int id, bool secili)
+    {
+        if (secili) seciliIds.Add(id);
+        else seciliIds.Remove(id);
+    }
+
+    private void OnTumuSecChanged(ChangeEventArgs e)
+    {
+        var secili = (bool)(e.Value ?? false);
+        if (secili)
+        {
+            foreach (var h in hakedisler) seciliIds.Add(h.Id);
+        }
+        else
+        {
+            foreach (var h in hakedisler) seciliIds.Remove(h.Id);
+        }
+    }
+
+    private void SecimiTemizle() => seciliIds.Clear();
+
+    private async Task TopluOnayla()
+    {
+        if (seciliIds.Count == 0) return;
+        if (!await JS.InvokeAsync<bool>("confirm", $"{seciliIds.Count} kayıt onaylanacak. Devam edilsin mi?"))
+            return;
+
+        topluIslemCalisiyor = true;
+        try
+        {
+            var sonuc = await HakedisService.TopluOnaylaAsync(seciliIds.ToList(), "Sistem");
+            ToastService.ShowSuccess($"Toplu onay: {sonuc.BasariliAdet} onaylandı, {sonuc.AtlananAdet} atlandı, {sonuc.HataliAdet} hata.");
+            if (sonuc.HataliAdet > 0 || sonuc.AtlananAdet > 0)
+            {
+                var ilk = sonuc.Satirlar.FirstOrDefault(s => s.Sonuc != "Tamam");
+                if (ilk != null)
+                    ToastService.ShowWarning($"Örnek: #{ilk.HakedisId} → {ilk.Sonuc} {ilk.Mesaj}");
+            }
+            seciliIds.Clear();
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Toplu onay hatası: {ex.Message}");
+        }
+        finally
+        {
+            topluIslemCalisiyor = false;
+        }
+    }
+
+    private async Task TopluSil()
+    {
+        if (seciliIds.Count == 0) return;
+        if (!await JS.InvokeAsync<bool>("confirm", $"{seciliIds.Count} kayıt silinecek. (Faturalanmış olanlar atlanır.) Devam edilsin mi?"))
+            return;
+
+        topluIslemCalisiyor = true;
+        try
+        {
+            var sonuc = await HakedisService.TopluSilAsync(seciliIds.ToList());
+            ToastService.ShowSuccess($"Toplu silme: {sonuc.BasariliAdet} silindi, {sonuc.AtlananAdet} atlandı, {sonuc.HataliAdet} hata.");
+            if (sonuc.HataliAdet > 0 || sonuc.AtlananAdet > 0)
+            {
+                var ilk = sonuc.Satirlar.FirstOrDefault(s => s.Sonuc != "Tamam");
+                if (ilk != null)
+                    ToastService.ShowWarning($"Örnek: #{ilk.HakedisId} → {ilk.Sonuc} {ilk.Mesaj}");
+            }
+            seciliIds.Clear();
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Toplu silme hatası: {ex.Message}");
+        }
+        finally
+        {
+            topluIslemCalisiyor = false;
+        }
     }
 
     private async Task OnTipChanged()

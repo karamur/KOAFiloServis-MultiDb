@@ -461,4 +461,108 @@ public class OperasyonelHakedisService : IOperasyonelHakedisService
             Satirlar: satirlar.OrderByDescending(s => s.Tutar).ToList()
         );
     }
+
+    public async Task<TopluIslemSonuc> TopluOnaylaAsync(IEnumerable<int> hakedisIds, string onaylayanKisi)
+    {
+        var ids = hakedisIds?.Distinct().ToList() ?? new List<int>();
+        var satirlar = new List<TopluIslemSatir>();
+        int basarili = 0, atlanan = 0, hatali = 0;
+
+        if (ids.Count == 0)
+            return new TopluIslemSonuc(0, 0, 0, 0, satirlar);
+
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var hakedisler = await context.Hakedisler
+            .Where(h => ids.Contains(h.Id))
+            .ToListAsync();
+
+        var bulunanIds = hakedisler.Select(h => h.Id).ToHashSet();
+        foreach (var eksikId in ids.Where(i => !bulunanIds.Contains(i)))
+        {
+            hatali++;
+            satirlar.Add(new TopluIslemSatir(eksikId, "Hata", "Hakediş bulunamadı."));
+        }
+
+        var simdi = DateTime.UtcNow;
+        foreach (var h in hakedisler)
+        {
+            if (h.Durum != HakedisDurum.Taslak)
+            {
+                atlanan++;
+                satirlar.Add(new TopluIslemSatir(h.Id, "Atlandı", $"Durum {h.Durum}; sadece Taslak onaylanabilir."));
+                continue;
+            }
+
+            try
+            {
+                h.Durum = HakedisDurum.Onaylandi;
+                h.OnaylayanKisi = onaylayanKisi;
+                h.OnayTarihi = simdi;
+                h.UpdatedAt = simdi;
+                basarili++;
+                satirlar.Add(new TopluIslemSatir(h.Id, "Tamam", null));
+            }
+            catch (Exception ex)
+            {
+                hatali++;
+                satirlar.Add(new TopluIslemSatir(h.Id, "Hata", ex.GetBaseException().Message));
+            }
+        }
+
+        await context.SaveChangesAsync();
+
+        return new TopluIslemSonuc(ids.Count, basarili, atlanan, hatali,
+            satirlar.OrderBy(s => s.HakedisId).ToList());
+    }
+
+    public async Task<TopluIslemSonuc> TopluSilAsync(IEnumerable<int> hakedisIds)
+    {
+        var ids = hakedisIds?.Distinct().ToList() ?? new List<int>();
+        var satirlar = new List<TopluIslemSatir>();
+        int basarili = 0, atlanan = 0, hatali = 0;
+
+        if (ids.Count == 0)
+            return new TopluIslemSonuc(0, 0, 0, 0, satirlar);
+
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var hakedisler = await context.Hakedisler
+            .Include(h => h.Detaylar)
+            .Where(h => ids.Contains(h.Id))
+            .ToListAsync();
+
+        var bulunanIds = hakedisler.Select(h => h.Id).ToHashSet();
+        foreach (var eksikId in ids.Where(i => !bulunanIds.Contains(i)))
+        {
+            hatali++;
+            satirlar.Add(new TopluIslemSatir(eksikId, "Hata", "Hakediş bulunamadı."));
+        }
+
+        foreach (var h in hakedisler)
+        {
+            if (h.Durum == HakedisDurum.Faturalandi || h.Durum == HakedisDurum.TahsilEdildi || h.Durum == HakedisDurum.Odendi)
+            {
+                atlanan++;
+                satirlar.Add(new TopluIslemSatir(h.Id, "Atlandı", $"Durum {h.Durum}; faturalanmış/kapanmış hakediş silinemez."));
+                continue;
+            }
+
+            try
+            {
+                context.HakedisDetaylari.RemoveRange(h.Detaylar);
+                context.Hakedisler.Remove(h);
+                basarili++;
+                satirlar.Add(new TopluIslemSatir(h.Id, "Tamam", null));
+            }
+            catch (Exception ex)
+            {
+                hatali++;
+                satirlar.Add(new TopluIslemSatir(h.Id, "Hata", ex.GetBaseException().Message));
+            }
+        }
+
+        await context.SaveChangesAsync();
+
+        return new TopluIslemSonuc(ids.Count, basarili, atlanan, hatali,
+            satirlar.OrderBy(s => s.HakedisId).ToList());
+    }
 }
