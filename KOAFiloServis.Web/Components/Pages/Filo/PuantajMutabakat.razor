@@ -6,6 +6,7 @@
 @using Microsoft.JSInterop
 @inject IPuantajEslestirmeService EslestirmeService
 @inject IFirmaService FirmaService
+@inject ITasimaTedarikciService TedarikciService
 @inject IToastService ToastService
 @inject IJSRuntime JS
 @inject NavigationManager Nav
@@ -32,6 +33,21 @@
             </div>
             <button class="btn btn-sm btn-outline-dark" @onclick="@(() => Nav.NavigateTo("/ayarlar/firmalar"))">
                 <i class="bi bi-gear me-1"></i> Firma Yönetimi
+            </button>
+        </div>
+    }
+
+    @if (eksikCariTedarikciler.Count > 0)
+    {
+        <div class="alert alert-warning d-flex justify-content-between align-items-center py-2">
+            <div>
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>@eksikCariTedarikciler.Count</strong> taşıma tedarikçisinin <em>Cari</em> bağlantısı eksik.
+                Tedarikçi mutabakatı ve gelen fatura eşleşmesi için her tedarikçiye bir Cari atanmalıdır.
+                <span class="text-muted small ms-2">(@string.Join(", ", eksikCariTedarikciler.Take(5).Select(x => x.Unvan))@(eksikCariTedarikciler.Count > 5 ? ", ..." : ""))</span>
+            </div>
+            <button class="btn btn-sm btn-outline-dark" @onclick="@(() => Nav.NavigateTo("/personel-tasima/tedarikciler"))">
+                <i class="bi bi-truck me-1"></i> Tedarikçiler
             </button>
         </div>
     }
@@ -314,10 +330,12 @@
     private string tab = "cari";
 
     private List<Firma> firmalar = new();
+    private List<TasimaTedarikci> tumTedarikciler = new();
     private List<CariFaturaMutabakatRow> cariRows = new();
     private List<TasimaTedarikciMutabakatRow> tedarikciRows = new();
 
     private List<Firma> eksikCariFirmalar => firmalar.Where(f => f.Aktif && f.CariId == null).ToList();
+    private List<TasimaTedarikci> eksikCariTedarikciler => tumTedarikciler.Where(t => t.Aktif && t.CariId == null).ToList();
     private Firma? SelectedFirma => firmalar.FirstOrDefault(f => f.Id == firmaId);
 
     private bool detayAcik = false;
@@ -328,6 +346,7 @@
     protected override async Task OnInitializedAsync()
     {
         firmalar = (await FirmaService.GetAllAsync()).ToList();
+        tumTedarikciler = await TedarikciService.GetAllAsync();
         if (firmalar.Count > 0) firmaId = firmalar[0].Id;
     }
 

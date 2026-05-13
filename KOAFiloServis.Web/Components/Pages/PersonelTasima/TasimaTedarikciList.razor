@@ -187,6 +187,7 @@
                         <th>Yetkili</th>
                         <th>Telefon</th>
                         <th>Vergi No</th>
+                        <th>Cari</th>
                         <th class="text-center">Personel</th>
                         <th class="text-center">Araç</th>
                         <th class="text-center">Aktif İş</th>
@@ -204,6 +205,20 @@
                         <td>@t.YetkiliKisi</td>
                         <td>@t.Telefon</td>
                         <td>@t.VergiNo</td>
+                        <td>
+                            @if (t.CariId.HasValue && t.Cari != null)
+                            {
+                                <span class="badge bg-success-subtle text-success border border-success" title="@t.Cari.Unvan">
+                                    <i class="bi bi-link-45deg"></i> @t.Cari.CariKodu
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning-subtle text-warning border border-warning" title="Cari bağlantısı yok - mutabakat çalışmaz">
+                                    <i class="bi bi-exclamation-triangle"></i> Eksik
+                                </span>
+                            }
+                        </td>
                         <td class="text-center">@(personelSayilari.GetValueOrDefault(t.Id))</td>
                         <td class="text-center">@(aracSayilari.GetValueOrDefault(t.Id))</td>
                         <td class="text-center">@(isSayilari.GetValueOrDefault(t.Id))</td>
