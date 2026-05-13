@@ -8,6 +8,7 @@
 @inject IFirmaService FirmaService
 @inject IToastService ToastService
 @inject IJSRuntime JS
+@inject NavigationManager Nav
 @rendermode InteractiveServer
 
 <PageTitle>Puantaj-Fatura Mutabakat</PageTitle>
@@ -20,6 +21,21 @@
         </button>
     </div>
 
+    @if (eksikCariFirmalar.Count > 0)
+    {
+        <div class="alert alert-warning d-flex justify-content-between align-items-center py-2">
+            <div>
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>@eksikCariFirmalar.Count</strong> firmanın <em>Karşılık Gelen Cari</em> tanımı eksik.
+                Mutabakatın doğru çalışması için her firmaya bir Cari atanmalıdır.
+                <span class="text-muted small ms-2">(@string.Join(", ", eksikCariFirmalar.Take(5).Select(x => x.FirmaAdi))@(eksikCariFirmalar.Count > 5 ? ", ..." : ""))</span>
+            </div>
+            <button class="btn btn-sm btn-outline-dark" @onclick="@(() => Nav.NavigateTo("/ayarlar/firmalar"))">
+                <i class="bi bi-gear me-1"></i> Firma Yönetimi
+            </button>
+        </div>
+    }
+
     <div class="card mb-3">
         <div class="card-body">
             <div class="row g-2 align-items-end">
@@ -29,9 +45,16 @@
                         <option value="0">-- Firma --</option>
                         @foreach (var f in firmalar)
                         {
-                            <option value="@f.Id">@f.FirmaAdi</option>
+                            <option value="@f.Id">@f.FirmaAdi @(f.CariId == null ? "(Cari yok!)" : "")</option>
                         }
                     </select>
+                    @if (SelectedFirma is { CariId: null })
+                    {
+                        <div class="form-text text-danger">
+                            <i class="bi bi-exclamation-circle me-1"></i>
+                            Bu firmaya Cari atanmamış. Cari bazlı mutabakat <em>Unvan</em> eşleşmesine düşer.
+                        </div>
+                    }
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Başlangıç</label>
@@ -293,6 +316,9 @@
     private List<Firma> firmalar = new();
     private List<CariFaturaMutabakatRow> cariRows = new();
     private List<TasimaTedarikciMutabakatRow> tedarikciRows = new();
+
+    private List<Firma> eksikCariFirmalar => firmalar.Where(f => f.Aktif && f.CariId == null).ToList();
+    private Firma? SelectedFirma => firmalar.FirstOrDefault(f => f.Id == firmaId);
 
     private bool detayAcik = false;
     private MutabakatDetay? detay;
