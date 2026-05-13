@@ -2463,27 +2463,9 @@ else
         };
     }
 
-    private static string GetSahiplikMetin(AracSahiplikKalem s)
-    {
-        return s switch
-        {
-            AracSahiplikKalem.Ozmal => "Özmal",
-            AracSahiplikKalem.Kiralik => "Kiralık",
-            AracSahiplikKalem.Komisyon => "Komisyon",
-            _ => "-"
-        };
-    }
+    private static string GetSahiplikMetin(AracSahiplikKalem s) => SahiplikHelper.GetMetin(s);
 
-    private static string GetSahiplikBadge(AracSahiplikKalem s)
-    {
-        return s switch
-        {
-            AracSahiplikKalem.Ozmal => "bg-success",
-            AracSahiplikKalem.Kiralik => "bg-warning text-dark",
-            AracSahiplikKalem.Komisyon => "bg-info",
-            _ => "bg-secondary"
-        };
-    }
+    private static string GetSahiplikBadge(AracSahiplikKalem s) => SahiplikHelper.GetBadgeClass(s);
 
     private static string GetTeklifDurumMetni(IhaleTeklifVersiyonDurum durum)
     {

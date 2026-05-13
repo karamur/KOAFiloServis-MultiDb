@@ -42,7 +42,7 @@ Sorun çıkaran, tekrar kontrol edilmesi gereken veya teknik risk barındıran k
 ## Handoff Notu
 
 ### Son Durum
-- Son tamamlanan geliştirme: `Kayıt 161 - Manuel veritabanı yedeği oluşturulması`
+- Son tamamlanan geliştirme: `Kayıt 162 - Sahiplik UI Standardizasyonu + Tedarikçi Personel Ayrımı`
 - Git durumu: commit edilecek
 - Branch: `main`
 
@@ -52,6 +52,8 @@ Sorun çıkaran, tekrar kontrol edilmesi gereken veya teknik risk barındıran k
 3. Fatura çoklu firma/yön akışında UI + API regresyon kontrolü yap
 
 ### Kısa Teknik Özet
+- `SahiplikHelper` ve `SahiplikBadge` ortak component'leri ile tüm araç sahiplik UI'ları tek noktadan yönetiliyor.
+- Personel listelerinde tedarikçi personeli ile kendi personel arasındaki ayrım rozet ve filtre ile netleştirildi.
 - Son güncel iş akışı `Fatura` çoklu firma/yön kuralları etrafında ilerledi:
   - `Kayıt 154`: veritabanı seviyesinde benzersizlik koruması
   - `Kayıt 155`: API doğrulama ve DTO uyumu
@@ -70,6 +72,53 @@ Sorun çıkaran, tekrar kontrol edilmesi gereken veya teknik risk barındıran k
 ---
 
 ## İstek Kayıtları
+
+### Kayıt 162 - Sahiplik UI Standardizasyonu + Tedarikçi Personel Ayrımı
+**Talep:**
+- Araç sahiplik (`Özmal / Kiralık / Komisyon / Tedarikçi / Diğer`) görsellerinin tüm ekranlarda tutarlı şekilde gösterilmesi.
+- Personel listelerinde "kendi personelimiz" ile "tedarikçi personeli" ayrımının net olması.
+
+**Yapılanlar:**
+- `KOAFiloServis.Web/Helpers/SahiplikHelper.cs` oluşturuldu:
+  - `AracSahiplikTipi` (5 değer) ve `AracSahiplikKalem` (3 değer) için ortak `GetMetin`, `GetBadgeClass`, `GetIcon`, `GetAlertClass`, `GetAciklama` metodları.
+  - Renk paleti standardize edildi: Özmal = success, Kiralık = warning, Komisyon = info, Tedarikçi = primary, Diğer = secondary.
+- `KOAFiloServis.Web/Components/Shared/SahiplikBadge.razor` shared component eklendi:
+  - `Tip` veya `Kalem` parametresi ile çalışır.
+  - `ShowIcon` ve `CssClass` opsiyonları ile esnek kullanım.
+- Aşağıdaki ekranlardaki tekrar eden `GetSahiplikMetin/GetSahiplikBadge/SahiplikBadge` metodları `SahiplikHelper` çağrılarına yönlendirildi:
+  - `IhaleHazirlik.razor`
+  - `EslestirmeTanimlari.razor`
+  - `TedarikciAraclari.razor`
+  - `FiloGunlukPuantajPage.razor`
+  - `AracMaliyetSnapshotPage.razor`
+  - `LastikSezonTakip.razor`
+- `SoforList.razor` güncellendi:
+  - "Personel Kaynağı" filtresi eklendi (Kendi Personelimiz / Tedarikçi Personeli / Tümü).
+  - "Tedarikçi" filtresi eklendi.
+  - Liste kolon başlığı `Firma` → `Firma / Tedarikçi` olarak değiştirildi.
+  - Tedarikçi personelleri mavi rozet (`bi-truck` ikon), kendi personelimiz gri rozet (`bi-building` ikon) ile gösteriliyor.
+  - `LoadData` ve `FiltreleAsync` metodlarında `TasimaTedarikci` navigation property `Include` edildi.
+  - `LoadTedarikcilerAsync` yardımcı metodu eklendi.
+- `TedarikciPersonel.razor` içindeki SRC + yaygın eğitim karışık rozet düzeltildi: Sadece `YayginEgitimSertifikasiVarMi` üzerinden gösterim sağlandı.
+
+**Doğrulama:**
+- `run_build` başarılı (0 warning).
+- Tüm refaktör edilen sayfalar derlemede başarıyla çalıştı.
+
+**Etkilenen Dosyalar:**
+- `KOAFiloServis.Web/Helpers/SahiplikHelper.cs` (yeni)
+- `KOAFiloServis.Web/Components/Shared/SahiplikBadge.razor` (yeni)
+- `KOAFiloServis.Web/Components/Pages/Ihale/IhaleHazirlik.razor`
+- `KOAFiloServis.Web/Components/Pages/Filo/EslestirmeTanimlari.razor`
+- `KOAFiloServis.Web/Components/Pages/TedarikciServisOperasyon/TedarikciAraclari.razor`
+- `KOAFiloServis.Web/Components/Pages/TedarikciServisOperasyon/TedarikciPersonel.razor`
+- `KOAFiloServis.Web/Components/Pages/Filo/FiloGunlukPuantajPage.razor`
+- `KOAFiloServis.Web/Components/Pages/Araclar/AracMaliyetSnapshotPage.razor`
+- `KOAFiloServis.Web/Components/Pages/Lastik/LastikSezonTakip.razor`
+- `KOAFiloServis.Web/Components/Pages/Soforler/SoforList.razor`
+- `DEVELOPMENT.md`
+
+**Durum:** ✅ Tamamlandı
 
 ### Kayıt 161 - Manuel Veritabanı Yedeği Oluşturulması
 **Talep:**

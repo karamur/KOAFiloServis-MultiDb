@@ -1,4 +1,4 @@
-@page "/filo/komisyon-eslestirme"
+﻿@page "/filo/komisyon-eslestirme"
 @using KOAFiloServis.Shared.Entities
 @using KOAFiloServis.Web.Services.Interfaces
 @using KOAFiloServis.Web.Services
@@ -295,35 +295,11 @@
 
     private bool SecilenAracKomisyonMu() => GetSecilenArac()?.SahiplikTipi == AracSahiplikTipi.Komisyon;
 
-    private static string GetSahiplikText(AracSahiplikTipi sahiplikTipi) => sahiplikTipi switch
-    {
-        AracSahiplikTipi.Ozmal => "Özmal",
-        AracSahiplikTipi.Kiralik => "Kiralık",
-        AracSahiplikTipi.Komisyon => "Komisyon",
-        _ => "Diğer"
-    };
+    private static string GetSahiplikText(AracSahiplikTipi sahiplikTipi) => SahiplikHelper.GetMetin(sahiplikTipi);
 
-    private static string GetSahiplikBadge(AracSahiplikTipi sahiplikTipi) => sahiplikTipi switch
-    {
-        AracSahiplikTipi.Ozmal => "bg-success",
-        AracSahiplikTipi.Kiralik => "bg-warning text-dark",
-        AracSahiplikTipi.Komisyon => "bg-info text-dark",
-        _ => "bg-secondary"
-    };
+    private static string GetSahiplikBadge(AracSahiplikTipi sahiplikTipi) => SahiplikHelper.GetBadgeClass(sahiplikTipi);
 
-    private static string GetSahiplikAlertClass(AracSahiplikTipi sahiplikTipi) => sahiplikTipi switch
-    {
-        AracSahiplikTipi.Ozmal => "alert-success",
-        AracSahiplikTipi.Kiralik => "alert-warning",
-        AracSahiplikTipi.Komisyon => "alert-info",
-        _ => "alert-secondary"
-    };
+    private static string GetSahiplikAlertClass(AracSahiplikTipi sahiplikTipi) => SahiplikHelper.GetAlertClass(sahiplikTipi);
 
-    private static string GetSahiplikAciklama(AracSahiplikTipi sahiplikTipi) => sahiplikTipi switch
-    {
-        AracSahiplikTipi.Ozmal => "Plaka, şoför ve araç firmaya aittir. Taşeron ödemesi yapılmaz.",
-        AracSahiplikTipi.Kiralik => "Plaka kiralık yapıdadır, operasyon firma üzerinden yürür. Taşeron ödemesi yapılmaz.",
-        AracSahiplikTipi.Komisyon => "Plaka, şoför, araç ve operasyon masrafları komisyoncuya aittir. Taşeron ücreti aktif kullanılır.",
-        _ => "Ek kural tanımlanmamış."
-    };
+    private static string GetSahiplikAciklama(AracSahiplikTipi sahiplikTipi) => SahiplikHelper.GetAciklama(sahiplikTipi);
 }

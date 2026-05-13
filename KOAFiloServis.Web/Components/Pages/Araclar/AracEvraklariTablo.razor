@@ -113,10 +113,16 @@
                 <div class="col-md-2">
                     <label class="form-label small mb-1">Sahiplik</label>
                     <select class="form-select form-select-sm" @bind="sahiplikFiltre">
-                        <option value="ozmal">Özmal / Kiralık</option>
-                        <option value="tedarikci">Tedarikçi</option>
-                        <option value="">Tümü</option>
+                        <option value="Tumu">Tümü</option>
+                        @foreach (AracSahiplikTipi sahiplik in Enum.GetValues(typeof(AracSahiplikTipi)))
+                        {
+                            <option value="@sahiplik.ToString()">@GetSahiplikText(sahiplik)</option>
+                        }
                     </select>
+                    <div class="form-check form-check-sm mt-1">
+                        <input class="form-check-input" type="checkbox" id="chkEvrakSahiplikHaric" @bind="sahiplikFiltreHaric" disabled="@(sahiplikFiltre == "Tumu")" />
+                        <label class="form-check-label small text-muted" for="chkEvrakSahiplikHaric">Hariç tut</label>
+                    </div>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small mb-1">Belge Filtresi</label>
@@ -350,7 +356,8 @@
     private string aktifFiltre = string.Empty;
     private string belgeFiltre = string.Empty;
     private string seviyeFiltre = "tumu"; // "gecmis" | "yedi" | "otuz" | "tumu"
-    private string sahiplikFiltre = "ozmal"; // "ozmal" | "tedarikci" | "" (tümü)
+    private string sahiplikFiltre = "Tumu"; // AracSahiplikTipi enum adı veya "Tumu"
+    private bool sahiplikFiltreHaric;
 
     // Açık satır
     private int? acikAracId;
@@ -415,11 +422,11 @@
             "otuz" => GetTumTarihler(p).Any(t => t >= DateTime.Today && (t - DateTime.Today).Days <= 30),
             _ => true
         })
-        .Where(p => sahiplikFiltre switch
+        .Where(p =>
         {
-            "ozmal" => p.SahiplikTipi != AracSahiplikTipi.Tedarikci,
-            "tedarikci" => p.SahiplikTipi == AracSahiplikTipi.Tedarikci,
-            _ => true
+            if (sahiplikFiltre == "Tumu") return true;
+            if (!Enum.TryParse<AracSahiplikTipi>(sahiplikFiltre, out var st)) return true;
+            return sahiplikFiltreHaric ? p.SahiplikTipi != st : p.SahiplikTipi == st;
         })
         .ToList();
 
@@ -460,8 +467,19 @@
         aktifFiltre = string.Empty;
         belgeFiltre = string.Empty;
         seviyeFiltre = "tumu";
-        sahiplikFiltre = "ozmal";
+        sahiplikFiltre = "Tumu";
+        sahiplikFiltreHaric = false;
     }
+
+    private static string GetSahiplikText(AracSahiplikTipi tip) => tip switch
+    {
+        AracSahiplikTipi.Ozmal => "Özmal",
+        AracSahiplikTipi.Kiralik => "Kiralık",
+        AracSahiplikTipi.Komisyon => "Komisyon",
+        AracSahiplikTipi.Tedarikci => "Tedarikçi",
+        AracSahiplikTipi.Diger => "Diğer",
+        _ => tip.ToString()
+    };
 
     private void TumunuSecToggle()
     {

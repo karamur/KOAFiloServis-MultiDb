@@ -369,11 +369,5 @@
         _ => a.ToString()
     };
 
-    private string SahiplikBadge(AracSahiplikTipi t) => t switch
-    {
-        AracSahiplikTipi.Ozmal => "bg-primary",
-        AracSahiplikTipi.Kiralik => "bg-warning text-dark",
-        AracSahiplikTipi.Tedarikci => "bg-secondary",
-        _ => "bg-light text-dark"
-    };
+    private string SahiplikBadge(AracSahiplikTipi t) => SahiplikHelper.GetBadgeClass(t);
 }

@@ -1,4 +1,4 @@
-@page "/tedarikci-servis/personel"
+﻿@page "/tedarikci-servis/personel"
 @attribute [Authorize]
 @using Microsoft.AspNetCore.Authorization
 @using KOAFiloServis.Shared.Entities
@@ -172,9 +172,9 @@
                                                     <i class="bi bi-award"></i>
                                                 </span>
                                             }
-                                            @if (p.SrcBelgesiGecerlilikTarihi.HasValue || p.YayginEgitimSertifikasiVarMi)
+                                            @if (p.YayginEgitimSertifikasiVarMi)
                                             {
-                                                <span class="badge bg-success ms-1" title="SRC Belgesi">
+                                                <span class="badge bg-success ms-1" title="Yaygın Eğitim Sertifikası Var">
                                                     <i class="bi bi-mortarboard"></i>
                                                 </span>
                                             }

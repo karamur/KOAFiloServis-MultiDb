@@ -564,23 +564,9 @@
         _ => "bg-secondary"
     };
 
-    private static string GetSahiplikText(AracSahiplikTipi sahiplik) => sahiplik switch
-    {
-        AracSahiplikTipi.Ozmal => "Özmal",
-        AracSahiplikTipi.Kiralik => "Kiralık",
-        AracSahiplikTipi.Komisyon => "Komisyon",
-        AracSahiplikTipi.Diger => "Diğer",
-        _ => sahiplik.ToString()
-    };
+    private static string GetSahiplikText(AracSahiplikTipi sahiplik) => SahiplikHelper.GetMetin(sahiplik);
 
-    private static string GetSahiplikBadgeClass(AracSahiplikTipi sahiplik) => sahiplik switch
-    {
-        AracSahiplikTipi.Ozmal => "bg-success",
-        AracSahiplikTipi.Kiralik => "bg-warning text-dark",
-        AracSahiplikTipi.Komisyon => "bg-info text-dark",
-        AracSahiplikTipi.Diger => "bg-secondary",
-        _ => "bg-dark"
-    };
+    private static string GetSahiplikBadgeClass(AracSahiplikTipi sahiplik) => SahiplikHelper.GetBadgeClass(sahiplik);
 
     private static string GetAracDurumuText(AracDurumu durum) => durum switch
     {

@@ -1,4 +1,4 @@
-@page "/soforler"
+﻿@page "/soforler"
 @page "/personel"
 @using KOAFiloServis.Shared.Entities
 @using KOAFiloServis.Web.Services
@@ -33,6 +33,18 @@
                 @foreach (var firma in firmalar)
                 {
                     <option value="@firma.Id">@firma.FirmaAdi</option>
+                }
+            </select>
+            <select class="form-select" style="width: 200px;" @bind="secilenPersonelKaynak" @bind:after="FiltreleAsync" title="Personel kaynağı (Kendi / Tedarikçi)">
+                <option value="">Tüm Personel Kaynakları</option>
+                <option value="kendi">Kendi Personelimiz</option>
+                <option value="tedarikci">Tedarikçi Personeli</option>
+            </select>
+            <select class="form-select" style="width: 180px;" @bind="secilenTedarikciId" @bind:after="FiltreleAsync">
+                <option value="0">Tüm Tedarikçiler</option>
+                @foreach (var t in tedarikciler)
+                {
+                    <option value="@t.Id">@t.Unvan</option>
                 }
             </select>
             <div class="btn-group" role="group" aria-label="Durum filtresi">
@@ -106,7 +118,7 @@
                                 <th>Personel Kodu</th>
                                 <th>Ad Soyad</th>
                                 <th>Görev</th>
-                                <th>Firma</th>
+                                <th>Firma / Tedarikçi</th>
                                 <th>Telefon</th>
                                 <th>Araç</th>
                                 <th>İşe Başlama</th>
@@ -135,9 +147,13 @@
                                         </span>
                                     </td>
                                     <td>
-                                        @if (personel.Firma != null)
+                                        @if (personel.TasimaTedarikciId.HasValue && personel.TasimaTedarikci != null)
                                         {
-                                            <span class="badge bg-secondary">@personel.Firma.FirmaAdi</span>
+                                            <span class="badge bg-primary" title="Tedarikçi Personeli"><i class="bi bi-truck me-1"></i>@personel.TasimaTedarikci.Unvan</span>
+                                        }
+                                        else if (personel.Firma != null)
+                                        {
+                                            <span class="badge bg-secondary" title="Kendi Personelimiz"><i class="bi bi-building me-1"></i>@personel.Firma.FirmaAdi</span>
                                         }
                                         else
                                         {
@@ -427,12 +443,15 @@
     private List<Sofor>? personeller;
     private Dictionary<int, string> personelAraclar = new();
     private List<KOAFiloServis.Shared.Entities.Firma> firmalar = new();
+    private List<KOAFiloServis.Shared.Entities.TasimaTedarikci> tedarikciler = new();
     private bool showDeleteModal = false;
     private Sofor? silinecekPersonel;
     private string secilenGorev = "";
     private string secilenAktifDurum = "aktif";
     private string aramaMetni = "";
     private int secilenFirmaId = 0;
+    private int secilenTedarikciId = 0;
+    private string secilenPersonelKaynak = "";
 
     // Import değişkenleri
     private bool showImportModal = false;
@@ -452,6 +471,7 @@
         await using var ctx = await DbContextFactory.CreateDbContextAsync();
         tumPersoneller = await ctx.Soforler
             .Include(s => s.Firma)
+            .Include(s => s.TasimaTedarikci)
             .Where(s => !s.IsDeleted)
             .OrderBy(s => s.Ad)
             .ThenBy(s => s.Soyad)
@@ -459,6 +479,7 @@
             .ToListAsync();
         await LoadPersonelAraclarAsync();
         await LoadFirmalarAsync();
+        await LoadTedarikcilerAsync();
         UygulaFiltre();
     }
 
@@ -469,6 +490,7 @@
             await using var ctx = await DbContextFactory.CreateDbContextAsync();
             tumPersoneller = await ctx.Soforler
                 .Include(s => s.Firma)
+                .Include(s => s.TasimaTedarikci)
                 .Where(s => !s.IsDeleted)
                 .OrderBy(s => s.Ad)
                 .ThenBy(s => s.Soyad)
@@ -508,6 +530,14 @@
         if (secilenFirmaId > 0)
             sorgu = sorgu.Where(p => p.FirmaId == secilenFirmaId);
 
+        if (secilenTedarikciId > 0)
+            sorgu = sorgu.Where(p => p.TasimaTedarikciId == secilenTedarikciId);
+
+        if (secilenPersonelKaynak == "kendi")
+            sorgu = sorgu.Where(p => !p.TasimaTedarikciId.HasValue);
+        else if (secilenPersonelKaynak == "tedarikci")
+            sorgu = sorgu.Where(p => p.TasimaTedarikciId.HasValue);
+
         personeller = sorgu.ToList();
     }
 
@@ -535,6 +565,20 @@
             firmalar = await ctx.Firmalar
                 .Where(f => !f.IsDeleted)
                 .OrderBy(f => f.FirmaAdi)
+                .AsNoTracking()
+                .ToListAsync();
+        }
+        catch { }
+    }
+
+    private async Task LoadTedarikcilerAsync()
+    {
+        try
+        {
+            await using var ctx = await DbContextFactory.CreateDbContextAsync();
+            tedarikciler = await ctx.TasimaTedarikciler
+                .Where(t => !t.IsDeleted)
+                .OrderBy(t => t.Unvan)
                 .AsNoTracking()
                 .ToListAsync();
         }
