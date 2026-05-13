@@ -335,6 +335,14 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.FirmaKodu).HasMaxLength(50);
             entity.Property(e => e.FirmaAdi).HasMaxLength(250);
             entity.Property(e => e.VergiNo).HasMaxLength(11);
+            entity.HasIndex(e => e.CariId);
+            // Firma.CariId -> Cari (kurum rolündeki firmanın muhasebe Cari kaydı)
+            // Mevcut Cari.FirmaId ilişkisini bozmamak için explicit, navigationsuz tanım.
+            entity.HasOne<Cari>()
+                .WithMany()
+                .HasForeignKey(e => e.CariId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
             entity.HasQueryFilter(e => !e.IsDeleted);
         });
 

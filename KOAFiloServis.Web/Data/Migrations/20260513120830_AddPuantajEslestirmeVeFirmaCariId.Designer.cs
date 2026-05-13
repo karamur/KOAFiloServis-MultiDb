@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace KOAFiloServis.Web.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260513113214_AddPuantajEslestirmeTablolari")]
-    partial class AddPuantajEslestirmeTablolari
+    [Migration("20260513120830_AddPuantajEslestirmeVeFirmaCariId")]
+    partial class AddPuantajEslestirmeVeFirmaCariId
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -3228,6 +3228,9 @@ namespace KOAFiloServis.Web.Data.Migrations
                     b.Property<int?>("FirmaId")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("FirmaId1")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Il")
                         .HasColumnType("text");
 
@@ -3302,7 +3305,7 @@ namespace KOAFiloServis.Web.Data.Migrations
                         .IsUnique()
                         .HasFilter("\"IsDeleted\" = false");
 
-                    b.HasIndex("FirmaId");
+                    b.HasIndex("FirmaId1");
 
                     b.HasIndex("MuhasebeHesapId");
 
@@ -5638,6 +5641,9 @@ namespace KOAFiloServis.Web.Data.Migrations
                     b.Property<int>("AktifDonemYil")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("CariId")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp without time zone");
 
@@ -5699,6 +5705,8 @@ namespace KOAFiloServis.Web.Data.Migrations
                         .HasColumnType("character varying(100)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CariId");
 
                     b.HasIndex("FirmaKodu")
                         .IsUnique();
@@ -13173,7 +13181,7 @@ namespace KOAFiloServis.Web.Data.Migrations
                 {
                     b.HasOne("KOAFiloServis.Shared.Entities.Firma", "Firma")
                         .WithMany()
-                        .HasForeignKey("FirmaId");
+                        .HasForeignKey("FirmaId1");
 
                     b.HasOne("KOAFiloServis.Shared.Entities.MuhasebeHesap", "MuhasebeHesap")
                         .WithMany()
@@ -13788,6 +13796,14 @@ namespace KOAFiloServis.Web.Data.Migrations
                     b.Navigation("KurumFirma");
 
                     b.Navigation("Sofor");
+                });
+
+            modelBuilder.Entity("KOAFiloServis.Shared.Entities.Firma", b =>
+                {
+                    b.HasOne("KOAFiloServis.Shared.Entities.Cari", null)
+                        .WithMany()
+                        .HasForeignKey("CariId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("KOAFiloServis.Shared.Entities.FirmaAracSoforEslestirme", b =>

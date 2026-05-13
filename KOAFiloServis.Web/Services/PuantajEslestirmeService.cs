@@ -287,18 +287,38 @@ public class PuantajEslestirmeService : IPuantajEslestirmeService
             })
             .ToListAsync();
 
-        // KurumFirmaId -> Cari eşleşmesi: Cariler tablosunda Unvan eşleşmesi ile bul
+        // KurumFirmaId -> Cari eşleşmesi: önce Firma.CariId üzerinden ID-bazlı, yoksa Unvan fallback
         var tumCariler = await ctx.Cariler.AsNoTracking().ToListAsync();
+        var cariById = tumCariler.ToDictionary(c => c.Id);
         var cariByUnvan = tumCariler
             .GroupBy(c => c.Unvan.Trim().ToLower())
             .ToDictionary(g => g.Key, g => g.First());
+
+        var kurumFirmaIds = puantajlar.Select(p => p.KurumFirmaId).Distinct().ToList();
+        var firmaCariMap = await ctx.Firmalar
+            .Where(f => kurumFirmaIds.Contains(f.Id))
+            .Select(f => new { f.Id, f.CariId })
+            .ToDictionaryAsync(f => f.Id, f => f.CariId);
 
         var tahakkukByCari = new Dictionary<int, (string Unvan, decimal Tutar, int Sayi, int FaturaliSayi)>();
         foreach (var grp in puantajlar.GroupBy(p => p.KurumFirmaId))
         {
             string ad = grp.First().KurumAd ?? "(?)";
             int? cariId = null;
-            if (cariByUnvan.TryGetValue(ad.Trim().ToLower(), out var c)) cariId = c.Id;
+            Cari? c = null;
+            // 1) Firma.CariId üzerinden ID-bazlı
+            if (firmaCariMap.TryGetValue(grp.Key, out var fcId) && fcId.HasValue
+                && cariById.TryGetValue(fcId.Value, out var cFromId))
+            {
+                cariId = cFromId.Id;
+                c = cFromId;
+            }
+            // 2) Fallback: Unvan eşleşmesi
+            else if (cariByUnvan.TryGetValue(ad.Trim().ToLower(), out var cFromUnvan))
+            {
+                cariId = cFromUnvan.Id;
+                c = cFromUnvan;
+            }
             if (!cariId.HasValue) continue;
 
             var tutar = grp.Sum(x => x.TahakkukEdenKurumUcreti);
@@ -439,10 +459,16 @@ public class PuantajEslestirmeService : IPuantajEslestirmeService
         var detay = new MutabakatDetay { Baslik = cari?.Unvan ?? "(?)" };
         if (cari == null) return detay;
 
-        // KurumFirmaId(ler)i: Firma.FirmaAdi == Cari.Unvan eşlemesi
+        // KurumFirmaId(ler)i: önce Firma.CariId == cariId, yoksa Firma.FirmaAdi == Cari.Unvan fallback
         var firmaIds = await ctx.Firmalar
-            .Where(f => f.FirmaAdi.ToLower() == cari.Unvan.ToLower())
+            .Where(f => f.CariId == cariId)
             .Select(f => f.Id).ToListAsync();
+        if (firmaIds.Count == 0)
+        {
+            firmaIds = await ctx.Firmalar
+                .Where(f => f.FirmaAdi.ToLower() == cari.Unvan.ToLower())
+                .Select(f => f.Id).ToListAsync();
+        }
 
         var puantajlar = await ctx.FiloGunlukPuantajlar
             .Include(p => p.Arac).Include(p => p.Sofor).Include(p => p.Guzergah)

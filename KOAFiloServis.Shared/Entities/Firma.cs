@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace KOAFiloServis.Shared.Entities;
 
@@ -48,6 +48,13 @@ public class Firma : BaseEntity
     public bool VarsayilanFirma { get; set; } = false;
 
     public int SiraNo { get; set; } = 0;
+
+    /// <summary>
+    /// Bu firma "kurum" rolünde de görünüyorsa (yani başka bir firmamız ona fatura kesiyorsa),
+    /// muhasebe tarafında temsil ettiği Cari kaydı.
+    /// Mutabakat / fatura eşleştirme bu ID üzerinden yapılır.
+    /// </summary>
+    public int? CariId { get; set; }
 
     // Muhasebe Donem Bilgisi
     public int AktifDonemYil { get; set; } = DateTime.Today.Year;
