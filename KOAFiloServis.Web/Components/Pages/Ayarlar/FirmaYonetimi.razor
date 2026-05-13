@@ -1,8 +1,9 @@
-@page "/ayarlar/firmalar"
+﻿@page "/ayarlar/firmalar"
 @using KOAFiloServis.Shared.Entities
 @using KOAFiloServis.Web.Services
 @using Microsoft.AspNetCore.Components.Forms
 @inject IFirmaService FirmaService
+@inject ICariService CariService
 @inject IToastService ToastService
 @rendermode InteractiveServer
 
@@ -209,6 +210,32 @@
                                 <label class="form-check-label" for="chkAktif">Aktif</label>
                             </div>
                         </div>
+
+                        <!-- Mutabakat: Kurum rolündeki Cari eşlemesi -->
+                        <div class="col-12">
+                            <hr class="my-2" />
+                            <label class="form-label">
+                                <i class="bi bi-link-45deg me-1"></i>Karşılık Gelen Cari (Mutabakat)
+                            </label>
+                            <select class="form-select" @bind="editFirma.CariId">
+                                <option value="">- Seçiniz (opsiyonel) -</option>
+                                @foreach (var c in cariler)
+                                {
+                                    <option value="@c.Id">@c.CariKodu - @c.Unvan @(c.VergiNo != null ? $"(VKN: {c.VergiNo})" : "")</option>
+                                }
+                            </select>
+                            <div class="form-text">
+                                Bu firma başka bir firmamıza fatura kesiyorsa, muhasebe tarafındaki Cari kaydını buradan bağlayın.
+                                Puantaj-fatura mutabakatı bu ID üzerinden yapılır.
+                                @if (oneriCari != null && editFirma.CariId != oneriCari.Id)
+                                {
+                                    <button type="button" class="btn btn-link btn-sm p-0 ms-2"
+                                            @onclick="() => editFirma.CariId = oneriCari.Id">
+                                        <i class="bi bi-magic me-1"></i>Öneri: @oneriCari.Unvan
+                                    </button>
+                                }
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -224,11 +251,30 @@
 
 @code {
     private List<Firma> firmalar = new();
+    private List<Cari> cariler = new();
     private bool isLoading = true;
     private bool showModal = false;
     private Firma editFirma = new();
     private bool logoYukleniyor = false;
     private string? logoHata;
+
+    private Cari? oneriCari => HesaplaOneri();
+
+    private Cari? HesaplaOneri()
+    {
+        if (editFirma == null || cariler.Count == 0) return null;
+        // Öncelik: VergiNo eşleşmesi
+        if (!string.IsNullOrWhiteSpace(editFirma.VergiNo))
+        {
+            var byVkn = cariler.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c.VergiNo)
+                && c.VergiNo.Trim() == editFirma.VergiNo.Trim());
+            if (byVkn != null) return byVkn;
+        }
+        // Sonra Unvan tam eşleşme
+        var ad = (editFirma.UnvanTam ?? editFirma.FirmaAdi ?? "").Trim().ToLower();
+        if (string.IsNullOrEmpty(ad)) return null;
+        return cariler.FirstOrDefault(c => c.Unvan.Trim().ToLower() == ad);
+    }
 
     private async Task LogoYukle(InputFileChangeEventArgs e)
     {
@@ -286,6 +332,14 @@
         try
         {
             firmalar = await FirmaService.GetAllAsync();
+            // Cari listesi: Mutabakat seçimi için Müşteri / Tedarikçi / Müşteri+Tedarikçi tipleri
+            var allCariler = await CariService.GetAllAsync();
+            cariler = allCariler
+                .Where(c => c.Aktif && (c.CariTipi == CariTipi.Musteri
+                    || c.CariTipi == CariTipi.Tedarikci
+                    || c.CariTipi == CariTipi.MusteriTedarikci))
+                .OrderBy(c => c.Unvan)
+                .ToList();
         }
         finally
         {
@@ -324,7 +378,8 @@
             Ilce = firma.Ilce,
             Aktif = firma.Aktif,
             VarsayilanFirma = firma.VarsayilanFirma,
-            Logo = firma.Logo
+            Logo = firma.Logo,
+            CariId = firma.CariId
         };
         logoHata = null;
         showModal = true;
