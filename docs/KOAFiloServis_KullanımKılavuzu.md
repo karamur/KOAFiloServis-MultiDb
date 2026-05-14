@@ -482,6 +482,21 @@ Personel detay panelindeki **Hakediş Pusulası** sekmesinden:
 - Muhasebeleştirilmemiş faturalar listelenir.
 - Toplu seçimle tek seferde muhasebe kaydı oluşturulabilir.
 
+### 8.7 Servis Operasyon Puantaj ve Fatura (Resimli)
+
+Servis Operasyon kontrat tabanlı puantaj/fatura akışı için detaylı ve adım adım resimli kılavuz aşağıdadır:
+
+- Geliştirici dokümanı: `KOAFiloServis.Web/Docs/puantaj-ve-fatura-kilavuzu.md`
+- Yayınlanan doküman: `KOAFiloServis.Web/wwwroot/docs/puantaj-ve-fatura-kilavuzu.md`
+
+Bu kılavuzda özellikle şu başlıklar resimli anlatılmıştır:
+
+1. Kurum seçimi ve `+` ile hızlı kurum kaydı
+2. Kuruma göre güzergah kodu önerisi ve manuel düzenleme
+3. Plakadan personel ve telefon otomatik doldurma
+4. Yön bilgisi, gelir/gider fiyatı ve firma tip ayrımı
+5. Aylık puantajdan fatura kontrolüne kadar uçtan uca akış
+
 ---
 
 ## 9. Stok Yönetimi

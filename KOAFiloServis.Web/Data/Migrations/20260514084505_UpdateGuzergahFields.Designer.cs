@@ -3,17 +3,20 @@ using System;
 using KOAFiloServis.Web.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace KOAFiloServis.Web.Migrations
+namespace KOAFiloServis.Web.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260514084505_UpdateGuzergahFields")]
+    partial class UpdateGuzergahFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -5488,9 +5491,6 @@ namespace KOAFiloServis.Web.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
-                    b.Property<int?>("KullaniciId")
-                        .HasColumnType("integer");
-
                     b.Property<int?>("KurumFaturaId")
                         .HasColumnType("integer");
 
@@ -5553,8 +5553,6 @@ namespace KOAFiloServis.Web.Migrations
 
                     b.HasIndex("GuzergahId");
 
-                    b.HasIndex("KullaniciId");
-
                     b.HasIndex("KurumFirmaId");
 
                     b.HasIndex("SoforId");
@@ -5588,9 +5586,6 @@ namespace KOAFiloServis.Web.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
-                    b.Property<int?>("KullaniciId")
-                        .HasColumnType("integer");
-
                     b.Property<int>("KurumFirmaId")
                         .HasColumnType("integer");
 
@@ -5614,8 +5609,6 @@ namespace KOAFiloServis.Web.Migrations
                     b.HasIndex("AracId");
 
                     b.HasIndex("GuzergahId");
-
-                    b.HasIndex("KullaniciId");
 
                     b.HasIndex("KurumFirmaId");
 
@@ -5934,9 +5927,11 @@ namespace KOAFiloServis.Web.Migrations
                     b.Property<int?>("FirmaId")
                         .HasColumnType("integer");
 
-                    b.Property<decimal>("GiderFiyat")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
+                    b.Property<decimal?>("GelirFiyati")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("GiderFiyati")
+                        .HasColumnType("numeric");
 
                     b.Property<string>("GuzergahAdi")
                         .IsRequired()
@@ -5950,6 +5945,9 @@ namespace KOAFiloServis.Web.Migrations
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
+
+                    b.Property<int?>("KurumId")
+                        .HasColumnType("integer");
 
                     b.Property<decimal?>("Mesafe")
                         .HasPrecision(10, 2)
@@ -5982,6 +5980,9 @@ namespace KOAFiloServis.Web.Migrations
                     b.Property<int?>("VarsayilanSoforId")
                         .HasColumnType("integer");
 
+                    b.Property<string>("YonBilgisi")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CariId");
@@ -5990,6 +5991,8 @@ namespace KOAFiloServis.Web.Migrations
 
                     b.HasIndex("GuzergahKodu")
                         .IsUnique();
+
+                    b.HasIndex("KurumId");
 
                     b.HasIndex("SirketId");
 
@@ -6822,50 +6825,6 @@ namespace KOAFiloServis.Web.Migrations
                         .IsUnique();
 
                     b.ToTable("IlanPlatformlari");
-                });
-
-            modelBuilder.Entity("KOAFiloServis.Shared.Entities.Kapasite", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Aciklama")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<bool>("Aktif")
-                        .HasColumnType("boolean");
-
-                    b.Property<decimal>("Carpan")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("KapasiteAdi")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<int?>("SirketId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SirketId", "KapasiteAdi")
-                        .IsUnique();
-
-                    b.ToTable("Kapasiteler");
                 });
 
             modelBuilder.Entity("KOAFiloServis.Shared.Entities.KdvHesapEslestirme", b =>
@@ -13889,11 +13848,6 @@ namespace KOAFiloServis.Web.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("KOAFiloServis.Shared.Entities.Kullanici", "Kullanici")
-                        .WithMany()
-                        .HasForeignKey("KullaniciId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("KOAFiloServis.Shared.Entities.Firma", "KurumFirma")
                         .WithMany()
                         .HasForeignKey("KurumFirmaId")
@@ -13911,8 +13865,6 @@ namespace KOAFiloServis.Web.Migrations
                     b.Navigation("EslestirmeSablonu");
 
                     b.Navigation("Guzergah");
-
-                    b.Navigation("Kullanici");
 
                     b.Navigation("KurumFirma");
 
@@ -13933,11 +13885,6 @@ namespace KOAFiloServis.Web.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("KOAFiloServis.Shared.Entities.Kullanici", "Kullanici")
-                        .WithMany()
-                        .HasForeignKey("KullaniciId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("KOAFiloServis.Shared.Entities.Firma", "KurumFirma")
                         .WithMany()
                         .HasForeignKey("KurumFirmaId")
@@ -13953,8 +13900,6 @@ namespace KOAFiloServis.Web.Migrations
                     b.Navigation("Arac");
 
                     b.Navigation("Guzergah");
-
-                    b.Navigation("Kullanici");
 
                     b.Navigation("KurumFirma");
 
@@ -14044,6 +13989,10 @@ namespace KOAFiloServis.Web.Migrations
                         .WithMany()
                         .HasForeignKey("FirmaId");
 
+                    b.HasOne("KOAFiloServis.Shared.Entities.Kurum", "Kurum")
+                        .WithMany()
+                        .HasForeignKey("KurumId");
+
                     b.HasOne("KOAFiloServis.Shared.Entities.Sirket", "Sirket")
                         .WithMany()
                         .HasForeignKey("SirketId")
@@ -14060,6 +14009,8 @@ namespace KOAFiloServis.Web.Migrations
                     b.Navigation("Cari");
 
                     b.Navigation("Firma");
+
+                    b.Navigation("Kurum");
 
                     b.Navigation("Sirket");
 
@@ -14246,16 +14197,6 @@ namespace KOAFiloServis.Web.Migrations
                     b.Navigation("IhaleProje");
 
                     b.Navigation("OnaylayanKullanici");
-                });
-
-            modelBuilder.Entity("KOAFiloServis.Shared.Entities.Kapasite", b =>
-                {
-                    b.HasOne("KOAFiloServis.Shared.Entities.Sirket", "Sirket")
-                        .WithMany()
-                        .HasForeignKey("SirketId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Sirket");
                 });
 
             modelBuilder.Entity("KOAFiloServis.Shared.Entities.KdvHesapEslestirme", b =>

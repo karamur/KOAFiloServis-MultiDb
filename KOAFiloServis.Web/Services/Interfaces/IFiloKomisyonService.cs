@@ -44,4 +44,5 @@ public interface IFiloKomisyonService
     Task<List<Cari>> GetKurumlarAsync(int firmaId);
     Task<List<Sofor>> GetSoforlerAsync();
     Task<List<Guzergah>> GetGuzergahlarAsync();
+    Task<List<Kullanici>> GetKullanicilarAsync();
 }

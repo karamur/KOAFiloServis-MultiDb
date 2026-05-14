@@ -25,7 +25,14 @@ public class FiloKomisyonService : IFiloKomisyonService
             .Include(e => e.KurumFirma)
             .Include(e => e.Guzergah)
             .Include(e => e.Arac)
+                .ThenInclude(a => a.KiralikCari)
+            .Include(e => e.Arac)
+                .ThenInclude(a => a.KomisyoncuCari)
+            .Include(e => e.Arac)
+                .ThenInclude(a => a.TasimaTedarikci)
             .Include(e => e.Sofor)
+                .ThenInclude(s => s.Firma)
+            .Include(e => e.Kullanici)
             .Where(e => !e.IsDeleted);
 
         if (firmaId.HasValue && firmaId.Value > 0)
@@ -38,7 +45,10 @@ public class FiloKomisyonService : IFiloKomisyonService
             query = query.Where(e => e.IsActive);
         }
 
-        return await query.OrderBy(e => e.KurumFirmaId).ThenBy(e => e.Guzergah != null ? e.Guzergah.GuzergahAdi : string.Empty).ToListAsync();
+        return await query
+            .OrderBy(e => e.Guzergah != null ? e.Guzergah.GuzergahKodu : string.Empty)
+            .ThenBy(e => e.Guzergah != null ? e.Guzergah.GuzergahAdi : string.Empty)
+            .ToListAsync();
     }
 
     public async Task<FiloGuzergahEslestirme?> GetEslestirmeByIdAsync(int id)
@@ -49,6 +59,7 @@ public class FiloKomisyonService : IFiloKomisyonService
             .Include(e => e.Guzergah)
             .Include(e => e.Arac)
             .Include(e => e.Sofor)
+            .Include(e => e.Kullanici)
             .FirstOrDefaultAsync(e => e.Id == id && !e.IsDeleted);
     }
 
@@ -72,6 +83,7 @@ public class FiloKomisyonService : IFiloKomisyonService
             existing.GuzergahId = eslestirme.GuzergahId;
             existing.AracId = eslestirme.AracId;
             existing.SoforId = eslestirme.SoforId;
+            existing.KullaniciId = eslestirme.KullaniciId;
             existing.ServisTuru = eslestirme.ServisTuru;
             existing.KurumaKesilecekUcret = eslestirme.KurumaKesilecekUcret;
             existing.TaseronaOdenenUcret = eslestirme.TaseronaOdenenUcret;
@@ -134,7 +146,9 @@ public class FiloKomisyonService : IFiloKomisyonService
                         GuzergahId = eslestirme.GuzergahId,
                         AracId = eslestirme.AracId,
                         SoforId = eslestirme.SoforId,
+                        KullaniciId = eslestirme.KullaniciId,
                         Durum = isWeekend ? OperasyonDurumu.Gitmedi_Mazeretli : OperasyonDurumu.Gitti,
+                        ServisTuru = eslestirme.ServisTuru,
                         PuantajCarpani = isWeekend ? 0m : 1.0m,
                         TahakkukEdenKurumUcreti = 0m,
                         TahakkukEdenTaseronUcreti = 0m
@@ -289,7 +303,19 @@ public class FiloKomisyonService : IFiloKomisyonService
         await using var context = await _contextFactory.CreateDbContextAsync();
         return await context.Guzergahlar
             .Where(g => !g.IsDeleted && g.Aktif)
-            .OrderBy(g => g.GuzergahAdi)
+            .OrderBy(g => g.GuzergahKodu)
+            .ThenBy(g => g.GuzergahAdi)
+            .ToListAsync();
+    }
+
+    public async Task<List<Kullanici>> GetKullanicilarAsync()
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Kullanicilar
+            .AsNoTracking()
+            .Where(k => !k.IsDeleted && k.Aktif)
+            .OrderBy(k => k.AdSoyad)
+            .ThenBy(k => k.KullaniciAdi)
             .ToListAsync();
     }
 
@@ -327,10 +353,24 @@ public class FiloKomisyonService : IFiloKomisyonService
         }
 
         var puantajCarpani = puantaj.PuantajCarpani < 0 ? 0 : puantaj.PuantajCarpani;
-        puantaj.TahakkukEdenKurumUcreti = Math.Round(eslestirme.KurumaKesilecekUcret * puantajCarpani, 2, MidpointRounding.AwayFromZero);
+        var servisCarpani = GetServisTuruCarpani(puantaj.ServisTuru);
+        puantaj.TahakkukEdenKurumUcreti = Math.Round(eslestirme.KurumaKesilecekUcret * puantajCarpani * servisCarpani, 2, MidpointRounding.AwayFromZero);
 
         puantaj.TahakkukEdenTaseronUcreti = eslestirme.Arac.SahiplikTipi == AracSahiplikTipi.Komisyon
-            ? Math.Round(eslestirme.TaseronaOdenenUcret * puantajCarpani, 2, MidpointRounding.AwayFromZero)
+            ? Math.Round(eslestirme.TaseronaOdenenUcret * puantajCarpani * servisCarpani, 2, MidpointRounding.AwayFromZero)
             : 0;
+    }
+
+    private static decimal GetServisTuruCarpani(ServisTuru servisTuru)
+    {
+        return servisTuru switch
+        {
+            ServisTuru.Sabah => 1m,
+            ServisTuru.Aksam => 1m,
+            ServisTuru.SabahAksam => 2m,
+            ServisTuru.Ozel => 1.25m,
+            ServisTuru.YardaMesai => 1.5m,
+            _ => 1m
+        };
     }
 }

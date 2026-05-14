@@ -1,4 +1,4 @@
-﻿@using KOAFiloServis.Web.Services
+@using KOAFiloServis.Web.Services
 @using KOAFiloServis.Shared.Entities
 @using Microsoft.Extensions.Logging
 @implements IDisposable
@@ -347,54 +347,37 @@
                                 }
                             </div>
                         }
-                        @if (HasYetki("guzergahlar.oku"))
-                        {
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="guzergahlar">
-                                    <i class="bi bi-signpost-split-fill me-2"></i> Guzergahlar
-                                </NavLink>
-                            </div>
-                        }
-                        <div class="nav-item px-3">
-                            <NavLink class="nav-link" href="filo/puantaj">
-                                <i class="bi bi-journal-check me-2 text-success"></i> Filo Puantaj
-                            </NavLink>
-                        </div>
-                        <div class="nav-item px-3">
-                            <NavLink class="nav-link" href="filo-gunluk-puantaj">
-                                <i class="bi bi-calendar2-check me-2 text-success"></i> Günlük Puantaj (Yeni)
-                            </NavLink>
-                        </div>
-                        <div class="nav-item px-3">
-                            <NavLink class="nav-link" href="puantaj/eslestirme">
-                                <i class="bi bi-diagram-3 me-2 text-primary"></i> Puantaj Kalıcı Eşleştirme
-                            </NavLink>
-                        </div>
-                        <div class="nav-item px-3">
-                            <NavLink class="nav-link" href="puantaj/mutabakat">
-                                <i class="bi bi-clipboard-data me-2 text-warning"></i> Puantaj-Fatura Mutabakat
-                            </NavLink>
-                        </div>
-                        @if (HasAnyYetki("serviskontrat.oku", "tedarikciservis.oku"))
-                        {
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="servis-operasyon/kontratlar">
-                                    <i class="bi bi-clipboard2-data me-2 text-primary"></i> Özmal/Kiralık Kontratlar
-                                </NavLink>
-                            </div>
-                        }
-
                         <div class="nav-item px-3 mt-2 pt-2 border-top text-muted small">
                             <span><i class="bi bi-speedometer2 me-2"></i>Filo Yönetimi</span>
                         </div>
                         <div class="nav-item px-3">
-                            <NavLink class="nav-link" href="filo-operasyon">
-                                <i class="bi bi-gear-wide-connected me-2 text-info"></i> <strong>Filo Operasyon</strong>
+                            <NavLink class="nav-link" href="servis-operasyon/kurumlar">
+                                <i class="bi bi-building me-2 text-primary"></i> Kurumlar / Müşteri Kartları
                             </NavLink>
                         </div>
                         <div class="nav-item px-3">
-                            <NavLink class="nav-link" href="operasyonel-hakedis">
-                                <i class="bi bi-receipt-cutoff me-2 text-warning"></i> Operasyonel Hakediş
+                            <NavLink class="nav-link" href="kapasiteler">
+                                <i class="bi bi-layers me-2 text-warning"></i> Kapasiteler
+                            </NavLink>
+                        </div>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="guzergahlar">
+                                <i class="bi bi-signpost-split me-2 text-success"></i> Güzergahlar
+                            </NavLink>
+                        </div>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="operasyon/filo-gunluk-puantaj">
+                                <i class="bi bi-journal-plus me-2 text-success"></i> Toplu Puantaj
+                            </NavLink>
+                        </div>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="filo-gunluk-puantaj">
+                                <i class="bi bi-calendar2-check me-2 text-primary"></i> Filo Günlük Puantaj
+                            </NavLink>
+                        </div>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="filo-operasyon">
+                                <i class="bi bi-gear-wide-connected me-2 text-info"></i> <strong>Filo Operasyon</strong>
                             </NavLink>
                         </div>
                         <div class="nav-item px-3">

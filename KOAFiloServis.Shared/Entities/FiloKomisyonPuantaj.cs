@@ -31,6 +31,8 @@ public class FiloGuzergahEslestirme : BaseEntity
     [Required]
     public int SoforId { get; set; }
 
+    public int? KullaniciId { get; set; }
+
     public ServisTuru ServisTuru { get; set; } = ServisTuru.SabahAksam;
 
     /// <summary>
@@ -52,6 +54,8 @@ public class FiloGuzergahEslestirme : BaseEntity
     public virtual Guzergah? Guzergah { get; set; }
     public virtual Arac? Arac { get; set; }
     public virtual Sofor? Sofor { get; set; }
+    [ForeignKey(nameof(KullaniciId))]
+    public virtual Kullanici? Kullanici { get; set; }
 }
 
 /// <summary>
@@ -79,6 +83,8 @@ public class FiloGunlukPuantaj : BaseEntity
 
     [Required]
     public int SoforId { get; set; }
+
+    public int? KullaniciId { get; set; }
 
     public OperasyonDurumu Durum { get; set; } = OperasyonDurumu.Gitti;
 
@@ -143,6 +149,8 @@ public class FiloGunlukPuantaj : BaseEntity
     public virtual Guzergah? Guzergah { get; set; }
     public virtual Arac? Arac { get; set; }
     public virtual Sofor? Sofor { get; set; }
+    [ForeignKey(nameof(KullaniciId))]
+    public virtual Kullanici? Kullanici { get; set; }
     public virtual FiloGuzergahEslestirme? EslestirmeSablonu { get; set; }
 }
 

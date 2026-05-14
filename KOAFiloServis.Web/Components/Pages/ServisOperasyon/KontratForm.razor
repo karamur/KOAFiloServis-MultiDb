@@ -2,7 +2,9 @@
 @page "/servis-operasyon/kontratlar/{Id:int}"
 @attribute [Authorize]
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
 @using KOAFiloServis.Shared.Entities
+@using KOAFiloServis.Web.Data
 @using KOAFiloServis.Web.Services
 @inject IServisKontratService KontratService
 @inject ICariService CariService
@@ -10,6 +12,7 @@
 @inject IAracService AracService
 @inject ISoforService SoforService
 @inject ITasimaTedarikciService TedarikciService
+@inject IDbContextFactory<ApplicationDbContext> DbContextFactory
 @inject NavigationManager Nav
 @rendermode InteractiveServer
 
@@ -66,6 +69,13 @@
                     <button type="button" class="btn-close" @onclick='() => mesaj = null'></button>
                 </div>
             }
+            @if (!string.IsNullOrEmpty(formHata))
+            {
+                <div class="alert alert-danger alert-dismissible py-2">
+                    <i class="bi bi-exclamation-triangle me-2"></i>@formHata
+                    <button type="button" class="btn-close" @onclick='() => formHata = null'></button>
+                </div>
+            }
 
             <div class="row g-4">
                 @* Sol: Ana bilgiler *@
@@ -97,26 +107,89 @@
                                         <option value="@ServisKontratDurum.IptalEdildi">İptal Edildi</option>
                                     </select>
                                 </div>
-                                @* Güzergah *@
                                 <div class="col-md-6">
-                                    <label class="form-label small">Güzergah *</label>
-                                    <select class="form-select" @bind="kontrat.GuzergahId">
-                                        <option value="0">— Seçiniz —</option>
-                                        @foreach (var g in guzergahlar)
+                                    <label class="form-label small">Kurum Seç *</label>
+                                    <div class="input-group">
+                                        <input class="form-control" list="kurumOnerileri" @bind="kurumAramaMetni" @bind:event="oninput" @bind:after="KurumMetniDegistiAsync" placeholder="Kurum yazın, listeden seçin..." />
+                                        <button type="button" class="btn btn-outline-secondary" @onclick="KurumSecAsync" title="Girilen kurumu seç">
+                                            <i class="bi bi-check2"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary" @onclick="() => hizliKurumAcik = !hizliKurumAcik" title="Hızlı kurum kaydı">
+                                            <i class="bi bi-plus-lg"></i>
+                                        </button>
+                                    </div>
+                                    <datalist id="kurumOnerileri">
+                                        @foreach (var c in FiltreliCariOnerileri)
                                         {
-                                            <option value="@g.Id">@g.GuzergahKodu — @g.GuzergahAdi</option>
+                                            <option value="@GetCariEtiket(c)"></option>
                                         }
-                                    </select>
+                                    </datalist>
+                                    <div class="d-flex align-items-center justify-content-between mt-1">
+                                        <small class="text-muted">Yazarken kurum seçebilir, yoksa hızlı kayıt açabilirsiniz.</small>
+                                        @if (SecilenCari is not null)
+                                        {
+                                            <span class="badge bg-light text-dark border">@GetCariTipText(SecilenCari.CariTipi)</span>
+                                        }
+                                    </div>
+                                    @if (hizliKurumAcik)
+                                    {
+                                        <div class="border rounded bg-light p-2 mt-2">
+                                            <div class="row g-2">
+                                                <div class="col-md-7">
+                                                    <input class="form-control form-control-sm" @bind="hizliKurumAdi" placeholder="Yeni kurum adı" />
+                                                </div>
+                                                <div class="col-md-5">
+                                                    <select class="form-select form-select-sm" @bind="hizliKurumTipi">
+                                                        <option value="@CariTipi.Musteri">Müşteri</option>
+                                                        <option value="@CariTipi.MusteriTedarikci">Müşteri + Tedarikçi</option>
+                                                        <option value="@CariTipi.Tedarikci">Tedarikçi</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-12 d-flex justify-content-end gap-2">
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => hizliKurumAcik = false">Vazgeç</button>
+                                                    <button type="button" class="btn btn-sm btn-primary" @onclick="HizliKurumOlusturAsync" disabled="@hizliKurumYukleniyor">
+                                                        @if (hizliKurumYukleniyor)
+                                                        {
+                                                            <span class="spinner-border spinner-border-sm me-1"></span>
+                                                        }
+                                                        <i class="bi bi-save me-1"></i>Hızlı Kaydet
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
                                 </div>
-                                @* Kurum/Firma *@
                                 <div class="col-md-6">
-                                    <label class="form-label small">Fatura Kesilen Kurum/Firma</label>
-                                    <select class="form-select" @bind="kontrat.KurumCariId">
-                                        <option value="">— Seçiniz —</option>
-                                        @foreach (var c in cariler)
+                                    <label class="form-label small">Güzergah Ara / Seç</label>
+                                    <input class="form-control" list="guzergahOnerileri" @bind="guzergahAramaMetni" @bind:event="oninput" @bind:after="GuzergahMetniDegistiAsync" placeholder="Mevcut güzergah seçin veya yeni ad yazın..." disabled="@(!kontrat.KurumCariId.HasValue)" />
+                                    <datalist id="guzergahOnerileri">
+                                        @foreach (var g in FiltreliGuzergahOnerileri)
                                         {
-                                            <option value="@c.Id">@c.CariKodu — @c.Unvan</option>
+                                            <option value="@GetGuzergahEtiket(g)"></option>
                                         }
+                                    </datalist>
+                                    <small class="text-muted">Kurum seçildikten sonra o kuruma ait güzergahlar listelenir.</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small">Güzergah Kodu *</label>
+                                    <div class="input-group">
+                                        <input class="form-control" @bind="guzergahKodGirdi" @bind:event="oninput" @bind:after="GuzergahKoduElleGuncellendiAsync" placeholder="Otomatik oluşturulur" />
+                                        <button type="button" class="btn btn-outline-secondary" @onclick="GuzergahKodunuYenileAsync" title="Kodu yeniden üret">
+                                            <i class="bi bi-arrow-repeat"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small">Güzergah Adı *</label>
+                                    <input class="form-control" @bind="guzergahAdiGirdi" @bind:event="oninput" @bind:after="GuzergahAdiDegistiAsync" placeholder="Örn: Merkez - Organize Sanayi" disabled="@(!kontrat.KurumCariId.HasValue)" />
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Yön Bilgisi</label>
+                                    <select class="form-select" @bind="secilenYonBilgisi">
+                                        <option value="@SeferTipi.Sabah">Sabah</option>
+                                        <option value="@SeferTipi.Aksam">Akşam</option>
+                                        <option value="@SeferTipi.SabahAksam">Sabah + Akşam</option>
+                                        <option value="@SeferTipi.Saatlik">Saatlik</option>
                                     </select>
                                 </div>
                                 @* Başlangıç / Bitiş *@
@@ -143,18 +216,18 @@
                             <div class="card-body">
                                 <div class="row g-3">
                                     <div class="col-md-6">
-                                        <label class="form-label small">Araç</label>
-                                        <select class="form-select" @bind="kontrat.AracId">
-                                            <option value="">— Seçiniz —</option>
-                                            @foreach (var a in araclar)
-                                            {
-                                                <option value="@a.Id">@a.AktifPlaka @(a.Marka != null ? $"— {a.Marka}" : "")</option>
-                                            }
-                                        </select>
+                                            <label class="form-label small">Araç Plakası</label>
+                                            <input class="form-control" list="aracOnerileri" @bind="aracAramaMetni" @bind:event="oninput" @bind:after="AracMetniDegistiAsync" placeholder="Plaka yazın, alttan seçin..." />
+                                            <datalist id="aracOnerileri">
+                                                @foreach (var a in FiltreliAracOnerileri)
+                                                {
+                                                    <option value="@GetAracEtiket(a)"></option>
+                                                }
+                                            </datalist>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label small">Şoför / Personel</label>
-                                        <select class="form-select" @bind="kontrat.SoforId">
+                                            <select class="form-select" @bind="kontrat.SoforId" @bind:after="SoforDegistiAsync">
                                             <option value="">— Seçiniz —</option>
                                             @foreach (var s in soforler)
                                             {
@@ -162,6 +235,17 @@
                                             }
                                         </select>
                                     </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small">Personel Telefon</label>
+                                            <input class="form-control" value="@secilenSoforTelefon" readonly />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small">Firma Bağlantısı</label>
+                                            <div class="form-control bg-light d-flex justify-content-between align-items-center">
+                                                <span>@GetFirmaBaglantiMetni()</span>
+                                                <span class="badge @GetFirmaBaglantiBadge()">@GetFirmaBaglantiTipi()</span>
+                                            </div>
+                                        </div>
                                 </div>
                                 @if (kontrat.Tip == ServisKontratTip.Kiralik)
                                 {
@@ -273,6 +357,13 @@
                     <div class="card shadow-sm mt-3">
                         <div class="card-header"><i class="bi bi-journal-text me-2"></i>Notlar</div>
                         <div class="card-body">
+                            @if (kontrat.GuzergahId == 0 && kontrat.KurumCariId.HasValue && !string.IsNullOrWhiteSpace(guzergahAdiGirdi))
+                            {
+                                <div class="alert alert-warning py-2 small">
+                                    <i class="bi bi-signpost-split me-1"></i>
+                                    Bu kayıt kaydedildiğinde yeni güzergah oluşturulacak.
+                                </div>
+                            }
                             <div class="mb-2">
                                 <label class="form-label small">Açıklama</label>
                                 <input class="form-control form-control-sm" @bind="kontrat.Aciklama" />
@@ -601,21 +692,68 @@
     private bool yukleniyor = true;
     private bool kaydetYukleniyor = false;
     private string? mesaj;
+    private string? formHata;
 
     private bool yeniPuantajAcik = false;
     private bool puantajYukleniyor = false;
     private string? puantajHata;
     private ServisPuantaj yeniPuantaj = new();
+    private string kurumAramaMetni = string.Empty;
+    private string guzergahAramaMetni = string.Empty;
+    private string guzergahKodGirdi = string.Empty;
+    private string guzergahAdiGirdi = string.Empty;
+    private string aracAramaMetni = string.Empty;
+    private string secilenSoforTelefon = string.Empty;
+    private bool guzergahKoduElleDegisti;
+    private bool hizliKurumAcik;
+    private bool hizliKurumYukleniyor;
+    private string hizliKurumAdi = string.Empty;
+    private CariTipi hizliKurumTipi = CariTipi.Musteri;
+    private SeferTipi secilenYonBilgisi = SeferTipi.SabahAksam;
+    private Dictionary<int, int> aktifAracSoforMap = new();
+
+    private IEnumerable<Cari> FiltreliCariOnerileri => string.IsNullOrWhiteSpace(kurumAramaMetni)
+        ? cariler.Take(25)
+        : cariler.Where(c => GetCariEtiket(c).Contains(kurumAramaMetni, StringComparison.OrdinalIgnoreCase)).Take(25);
+
+    private IEnumerable<Guzergah> FiltreliGuzergahOnerileri
+    {
+        get
+        {
+            var query = kontrat.KurumCariId.HasValue
+                ? guzergahlar.Where(g => g.CariId == kontrat.KurumCariId.Value)
+                : guzergahlar.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(guzergahAramaMetni))
+            {
+                query = query.Where(g => GetGuzergahEtiket(g).Contains(guzergahAramaMetni, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return query.Take(25);
+        }
+    }
+
+    private IEnumerable<Arac> FiltreliAracOnerileri => string.IsNullOrWhiteSpace(aracAramaMetni)
+        ? araclar.Take(25)
+        : araclar.Where(a => GetAracEtiket(a).Contains(aracAramaMetni, StringComparison.OrdinalIgnoreCase)).Take(25);
+
+    private Cari? SecilenCari => kontrat.KurumCariId.HasValue ? cariler.FirstOrDefault(c => c.Id == kontrat.KurumCariId.Value) : null;
+    private Guzergah? SecilenGuzergah => kontrat.GuzergahId > 0 ? guzergahlar.FirstOrDefault(g => g.Id == kontrat.GuzergahId) : null;
+    private Arac? SecilenArac => kontrat.AracId.HasValue ? araclar.FirstOrDefault(a => a.Id == kontrat.AracId.Value) : null;
+    private Sofor? SecilenSofor => kontrat.SoforId.HasValue ? soforler.FirstOrDefault(s => s.Id == kontrat.SoforId.Value) : null;
+    private TasimaTedarikci? SecilenTedarikci => kontrat.TasimaTedarikciId.HasValue ? tedarikciler.FirstOrDefault(t => t.Id == kontrat.TasimaTedarikciId.Value) : null;
 
     protected override async Task OnParametersSetAsync()
     {
         yukleniyor = true;
+        formHata = null;
         await Task.WhenAll(
             YukleCariler(),
             YukleGuzergahlar(),
             YukleAraclar(),
             YukleSoforler(),
-            YukleTedarikciler()
+            YukleTedarikciler(),
+            YukleAracAtamalari()
         );
 
         if (Id.HasValue)
@@ -623,6 +761,7 @@
             kontrat = await KontratService.GetAsync(Id.Value) ?? kontrat;
             await IliskileriYukle();
         }
+        FormAlanlariniEsle();
         yukleniyor = false;
     }
 
@@ -653,6 +792,17 @@
         tedarikciIsler = await TedarikciService.GetIslerAsync();
     }
 
+    private async Task YukleAracAtamalari()
+    {
+        await using var context = await DbContextFactory.CreateDbContextAsync();
+        aktifAracSoforMap = await context.PersonelAracAtamalari
+            .AsNoTracking()
+            .Where(x => !x.IsDeleted && x.Aktif && (x.BitisTarihi == null || x.BitisTarihi >= DateTime.Today))
+            .GroupBy(x => x.AracId)
+            .Select(g => g.OrderByDescending(x => x.BaslangicTarihi).First())
+            .ToDictionaryAsync(x => x.AracId, x => x.SoforId);
+    }
+
     private async Task IliskileriYukle()
     {
         if (!Id.HasValue) return;
@@ -662,7 +812,35 @@
 
     private async Task Kaydet()
     {
-        if (kontrat.GuzergahId <= 0) { mesaj = null; return; }
+        formHata = null;
+        mesaj = null;
+
+        if (!kontrat.KurumCariId.HasValue)
+        {
+            formHata = "Lütfen bir kurum seçin.";
+            return;
+        }
+
+        await HazirlaGuzergahAsync();
+
+        if (kontrat.GuzergahId <= 0)
+        {
+            formHata = "Lütfen bir güzergah seçin veya yeni güzergah bilgilerini girin.";
+            return;
+        }
+
+        if ((kontrat.Tip == ServisKontratTip.Ozmal || kontrat.Tip == ServisKontratTip.Kiralik) && !kontrat.AracId.HasValue)
+        {
+            formHata = "Lütfen araç plakası seçin.";
+            return;
+        }
+
+        if ((kontrat.Tip == ServisKontratTip.Ozmal || kontrat.Tip == ServisKontratTip.Kiralik) && !kontrat.SoforId.HasValue)
+        {
+            formHata = "Lütfen personel seçin.";
+            return;
+        }
+
         kaydetYukleniyor = true;
         try
         {
@@ -687,6 +865,222 @@
         if (!Id.HasValue) return;
         await KontratService.DeleteAsync(Id.Value);
         Nav.NavigateTo("/servis-operasyon/kontratlar");
+    }
+
+    private void FormAlanlariniEsle()
+    {
+        if (SecilenCari is not null)
+        {
+            kurumAramaMetni = GetCariEtiket(SecilenCari);
+        }
+
+        if (SecilenGuzergah is not null)
+        {
+            guzergahAramaMetni = GetGuzergahEtiket(SecilenGuzergah);
+            guzergahKodGirdi = SecilenGuzergah.GuzergahKodu;
+            guzergahAdiGirdi = SecilenGuzergah.GuzergahAdi;
+            secilenYonBilgisi = SecilenGuzergah.SeferTipi;
+        }
+
+        if (SecilenArac is not null)
+        {
+            aracAramaMetni = GetAracEtiket(SecilenArac);
+        }
+
+        secilenSoforTelefon = SecilenSofor?.Telefon ?? string.Empty;
+    }
+
+    private async Task KurumMetniDegistiAsync()
+    {
+        var match = CariBul(kurumAramaMetni);
+        if (match is null)
+        {
+            kontrat.KurumCariId = null;
+            if (SecilenGuzergah is not null)
+            {
+                kontrat.GuzergahId = 0;
+            }
+            return;
+        }
+
+        kontrat.KurumCariId = match.Id;
+        kurumAramaMetni = GetCariEtiket(match);
+        await GuncelleGuzergahKodOnerisiAsync();
+    }
+
+    private async Task KurumSecAsync()
+    {
+        await KurumMetniDegistiAsync();
+        if (!kontrat.KurumCariId.HasValue)
+        {
+            formHata = "Girilen ifade ile eşleşen kurum bulunamadı.";
+        }
+    }
+
+    private async Task GuzergahMetniDegistiAsync()
+    {
+        var match = GuzergahBul(guzergahAramaMetni);
+        if (match is not null)
+        {
+            kontrat.GuzergahId = match.Id;
+            guzergahKodGirdi = match.GuzergahKodu;
+            guzergahAdiGirdi = match.GuzergahAdi;
+            secilenYonBilgisi = match.SeferTipi;
+            guzergahAramaMetni = GetGuzergahEtiket(match);
+            if ((!kontrat.TahsilatBirimFiyat.HasValue || kontrat.TahsilatBirimFiyat == 0) && match.BirimFiyat > 0)
+            {
+                kontrat.TahsilatBirimFiyat = match.BirimFiyat;
+            }
+            return;
+        }
+
+        kontrat.GuzergahId = 0;
+        guzergahAdiGirdi = guzergahAramaMetni?.Trim() ?? string.Empty;
+        await GuncelleGuzergahKodOnerisiAsync();
+    }
+
+    private async Task GuzergahAdiDegistiAsync()
+    {
+        kontrat.GuzergahId = 0;
+        if (!guzergahKoduElleDegisti)
+        {
+            await GuncelleGuzergahKodOnerisiAsync();
+        }
+    }
+
+    private Task GuzergahKoduElleGuncellendiAsync()
+    {
+        guzergahKoduElleDegisti = !string.IsNullOrWhiteSpace(guzergahKodGirdi);
+        return Task.CompletedTask;
+    }
+
+    private async Task GuzergahKodunuYenileAsync()
+    {
+        guzergahKoduElleDegisti = false;
+        await GuncelleGuzergahKodOnerisiAsync();
+    }
+
+    private async Task GuncelleGuzergahKodOnerisiAsync()
+    {
+        if (SecilenCari is null)
+        {
+            return;
+        }
+
+        var onerilenKod = BuildGuzergahKodu(SecilenCari.Unvan, guzergahAdiGirdi);
+        if (string.IsNullOrWhiteSpace(onerilenKod))
+        {
+            onerilenKod = await GuzergahService.GenerateNextKodAsync();
+        }
+
+        guzergahKodGirdi = onerilenKod;
+    }
+
+    private async Task AracMetniDegistiAsync()
+    {
+        var match = AracBul(aracAramaMetni);
+        if (match is null)
+        {
+            kontrat.AracId = null;
+            return;
+        }
+
+        kontrat.AracId = match.Id;
+        aracAramaMetni = GetAracEtiket(match);
+
+        if (aktifAracSoforMap.TryGetValue(match.Id, out var soforId))
+        {
+            kontrat.SoforId = soforId;
+        }
+
+        await SoforDegistiAsync();
+    }
+
+    private Task SoforDegistiAsync()
+    {
+        secilenSoforTelefon = SecilenSofor?.Telefon ?? string.Empty;
+        return Task.CompletedTask;
+    }
+
+    private async Task HazirlaGuzergahAsync()
+    {
+        if (kontrat.GuzergahId > 0)
+        {
+            return;
+        }
+
+        if (!kontrat.KurumCariId.HasValue || string.IsNullOrWhiteSpace(guzergahAdiGirdi))
+        {
+            return;
+        }
+
+        var mevcut = guzergahlar.FirstOrDefault(g =>
+            g.CariId == kontrat.KurumCariId.Value
+            && string.Equals(g.GuzergahAdi.Trim(), guzergahAdiGirdi.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (mevcut is not null)
+        {
+            kontrat.GuzergahId = mevcut.Id;
+            guzergahKodGirdi = mevcut.GuzergahKodu;
+            guzergahAramaMetni = GetGuzergahEtiket(mevcut);
+            secilenYonBilgisi = mevcut.SeferTipi;
+            return;
+        }
+
+        var kod = string.IsNullOrWhiteSpace(guzergahKodGirdi)
+            ? await GuzergahService.GenerateNextKodAsync()
+            : guzergahKodGirdi.Trim().ToUpperInvariant();
+
+        var yeniGuzergah = new Guzergah
+        {
+            GuzergahKodu = kod,
+            GuzergahAdi = guzergahAdiGirdi.Trim(),
+            CariId = kontrat.KurumCariId.Value,
+            BirimFiyat = kontrat.TahsilatBirimFiyat ?? 0,
+            VarsayilanAracId = kontrat.AracId,
+            VarsayilanSoforId = kontrat.SoforId,
+            SeferTipi = secilenYonBilgisi,
+            Aktif = true
+        };
+
+        var olusan = await GuzergahService.CreateAsync(yeniGuzergah);
+        guzergahlar = await GuzergahService.GetAllAsync();
+        kontrat.GuzergahId = olusan.Id;
+        guzergahAramaMetni = GetGuzergahEtiket(olusan);
+        guzergahKodGirdi = olusan.GuzergahKodu;
+    }
+
+    private async Task HizliKurumOlusturAsync()
+    {
+        if (string.IsNullOrWhiteSpace(hizliKurumAdi))
+        {
+            formHata = "Hızlı kayıt için kurum adı girin.";
+            return;
+        }
+
+        hizliKurumYukleniyor = true;
+        try
+        {
+            var yeniCari = new Cari
+            {
+                CariKodu = await CariService.GenerateNextKodAsync(),
+                Unvan = hizliKurumAdi.Trim(),
+                CariTipi = hizliKurumTipi,
+                Aktif = true
+            };
+
+            var olusan = await CariService.CreateAsync(yeniCari);
+            cariler = await CariService.GetAllAsync();
+            kontrat.KurumCariId = olusan.Id;
+            kurumAramaMetni = GetCariEtiket(olusan);
+            hizliKurumAdi = string.Empty;
+            hizliKurumAcik = false;
+            await GuncelleGuzergahKodOnerisiAsync();
+        }
+        finally
+        {
+            hizliKurumYukleniyor = false;
+        }
     }
 
     private void YeniPuantajAc()
@@ -775,4 +1169,157 @@
         ServisFiyatTip.Gunluk => "günlük",
         _ => t.ToString()
     };
+
+    private static string GetCariEtiket(Cari cari)
+        => string.IsNullOrWhiteSpace(cari.CariKodu)
+            ? cari.Unvan
+            : $"{cari.Unvan} [{cari.CariKodu}]";
+
+    private static string GetGuzergahEtiket(Guzergah guzergah)
+        => $"{guzergah.GuzergahKodu} - {guzergah.GuzergahAdi}";
+
+    private static string GetAracEtiket(Arac arac)
+    {
+        var plaka = arac.AktifPlaka ?? arac.AktifPlakaKaydi?.Plaka ?? arac.SaseNo;
+        return string.IsNullOrWhiteSpace(arac.Marka) ? plaka : $"{plaka} - {arac.Marka}";
+    }
+
+    private Cari? CariBul(string? metin)
+    {
+        if (string.IsNullOrWhiteSpace(metin))
+        {
+            return null;
+        }
+
+        var temiz = metin.Trim();
+        return cariler.FirstOrDefault(c => string.Equals(GetCariEtiket(c), temiz, StringComparison.OrdinalIgnoreCase))
+            ?? cariler.FirstOrDefault(c => string.Equals(c.Unvan, temiz, StringComparison.OrdinalIgnoreCase))
+            ?? cariler.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c.CariKodu) && string.Equals(c.CariKodu, temiz, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private Guzergah? GuzergahBul(string? metin)
+    {
+        if (string.IsNullOrWhiteSpace(metin))
+        {
+            return null;
+        }
+
+        var temiz = metin.Trim();
+        return FiltreliGuzergahOnerileri.FirstOrDefault(g => string.Equals(GetGuzergahEtiket(g), temiz, StringComparison.OrdinalIgnoreCase))
+            ?? FiltreliGuzergahOnerileri.FirstOrDefault(g => string.Equals(g.GuzergahAdi, temiz, StringComparison.OrdinalIgnoreCase))
+            ?? FiltreliGuzergahOnerileri.FirstOrDefault(g => string.Equals(g.GuzergahKodu, temiz, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private Arac? AracBul(string? metin)
+    {
+        if (string.IsNullOrWhiteSpace(metin))
+        {
+            return null;
+        }
+
+        var temiz = metin.Trim();
+        return araclar.FirstOrDefault(a => string.Equals(GetAracEtiket(a), temiz, StringComparison.OrdinalIgnoreCase))
+            ?? araclar.FirstOrDefault(a => string.Equals(a.AktifPlaka, temiz, StringComparison.OrdinalIgnoreCase))
+            ?? araclar.FirstOrDefault(a => a.AktifPlakaKaydi != null && string.Equals(a.AktifPlakaKaydi.Plaka, temiz, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private string GetCariTipText(CariTipi cariTipi) => cariTipi switch
+    {
+        CariTipi.Musteri => "Cari / Müşteri",
+        CariTipi.Tedarikci => "Cari / Tedarikçi",
+        CariTipi.MusteriTedarikci => "Cari / Müşteri+Tedarikçi",
+        CariTipi.Personel => "Cari / Personel",
+        _ => "Cari"
+    };
+
+    private string GetFirmaBaglantiMetni()
+    {
+        if (kontrat.Tip == ServisKontratTip.Tedarikci && SecilenTedarikci is not null)
+        {
+            return SecilenTedarikci.Unvan;
+        }
+
+        if (SecilenArac?.TasimaTedarikciId is int tasimaTedarikciId)
+        {
+            return tedarikciler.FirstOrDefault(x => x.Id == tasimaTedarikciId)?.Unvan ?? $"Tedarikçi #{tasimaTedarikciId}";
+        }
+
+        if (SecilenArac?.KiralikCariId is int kiralikCariId)
+        {
+            return cariler.FirstOrDefault(x => x.Id == kiralikCariId)?.Unvan ?? $"Cari #{kiralikCariId}";
+        }
+
+        if (SecilenArac?.KomisyoncuCariId is int komisyonCariId)
+        {
+            return cariler.FirstOrDefault(x => x.Id == komisyonCariId)?.Unvan ?? $"Cari #{komisyonCariId}";
+        }
+
+        if (SecilenSofor?.TasimaTedarikciId is int soforTedarikciId)
+        {
+            return tedarikciler.FirstOrDefault(x => x.Id == soforTedarikciId)?.Unvan ?? $"Tedarikçi #{soforTedarikciId}";
+        }
+
+        return "İç kaynak / özmal";
+    }
+
+    private string GetFirmaBaglantiTipi()
+    {
+        if (kontrat.Tip == ServisKontratTip.Tedarikci || SecilenArac?.TasimaTedarikciId != null || SecilenSofor?.TasimaTedarikciId != null)
+        {
+            return "Tedarikçi";
+        }
+
+        if (SecilenArac?.KiralikCariId != null || SecilenArac?.KomisyoncuCariId != null)
+        {
+            return "Cari";
+        }
+
+        return "Özmal";
+    }
+
+    private string GetFirmaBaglantiBadge() => GetFirmaBaglantiTipi() switch
+    {
+        "Tedarikçi" => "bg-success",
+        "Cari" => "bg-primary",
+        _ => "bg-secondary"
+    };
+
+    private static string BuildGuzergahKodu(string? kurumAdi, string? guzergahAdi)
+    {
+        static string NormalizePart(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return string.Empty;
+            }
+
+            var chars = value
+                .ToUpperInvariant()
+                .Where(char.IsLetterOrDigit)
+                .Take(6)
+                .ToArray();
+
+            return new string(chars);
+        }
+
+        var kurumParca = NormalizePart(kurumAdi);
+        var guzergahParca = NormalizePart(guzergahAdi);
+
+        if (string.IsNullOrWhiteSpace(kurumParca) && string.IsNullOrWhiteSpace(guzergahParca))
+        {
+            return string.Empty;
+        }
+
+        if (string.IsNullOrWhiteSpace(kurumParca))
+        {
+            return $"GZR-{guzergahParca}";
+        }
+
+        if (string.IsNullOrWhiteSpace(guzergahParca))
+        {
+            return $"{kurumParca}-GZR";
+        }
+
+        return $"{kurumParca}-{guzergahParca}";
+    }
 }

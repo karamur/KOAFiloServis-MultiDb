@@ -1,4 +1,4 @@
-@page "/ai-asistan"
+﻿@page "/ai-asistan"
 @using System.Text
 @using System.Text.RegularExpressions
 @using KOAFiloServis.Web.Services
@@ -25,15 +25,27 @@
                 </div>
                 <div class="d-flex gap-2">
                     <!-- Model Seçimi -->
-                    <div class="input-group" style="width: 200px;">
+                    <div class="input-group" style="width: 240px;">
                         <span class="input-group-text"><i class="bi bi-cpu"></i></span>
                         <select class="form-select form-select-sm" @bind="selectedModel" @bind:after="OnModelChanged" disabled="@isLoading">
-                            @if (availableModels.Any())
+                            @{
+                                var birlesikModeller = GetBirlesikModelListesi();
+                                var yuklu = new HashSet<string>(availableModels, StringComparer.OrdinalIgnoreCase);
+                            }
+                            @if (birlesikModeller.Any())
                             {
-                                @foreach (var model in availableModels)
-                                {
-                                    <option value="@model">@model</option>
-                                }
+                                <optgroup label="Yerel (Ollama)">
+                                    @foreach (var model in birlesikModeller.Where(m => yuklu.Contains(m)))
+                                    {
+                                        <option value="@model">@model</option>
+                                    }
+                                </optgroup>
+                                <optgroup label="Önerilen (yüklü değil)">
+                                    @foreach (var model in birlesikModeller.Where(m => !yuklu.Contains(m)))
+                                    {
+                                        <option value="@model">@model (indir: ollama pull @model)</option>
+                                    }
+                                </optgroup>
                             }
                             else
                             {
@@ -287,6 +299,14 @@
         "C# ile basit bir örnek kod yaz",
         "Araç bakım takibi nasıl yapılır?"
     };
+
+    private List<string> GetBirlesikModelListesi()
+    {
+        var onTanililar = new[] { "llama3.2", "llama3", "mistral", "phi3", "gemma2", "deepseek-coder-v2" };
+        var list = new HashSet<string>(availableModels, StringComparer.OrdinalIgnoreCase);
+        foreach (var t in onTanililar) list.Add(t);
+        return list.OrderBy(x => x).ToList();
+    }
 
     protected override async Task OnInitializedAsync()
     {

@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using KOAFiloServis.Web.Services;
 using KOAFiloServis.Shared.Entities;
@@ -43,7 +43,14 @@ public class GuzergahlarController : ControllerBase
             Mesafe = g.Mesafe,
             TahminiSure = g.TahminiSure,
             BirimFiyat = g.BirimFiyat,
-            Aktif = g.Aktif
+            Aktif = g.Aktif,
+            SeferTipi = g.SeferTipi,
+            PersonelSayisi = g.PersonelSayisi,
+            VarsayilanAracId = g.VarsayilanAracId,
+            VarsayilanSoforId = g.VarsayilanSoforId,
+            FirmaId = g.FirmaId,
+            CariId = g.CariId,
+            Notlar = g.Notlar
         });
 
         return Ok(result);
@@ -69,7 +76,14 @@ public class GuzergahlarController : ControllerBase
             Mesafe = guzergah.Mesafe,
             TahminiSure = guzergah.TahminiSure,
             BirimFiyat = guzergah.BirimFiyat,
-            Aktif = guzergah.Aktif
+            Aktif = guzergah.Aktif,
+            SeferTipi = guzergah.SeferTipi,
+            PersonelSayisi = guzergah.PersonelSayisi,
+            VarsayilanAracId = guzergah.VarsayilanAracId,
+            VarsayilanSoforId = guzergah.VarsayilanSoforId,
+            FirmaId = guzergah.FirmaId,
+            CariId = guzergah.CariId,
+            Notlar = guzergah.Notlar
         });
     }
 
@@ -91,7 +105,14 @@ public class GuzergahlarController : ControllerBase
             Mesafe = dto.Mesafe,
             TahminiSure = dto.TahminiSure,
             BirimFiyat = dto.BirimFiyat ?? 0,
-            Aktif = dto.Aktif ?? true
+            Aktif = dto.Aktif ?? true,
+            SeferTipi = dto.SeferTipi,
+            PersonelSayisi = dto.PersonelSayisi,
+            VarsayilanAracId = dto.VarsayilanAracId,
+            VarsayilanSoforId = dto.VarsayilanSoforId,
+            FirmaId = dto.FirmaId,
+            CariId = dto.CariId,
+            Notlar = dto.Notlar
         };
 
         await _guzergahService.CreateAsync(guzergah);
@@ -106,7 +127,14 @@ public class GuzergahlarController : ControllerBase
             Mesafe = guzergah.Mesafe,
             TahminiSure = guzergah.TahminiSure,
             BirimFiyat = guzergah.BirimFiyat,
-            Aktif = guzergah.Aktif
+            Aktif = guzergah.Aktif,
+            SeferTipi = guzergah.SeferTipi,
+            PersonelSayisi = guzergah.PersonelSayisi,
+            VarsayilanAracId = guzergah.VarsayilanAracId,
+            VarsayilanSoforId = guzergah.VarsayilanSoforId,
+            FirmaId = guzergah.FirmaId,
+            CariId = guzergah.CariId,
+            Notlar = guzergah.Notlar
         });
     }
 
@@ -144,6 +172,27 @@ public class GuzergahlarController : ControllerBase
         if (dto.Aktif.HasValue)
             guzergah.Aktif = dto.Aktif.Value;
 
+        if (dto.SeferTipi.HasValue)
+            guzergah.SeferTipi = dto.SeferTipi.Value;
+
+        if (dto.PersonelSayisi.HasValue)
+            guzergah.PersonelSayisi = dto.PersonelSayisi.Value;
+
+        if (dto.VarsayilanAracId.HasValue)
+            guzergah.VarsayilanAracId = dto.VarsayilanAracId.Value;
+
+        if (dto.VarsayilanSoforId.HasValue)
+            guzergah.VarsayilanSoforId = dto.VarsayilanSoforId.Value;
+
+        if (dto.FirmaId.HasValue)
+            guzergah.FirmaId = dto.FirmaId.Value;
+
+        if (dto.CariId.HasValue)
+            guzergah.CariId = dto.CariId.Value;
+
+        if (dto.Notlar != null)
+            guzergah.Notlar = dto.Notlar;
+
         await _guzergahService.UpdateAsync(guzergah);
 
         return Ok(new GuzergahDto
@@ -156,7 +205,14 @@ public class GuzergahlarController : ControllerBase
             Mesafe = guzergah.Mesafe,
             TahminiSure = guzergah.TahminiSure,
             BirimFiyat = guzergah.BirimFiyat,
-            Aktif = guzergah.Aktif
+            Aktif = guzergah.Aktif,
+            SeferTipi = guzergah.SeferTipi,
+            PersonelSayisi = guzergah.PersonelSayisi,
+            VarsayilanAracId = guzergah.VarsayilanAracId,
+            VarsayilanSoforId = guzergah.VarsayilanSoforId,
+            FirmaId = guzergah.FirmaId,
+            CariId = guzergah.CariId,
+            Notlar = guzergah.Notlar
         });
     }
 
@@ -187,6 +243,13 @@ public class GuzergahDto
     public int? TahminiSure { get; set; }
     public decimal? BirimFiyat { get; set; }
     public bool Aktif { get; set; }
+    public SeferTipi SeferTipi { get; set; }
+    public int PersonelSayisi { get; set; }
+    public int? VarsayilanAracId { get; set; }
+    public int? VarsayilanSoforId { get; set; }
+    public int? FirmaId { get; set; }
+    public int CariId { get; set; }
+    public string? Notlar { get; set; }
 }
 
 public class GuzergahCreateDto
@@ -199,6 +262,13 @@ public class GuzergahCreateDto
     public int? TahminiSure { get; set; }
     public decimal? BirimFiyat { get; set; }
     public bool? Aktif { get; set; }
+    public SeferTipi SeferTipi { get; set; } = SeferTipi.SabahAksam;
+    public int PersonelSayisi { get; set; } = 0;
+    public int? VarsayilanAracId { get; set; }
+    public int? VarsayilanSoforId { get; set; }
+    public int? FirmaId { get; set; }
+    public int CariId { get; set; }
+    public string? Notlar { get; set; }
 }
 
 public class GuzergahUpdateDto
@@ -211,4 +281,11 @@ public class GuzergahUpdateDto
     public int? TahminiSure { get; set; }
     public decimal? BirimFiyat { get; set; }
     public bool? Aktif { get; set; }
+    public SeferTipi? SeferTipi { get; set; }
+    public int? PersonelSayisi { get; set; }
+    public int? VarsayilanAracId { get; set; }
+    public int? VarsayilanSoforId { get; set; }
+    public int? FirmaId { get; set; }
+    public int? CariId { get; set; }
+    public string? Notlar { get; set; }
 }

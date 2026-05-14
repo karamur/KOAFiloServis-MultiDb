@@ -1,10 +1,16 @@
-@page "/guzergahlar/yeni"
+﻿@page "/guzergahlar/yeni"
 @page "/guzergahlar/{Id:int}"
 @using KOAFiloServis.Shared.Entities
 @using KOAFiloServis.Web.Services
 @using KOAFiloServis.Web.Components.Shared
+@using KOAFiloServis.Web.Data
+@using Microsoft.EntityFrameworkCore
 @inject IGuzergahService GuzergahService
 @inject ICariService CariService
+@inject IKurumService KurumService
+@inject IAracService AracService
+@inject ISoforService SoforService
+@inject IDbContextFactory<ApplicationDbContext> DbContextFactory
 @inject NavigationManager Navigation
 @rendermode InteractiveServer
 
@@ -166,10 +172,85 @@
                 </div>
 
                 <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Firma (Kurum)</label>
+                            <InputSelect @bind-Value="guzergah.FirmaId" class="form-select">
+                                <option value="">-- Kurum Seçiniz --</option>
+                                @foreach (var kurum in kurumlar)
+                                {
+                                    <option value="@kurum.Id">@kurum.KurumAdi</option>
+                                }
+                            </InputSelect>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Sefer Tipi</label>
+                            <InputSelect @bind-Value="guzergah.SeferTipi" @bind-Value:after="SeferTipiDegistiAsync" class="form-select">
+                                @foreach (var tip in Enum.GetValues<SeferTipi>())
+                                {
+                                    <option value="@tip">@tip</option>
+                                }
+                            </InputSelect>
+                            <small class="text-muted">Sefer çarpanı: <strong>@GetSeferTipiCarpani(guzergah.SeferTipi).ToString("N2")</strong></small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Personel Sayısı</label>
+                            <InputNumber @bind-Value="guzergah.PersonelSayisi" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Varsayılan Araç</label>
+                            <InputSelect @bind-Value="guzergah.VarsayilanAracId" @bind-Value:after="AracSecimiDegistiAsync" class="form-select">
+                                <option value="">-- Araç Seçiniz --</option>
+                                @foreach (var arac in araclar)
+                                {
+                                    <option value="@arac.Id">@arac.Plaka</option>
+                                }
+                            </InputSelect>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Varsayılan Şoför</label>
+                            <InputSelect @bind-Value="guzergah.VarsayilanSoforId" @bind-Value:after="SoforDegistiAsync" class="form-select">
+                                <option value="">-- Şoför Seçiniz --</option>
+                                @foreach (var sofor in soforler)
+                                {
+                                    <option value="@sofor.Id">@sofor.Ad @sofor.Soyad</option>
+                                }
+                            </InputSelect>
+                        </div>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(secilenSoforBilgisi))
+                {
+                    <div class="alert alert-info py-2">
+                        <div><strong>Personel:</strong> @secilenSoforBilgisi</div>
+                        <div><strong>Telefon:</strong> @(string.IsNullOrWhiteSpace(secilenSoforTelefon) ? "-" : secilenSoforTelefon)</div>
+                        <div><strong>Firma:</strong> @(string.IsNullOrWhiteSpace(secilenSoforFirma) ? "-" : secilenSoforFirma)</div>
+                    </div>
+                }
+
+                <div class="row">
                     <div class="col-md-4">
                         <div class="mb-3">
-                            <label class="form-label">Birim Fiyat (?) *</label>
-                            <InputNumber @bind-Value="guzergah.BirimFiyat" class="form-control" />
+                            <label class="form-label text-success fw-semibold">Gelir Fiyatı *</label>
+                            <InputNumber @bind-Value="guzergah.GelirFiyat" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label text-danger fw-semibold">Gider Fiyatı *</label>
+                            <InputNumber @bind-Value="guzergah.GiderFiyat" class="form-control" />
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -221,6 +302,14 @@
 
     private Guzergah guzergah = new();
     private List<Cari> cariler = new();
+    private List<Kurum> kurumlar = new();
+    private List<Arac> araclar = new();
+    private List<Sofor> soforler = new();
+    private Dictionary<int, PersonelAracInfo> aktifAracSoforMap = new();
+    private string? secilenSoforBilgisi;
+    private string? secilenSoforTelefon;
+    private string? secilenSoforFirma;
+    private decimal oncekiSeferTipiCarpani = 1m;
     private bool IsEdit => Id.HasValue;
 
     // Harita değişkenleri
@@ -231,6 +320,10 @@
     protected override async Task OnInitializedAsync()
     {
         cariler = await CariService.GetByTipAsync(CariTipi.Musteri);
+        kurumlar = await KurumService.GetAktifAsync();
+        araclar = await AracService.GetActiveAsync();
+        soforler = await SoforService.GetActiveAsync();
+        await YukleAktifAracSoforMapAsync();
 
         if (IsEdit)
         {
@@ -255,6 +348,10 @@
             guzergah.Aktif = true;
             guzergah.RotaRengi = "#3388ff";
         }
+
+        oncekiSeferTipiCarpani = GetSeferTipiCarpani(guzergah.SeferTipi);
+        await AracSecimiDegistiAsync();
+        await SoforDegistiAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -372,6 +469,9 @@
         if (string.IsNullOrWhiteSpace(guzergah.GuzergahAdi) || guzergah.CariId == 0)
             return;
 
+        if (guzergah.GelirFiyat < 0 || guzergah.GiderFiyat < 0)
+            return;
+
         if (IsEdit)
         {
             await GuzergahService.UpdateAsync(guzergah);
@@ -387,4 +487,85 @@
     {
         Navigation.NavigateTo("/guzergahlar");
     }
+
+    private async Task YukleAktifAracSoforMapAsync()
+    {
+        await using var context = await DbContextFactory.CreateDbContextAsync();
+
+        var atamalar = await context.PersonelAracAtamalari
+            .AsNoTracking()
+            .Where(a => !a.IsDeleted && a.Aktif)
+            .Where(a => a.BitisTarihi == null || a.BitisTarihi >= DateTime.Today)
+            .Include(a => a.Sofor)
+                .ThenInclude(s => s.Firma)
+            .OrderByDescending(a => a.BaslangicTarihi)
+            .ToListAsync();
+
+        aktifAracSoforMap = atamalar
+            .GroupBy(a => a.AracId)
+            .Select(g => g.First())
+            .ToDictionary(
+                a => a.AracId,
+                a => new PersonelAracInfo(
+                    a.SoforId,
+                    a.Sofor.TamAd,
+                    a.Sofor.Telefon,
+                    a.Sofor.Firma?.FirmaAdi));
+    }
+
+    private Task AracSecimiDegistiAsync()
+    {
+        if (!guzergah.VarsayilanAracId.HasValue)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (aktifAracSoforMap.TryGetValue(guzergah.VarsayilanAracId.Value, out var info))
+        {
+            guzergah.VarsayilanSoforId = info.SoforId;
+            secilenSoforBilgisi = info.AdSoyad;
+            secilenSoforTelefon = info.Telefon;
+            secilenSoforFirma = info.FirmaAdi;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task SoforDegistiAsync()
+    {
+        var secilen = soforler.FirstOrDefault(s => s.Id == guzergah.VarsayilanSoforId);
+        secilenSoforBilgisi = secilen?.TamAd;
+        secilenSoforTelefon = secilen?.Telefon;
+        secilenSoforFirma = secilen?.Firma?.FirmaAdi;
+        return Task.CompletedTask;
+    }
+
+    private Task SeferTipiDegistiAsync()
+    {
+        var yeniCarpan = GetSeferTipiCarpani(guzergah.SeferTipi);
+        if (oncekiSeferTipiCarpani <= 0)
+        {
+            oncekiSeferTipiCarpani = 1m;
+        }
+
+        var oran = yeniCarpan / oncekiSeferTipiCarpani;
+        guzergah.GelirFiyat = Math.Round(guzergah.GelirFiyat * oran, 2, MidpointRounding.AwayFromZero);
+        guzergah.GiderFiyat = Math.Round(guzergah.GiderFiyat * oran, 2, MidpointRounding.AwayFromZero);
+        oncekiSeferTipiCarpani = yeniCarpan;
+        return Task.CompletedTask;
+    }
+
+    private static decimal GetSeferTipiCarpani(SeferTipi seferTipi)
+    {
+        return seferTipi switch
+        {
+            SeferTipi.Sabah => 1m,
+            SeferTipi.Aksam => 1m,
+            SeferTipi.SabahAksam => 2m,
+            SeferTipi.Saatlik => 1.25m,
+            _ => 1m
+        };
+    }
+
+    private sealed record PersonelAracInfo(int SoforId, string AdSoyad, string? Telefon, string? FirmaAdi);
 }

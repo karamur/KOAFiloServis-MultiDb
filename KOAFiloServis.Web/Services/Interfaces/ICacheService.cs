@@ -85,6 +85,11 @@ public static class CacheKeys
     // Güzergah
     public static string GuzergahListesi => Prefix + "Guzergah:Liste";
     public static string GuzergahAktif => Prefix + "Guzergah:Aktif";
+
+    // Kapasite
+    public static string KapasiteListesi => Prefix + "Kapasite:Liste";
+    public static string KapasiteAktif => Prefix + "Kapasite:Aktif";
+    public static string KapasitePrefix => Prefix + "Kapasite:";
     
     // Fatura
     public static string FaturaListesi => Prefix + "Fatura:Liste";

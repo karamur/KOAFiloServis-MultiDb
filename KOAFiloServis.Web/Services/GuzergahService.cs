@@ -1,4 +1,4 @@
-using KOAFiloServis.Shared.Entities;
+﻿using KOAFiloServis.Shared.Entities;
 using KOAFiloServis.Web.Data;
 using KOAFiloServis.Web.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -103,8 +103,17 @@ public class GuzergahService : IGuzergahService
         existing.GuzergahAdi = guzergah.GuzergahAdi;
         existing.BaslangicNoktasi = guzergah.BaslangicNoktasi;
         existing.BitisNoktasi = guzergah.BitisNoktasi;
+        existing.BaslangicLatitude = guzergah.BaslangicLatitude;
+        existing.BaslangicLongitude = guzergah.BaslangicLongitude;
+        existing.BitisLatitude = guzergah.BitisLatitude;
+        existing.BitisLongitude = guzergah.BitisLongitude;
+        existing.RotaRengi = guzergah.RotaRengi;
         existing.Mesafe = guzergah.Mesafe;
         existing.TahminiSure = guzergah.TahminiSure;
+        existing.GelirFiyat = guzergah.GelirFiyat;
+        existing.GiderFiyat = guzergah.GiderFiyat;
+        existing.SeferTipi = guzergah.SeferTipi;
+        existing.PersonelSayisi = guzergah.PersonelSayisi;
         existing.CariId = guzergah.CariId;
         existing.FirmaId = guzergah.FirmaId;
         existing.VarsayilanAracId = guzergah.VarsayilanAracId;

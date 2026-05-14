@@ -302,7 +302,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        firmalar = (await FirmaService.GetAllAsync()).ToList();
+        firmalar = (await FirmaService.GetAktifFirmalarAsync()).ToList();
         if (firmalar.Count > 0) firmaId = firmalar[0].Id;
         await VerileriYukle();
     }

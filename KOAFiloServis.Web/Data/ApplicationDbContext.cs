@@ -64,6 +64,9 @@ public class ApplicationDbContext : DbContext
     public DbSet<Cari> Cariler { get; set; }
     public DbSet<CariSeferUcreti> CariSeferUcretleri { get; set; }
 
+    // Kapasite Modulu
+    public DbSet<Kapasite> Kapasiteler { get; set; }
+
     // Filo Servis Modulu
     public DbSet<Sofor> Soforler { get; set; }
     public DbSet<Arac> Araclar { get; set; }
@@ -126,6 +129,9 @@ public class ApplicationDbContext : DbContext
 
     // Sistem Modulu
     public DbSet<AktiviteLog> AktiviteLoglar { get; set; }
+
+    // Kurumlar Modülü
+    public DbSet<Kurum> Kurumlar { get; set; }
 
     // Aylik Odeme Modulu
     public DbSet<AylikOdemePlani> AylikOdemePlanlari { get; set; }
@@ -560,6 +566,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.GuzergahKodu).HasMaxLength(50);
             entity.Property(e => e.GuzergahAdi).HasMaxLength(200);
             entity.Property(e => e.BirimFiyat).HasPrecision(18, 2);
+            entity.Property(e => e.GiderFiyat).HasPrecision(18, 2);
             entity.Property(e => e.Mesafe).HasPrecision(10, 2);
             entity.HasOne(e => e.Cari)
                 .WithMany(c => c.Guzergahlar)
@@ -584,6 +591,21 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.MasrafKodu).HasMaxLength(50);
             entity.Property(e => e.MasrafAdi).HasMaxLength(200);
             entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // Kapasite
+        modelBuilder.Entity<Kapasite>(entity =>
+        {
+            entity.HasIndex(e => new { e.SirketId, e.KapasiteAdi }).IsUnique();
+            entity.Property(e => e.KapasiteAdi).HasMaxLength(100);
+            entity.Property(e => e.Aciklama).HasMaxLength(500);
+            entity.Property(e => e.Carpan).HasPrecision(18, 2);
+            entity.HasOne(e => e.Sirket)
+                .WithMany()
+                .HasForeignKey(e => e.SirketId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(e => !e.IsDeleted &&
+                (TenantFilterDisabled || e.SirketId == null || e.SirketId == TenantId));
         });
 
         // Araç Masraf
@@ -1837,11 +1859,25 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<FaturaSablon>()
             .HasQueryFilter(e => !e.IsDeleted && (e.Firma == null || !e.Firma.IsDeleted));
 
-        modelBuilder.Entity<FiloGuzergahEslestirme>()
-            .HasQueryFilter(e => !e.IsDeleted && (e.Arac == null || !e.Arac.IsDeleted));
+        modelBuilder.Entity<FiloGuzergahEslestirme>(entity =>
+        {
+            entity.HasOne(e => e.Kullanici)
+                .WithMany()
+                .HasForeignKey(e => e.KullaniciId)
+                .OnDelete(DeleteBehavior.SetNull);
 
-        modelBuilder.Entity<FiloGunlukPuantaj>()
-            .HasQueryFilter(e => !e.IsDeleted && (e.Arac == null || !e.Arac.IsDeleted));
+            entity.HasQueryFilter(e => !e.IsDeleted && (e.Arac == null || !e.Arac.IsDeleted));
+        });
+
+        modelBuilder.Entity<FiloGunlukPuantaj>(entity =>
+        {
+            entity.HasOne(e => e.Kullanici)
+                .WithMany()
+                .HasForeignKey(e => e.KullaniciId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasQueryFilter(e => !e.IsDeleted && (e.Arac == null || !e.Arac.IsDeleted));
+        });
 
         // FirmaAracSoforEslestirme - Kurum+Araç+Şoför kalıcı eşleştirme
         modelBuilder.Entity<FirmaAracSoforEslestirme>(entity =>

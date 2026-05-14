@@ -1,3 +1,5 @@
+﻿using System.ComponentModel.DataAnnotations.Schema;
+
 namespace KOAFiloServis.Shared.Entities;
 
 /// <summary>
@@ -28,6 +30,15 @@ public class Guzergah : BaseEntity
     public string? RotaRengi { get; set; } = "#3388ff";
 
     public decimal BirimFiyat { get; set; }
+    public decimal GiderFiyat { get; set; }
+
+    // UI uyumluluğu: Gelir fiyatı, mevcut BirimFiyat alanını kullanır.
+    [NotMapped]
+    public decimal GelirFiyat
+    {
+        get => BirimFiyat;
+        set => BirimFiyat = value;
+    }
     public decimal? Mesafe { get; set; } // km
     public int? TahminiSure { get; set; } // dakika
     public bool Aktif { get; set; } = true;

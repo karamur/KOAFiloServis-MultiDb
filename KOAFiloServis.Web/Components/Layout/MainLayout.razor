@@ -78,6 +78,10 @@
                         </div>
 
                         <div class="d-flex align-items-center gap-2">
+                            <button class="btn btn-sm btn-outline-info border" title="Puantaj ve Fatura Kılavuzu"
+                                    data-bs-toggle="modal" data-bs-target="#yardimKilavuzModal">
+                                <i class="bi bi-question-circle"></i>
+                            </button>
                             <button class="btn btn-sm @(isDarkMode ? "btn-warning" : "btn-outline-secondary") border"
                                     title="@(isDarkMode ? "Açık Tema" : "Koyu Tema")"
                                     @onclick="ToggleDarkMode">
@@ -149,6 +153,27 @@
                         @Body
                     </article>
                 </main>
+            </div>
+
+            <!-- Yardım Kılavuzu Modal -->
+            <div class="modal fade" id="yardimKilavuzModal" tabindex="-1" aria-labelledby="yardimKilavuzModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header bg-info bg-opacity-25">
+                            <h5 class="modal-title" id="yardimKilavuzModalLabel"><i class="bi bi-journal-text me-2"></i>Puantaj ve Faturalama Kılavuzu</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <iframe src="/docs/puantaj-ve-fatura-kilavuzu.md" style="width: 100%; height: 60vh; border: none;"></iframe>
+                            <div class="alert alert-light mt-3">
+                                <strong>1.</strong> Önce `Puantaj Kalıcı Eşleştirme` menüsünden şablonlarınızı oluşturun.<br />
+                                <strong>2.</strong> Günlük olarak `Filo Puantaj` sayfasından seferleri işleyin.<br />
+                                <strong>3.</strong> Dönem sonunda `Puantaj-Fatura Mutabakat` sayfasında sağlama yapın.<br />
+                                <strong>4.</strong> Mutabakatlara dayanarak Faturalarınızı (Gelir/Gider) oluşturun.
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <KOAFiloServis.Web.Components.Shared.ToastContainer />

@@ -1,4 +1,4 @@
-@page "/guzergahlar"
+﻿@page "/guzergahlar"
 @using KOAFiloServis.Shared.Entities
 @using KOAFiloServis.Web.Services
 @using KOAFiloServis.Web.Components.Shared
@@ -126,7 +126,8 @@
                                     <th>Firma</th>
                                     <th>Başlangıç</th>
                                     <th>Bitiş</th>
-                                    <th>Birim Fiyat</th>
+                                    <th>Gelir Fiyatı</th>
+                                    <th>Gider Fiyatı</th>
                                     <th>Konum</th>
                                     <th>Durum</th>
                                     <th style="width: 120px;">İşlemler</th>
@@ -141,7 +142,8 @@
                                         <td>@guzergah.Cari?.Unvan</td>
                                         <td>@guzergah.BaslangicNoktasi</td>
                                         <td>@guzergah.BitisNoktasi</td>
-                                        <td><strong>@guzergah.BirimFiyat.ToString("N2") ₺</strong></td>
+                                        <td><strong class="text-success">@guzergah.GelirFiyat.ToString("N2") ₺</strong></td>
+                                        <td><strong class="text-danger">@guzergah.GiderFiyat.ToString("N2") ₺</strong></td>
                                         <td>
                                             @if (guzergah.BaslangicLatitude.HasValue && guzergah.BitisLatitude.HasValue)
                                             {

@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 REM ============================================================
 REM  KOAFiloServis - Setup EXE Uretici (cift tikla calistir)
 REM  - Admin'e yukseltir

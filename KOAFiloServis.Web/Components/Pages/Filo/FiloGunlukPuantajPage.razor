@@ -1,4 +1,5 @@
 @page "/filo-gunluk-puantaj"
+@page "/operasyon/filo-gunluk-puantaj"
 @using KOAFiloServis.Shared.Entities
 @using KOAFiloServis.Web.Data
 @using KOAFiloServis.Web.Services
@@ -7,6 +8,7 @@
 @using Microsoft.EntityFrameworkCore
 @inject IDbContextFactory<ApplicationDbContext> DbContextFactory
 @inject IFirmaService FirmaService
+@inject IKurumService KurumService
 @inject IAracService AracService
 @inject ISoforService SoforService
 @inject IGuzergahService GuzergahService
@@ -36,15 +38,31 @@
             </div>
             <div class="card-body">
                 <div class="row g-2 mb-3">
-                    <div class="col-md-3">
-                        <label class="form-label small">Kurum *</label>
-                        <select class="form-select form-select-sm" value="@secilenKurumId" @onchange="KurumSecimiDegisti">
-                            <option value="0">-- Kurum Seçiniz --</option>
-                            @foreach (var f in firmalar)
-                            {
-                                <option value="@f.Id">@f.FirmaAdi</option>
-                            }
-                        </select>
+                    <div class="col-md-3 position-relative">
+                        <label class="form-label small">Kurum / Müşteri Kartı *</label>
+                        <input class="form-control form-control-sm" placeholder="Kurum adı yazın..." value="@kurumArama" @oninput="KurumAramaGuncelle" />
+                        @if (filtreliKurumlar.Any() && secilenKurumId == 0)
+                        {
+                            <div class="list-group position-absolute w-100 shadow-sm" style="z-index:1050; max-height:220px; overflow:auto;">
+                                @foreach (var k in filtreliKurumlar)
+                                {
+                                    <button type="button" class="list-group-item list-group-item-action py-1" @onclick="() => KurumSec(k)">
+                                        <strong>@k.KurumAdi</strong>
+                                        @if (k.CariId.HasValue)
+                                        {
+                                            <small class="text-muted ms-1">(Cari: @k.CariId)</small>
+                                        }
+                                    </button>
+                                }
+                            </div>
+                        }
+                        @if (secilenKurumId > 0)
+                        {
+                            <div class="mt-1">
+                                <span class="badge bg-primary">Kurum Seçildi</span>
+                                <button type="button" class="btn btn-link btn-sm p-0 ms-2" @onclick="KurumTemizle">Temizle</button>
+                            </div>
+                        }
                     </div>
                     <div class="col-md-2">
                         <label class="form-label small">Kapasite</label>
@@ -477,6 +495,11 @@
 @code {
     private bool topluPanelAcik = false;
     private int secilenKurumId = 0;
+    private int secilenKurumCariId = 0;
+    private int secilenKurumFirmaId = 0;
+    private string kurumArama = string.Empty;
+    private List<Kurum> kurumlar = new();
+    private List<Kurum> filtreliKurumlar = new();
     private int secilenKapasite = 0;
     private int secilenGun = DateTime.Today.Day;
     private decimal secilenSeferSayisi = 1m;
@@ -514,6 +537,8 @@
         araclar = await AracService.GetActiveAsync();
         soforler = await SoforService.GetActiveAsync();
         guzergahlar = await GuzergahService.GetAllAsync();
+        kurumlar = await KurumService.GetAktifAsync();
+        await LoadEslestirmelerAsync();
         await LoadAsync();
     }
 
@@ -533,7 +558,7 @@
 
     private IEnumerable<FiloGuzergahEslestirme> FiltreliEslestirmeler =>
         tumEslestirmeler
-            .Where(x => secilenKurumId == 0 || x.KurumFirmaId == secilenKurumId)
+            .Where(x => secilenKurumFirmaId == 0 || x.KurumFirmaId == secilenKurumFirmaId)
             .Where(x => string.IsNullOrWhiteSpace(puantajAramaMetni)
                 || (x.Guzergah?.GuzergahAdi ?? string.Empty).Contains(puantajAramaMetni, StringComparison.OrdinalIgnoreCase)
                 || (x.Arac?.AktifPlaka ?? string.Empty).Contains(puantajAramaMetni, StringComparison.OrdinalIgnoreCase)
@@ -551,11 +576,45 @@
         }
     }
 
-    private void KurumSecimiDegisti(ChangeEventArgs e)
+    private void KurumAramaGuncelle(ChangeEventArgs e)
     {
-        if (int.TryParse(e?.Value?.ToString(), out var kurumId)) secilenKurumId = kurumId;
-        else secilenKurumId = 0;
+        kurumArama = e?.Value?.ToString() ?? string.Empty;
+        secilenKurumId = 0;
+        secilenKurumCariId = 0;
+        secilenKurumFirmaId = 0;
+        topluSatirlar.Clear();
+        satirDetayAcik.Clear();
 
+        if (kurumArama.Length < 1)
+        {
+            filtreliKurumlar = new();
+            return;
+        }
+
+        filtreliKurumlar = kurumlar
+            .Where(k => (k.KurumAdi ?? string.Empty).Contains(kurumArama, StringComparison.OrdinalIgnoreCase)
+                     || (k.UnvanTam ?? string.Empty).Contains(kurumArama, StringComparison.OrdinalIgnoreCase))
+            .Take(10)
+            .ToList();
+    }
+
+    private void KurumSec(Kurum kurum)
+    {
+        secilenKurumId = kurum.Id;
+        secilenKurumCariId = kurum.CariId ?? 0;
+        kurumArama = kurum.KurumAdi;
+        filtreliKurumlar = new();
+        topluSatirlar.Clear();
+        satirDetayAcik.Clear();
+    }
+
+    private void KurumTemizle()
+    {
+        secilenKurumId = 0;
+        secilenKurumCariId = 0;
+        secilenKurumFirmaId = 0;
+        kurumArama = string.Empty;
+        filtreliKurumlar = new();
         topluSatirlar.Clear();
         satirDetayAcik.Clear();
     }
@@ -568,12 +627,13 @@
             return;
         }
 
-        var seciliKurum = firmalar.FirstOrDefault(f => f.Id == secilenKurumId);
+        var seciliKurumKart = kurumlar.FirstOrDefault(k => k.Id == secilenKurumId);
+        var seciliFirmaId = secilenKurumFirmaId;
         topluSatirlar = FiltreliEslestirmeler.Select(es => new TopluPuantajSatiri
         {
             EslestirmeId = es.Id,
-            KurumId = es.KurumFirmaId,
-            KurumAdi = seciliKurum?.FirmaAdi ?? es.KurumFirma?.FirmaAdi ?? "-",
+            KurumId = seciliFirmaId,
+            KurumAdi = seciliKurumKart?.KurumAdi ?? es.KurumFirma?.FirmaAdi ?? "-",
             GuzergahId = es.GuzergahId,
             GuzergahAdi = es.Guzergah?.GuzergahAdi ?? "-",
             AracId = es.AracId,
@@ -588,7 +648,9 @@
             Gun = secilenGun,
             SeferSayisi = secilenSeferSayisi,
             FirmaTipi = FirmaTipiniBelirle(es.Arac)
-        }).ToList();
+        })
+        .Where(s => s.KurumId > 0 && guzergahlar.Any(g => g.Id == s.GuzergahId && (g.CariId == secilenKurumCariId || (g.FirmaId.HasValue && g.FirmaId == secilenKurumFirmaId))))
+        .ToList();
 
         satirDetayAcik = topluSatirlar.ToDictionary(x => x.EslestirmeId, _ => false);
         if (!topluSatirlar.Any()) ToastService.ShowInfo("Seçili kurum için eşleştirme bulunamadı.");
@@ -641,7 +703,8 @@
 
             await ctx.SaveChangesAsync();
             ToastService.ShowSuccess($"{topluSatirlar.Count} satır toplu puantaj kaydedildi.");
-            await LoadAsync();
+            await LoadEslestirmelerAsync();
+        await LoadAsync();
             topluSatirlar.Clear();
             satirDetayAcik.Clear();
         }
@@ -689,6 +752,7 @@
         filtreBaslangic = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
         filtreBitis = DateTime.Today;
         filtreKurumId = 0; filtreAracId = 0; filtreServisTuru = "";
+        await LoadEslestirmelerAsync();
         await LoadAsync();
     }
 
@@ -842,7 +906,8 @@
                 kayitModalAcik = true;
             }
             else { kayitModalAcik = false; }
-            await LoadAsync();
+            await LoadEslestirmelerAsync();
+        await LoadAsync();
         }
         catch (Exception ex)
         {
@@ -862,7 +927,8 @@
             ctx.FiloGunlukPuantajlar.Remove(entity);
             await ctx.SaveChangesAsync();
             ToastService.ShowSuccess("Kayıt silindi.");
-            await LoadAsync();
+            await LoadEslestirmelerAsync();
+        await LoadAsync();
         }
         catch (Exception ex) { ToastService.ShowError(ex.Message); }
     }

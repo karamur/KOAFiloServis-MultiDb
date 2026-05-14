@@ -3,12 +3,15 @@
 @using KOAFiloServis.Web.Services.Interfaces
 @using KOAFiloServis.Web.Services
 @inject IFiloKomisyonService FiloKomisyonService
+@inject IGuzergahService GuzergahService
+@inject IKapasiteService KapasiteService
 @inject IFirmaService FirmaService
+@inject IKullaniciService KullaniciService
 @inject IToastService ToastService
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @rendermode InteractiveServer
 
-<PageTitle>Eşleştirme Şablonları</PageTitle>
+<PageTitle>Servis Operasyon Güzergahları</PageTitle>
 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -16,9 +19,14 @@
             <h3 class="mb-0"><i class="bi bi-link-45deg me-2 text-primary"></i>Araç, Şoför ve Güzergah Eşleme Havuzu</h3>
             <small class="text-muted">Özmal veya komisyonlu (taşeron) servislerin otomatik puantaj üretmeden önceki şablon tanımları</small>
         </div>
-        <button class="btn btn-primary" @onclick="YeniEkleModalAc">
-            <i class="bi bi-plus-lg me-1"></i> Yeni Eşleşme Ekle
-        </button>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary" @onclick="PuantajModalAc">
+                <i class="bi bi-calendar-plus me-1"></i> Puantaj Oluştur
+            </button>
+            <button class="btn btn-primary" @onclick="YeniEkleModalAc">
+                <i class="bi bi-plus-lg me-1"></i> Yeni Eşleşme Ekle
+            </button>
+        </div>
     </div>
 
     @if (isLoading)
@@ -85,6 +93,37 @@
                                             </button>
                                         </td>
                                     </tr>
+
+                                    @if (olusanPuantajlarByEslestirme.TryGetValue(e.Id, out var olusanPuantajlar) && olusanPuantajlar.Any())
+                                    {
+                                        <tr class="table-light">
+                                            <td></td>
+                                            <td colspan="8">
+                                                <div class="small text-muted mb-1">Oluşturulan puantaj kayıtları</div>
+                                                <table class="table table-sm mb-0">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="width: 180px;">Gün</th>
+                                                            <th style="width: 120px;">Sefer Sayısı</th>
+                                                            <th style="width: 220px;">Kapasite</th>
+                                                            <th>Not</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @foreach (var puantaj in olusanPuantajlar.OrderByDescending(p => p.Tarih))
+                                                        {
+                                                            <tr>
+                                                                <td>@puantaj.Tarih.ToString("dd.MM.yyyy")</td>
+                                                                <td>@puantaj.SeferSayisi.ToString("N2")</td>
+                                                                <td>@GetKapasiteMetni(puantaj.Notlar)</td>
+                                                                <td>@(string.IsNullOrWhiteSpace(puantaj.Notlar) ? "-" : puantaj.Notlar)</td>
+                                                            </tr>
+                                                        }
+                                                    </tbody>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                    }
                                 }
                             }
                         </tbody>
@@ -108,7 +147,7 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label">Müşteri/Kurum <span class="text-danger">*</span></label>
-                            <select class="form-select" @bind="model.KurumFirmaId">
+                            <select class="form-select" @bind="model.KurumFirmaId" @bind:after="KurumSecimiDegistiAsync">
                                 <option value="0">-- Müşteri Seçin --</option>
                                 @foreach(var k in cariListesi) {
                                     <option value="@k.Id">@k.Unvan</option>
@@ -175,23 +214,138 @@
     </div>
 }
 
+@if (isPuantajModalOpen)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title">Toplu Puantaj Oluştur</h5>
+                    <button type="button" class="btn-close" @onclick="PuantajModalKapat"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-5">
+                            <label class="form-label">Kurum <span class="text-danger">*</span></label>
+                            <select class="form-select" @bind="seciliPuantajKurumFirmaId" @bind:after="PuantajKurumDegistiAsync">
+                                <option value="0">-- Önce Kurum Seçin --</option>
+                                @foreach (var kurum in puantajKurumListesi)
+                                {
+                                    <option value="@kurum.Id">@kurum.FirmaAdi</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-7 d-flex align-items-end">
+                            <div class="alert alert-info mb-0 py-2 w-100">
+                                Kurum seçimi sonrası eşleşmeler otomatik yüklenir. Gün, sefer sayısı ve kapasiteyi satır bazında güncelleyebilirsiniz.
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (seciliPuantajKurumFirmaId > 0)
+                    {
+                        <div class="table-responsive border rounded">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 45px;">
+                                            <input type="checkbox" class="form-check-input" checked="@tumSatirlarSecili" @onchange="TumSatirlariSec" />
+                                        </th>
+                                        <th>Kurum</th>
+                                        <th>Güzergah</th>
+                                        <th>Araç</th>
+                                        <th>Şoför</th>
+                                        <th>Firma</th>
+                                        <th>Gelir</th>
+                                        <th>Gider</th>
+                                        <th style="min-width: 170px;">Kapasite</th>
+                                        <th style="min-width: 140px;">Gün</th>
+                                        <th style="min-width: 130px;">Sefer Sayısı</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (!puantajSatirlari.Any())
+                                    {
+                                        <tr>
+                                            <td colspan="11" class="text-center py-3 text-muted">Seçilen kurum için aktif eşleştirme bulunamadı.</td>
+                                        </tr>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var satir in puantajSatirlari)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    <input type="checkbox" class="form-check-input" @bind="satir.Secili" />
+                                                </td>
+                                                <td>@satir.KurumAdi</td>
+                                                <td>@satir.GuzergahAdi</td>
+                                                <td>@satir.AracPlaka</td>
+                                                <td>@satir.SoforAdi</td>
+                                                <td>@satir.FirmaAdi</td>
+                                                <td class="text-success fw-semibold">@satir.GelirFiyati.ToString("N2")</td>
+                                                <td class="text-danger fw-semibold">@satir.GiderFiyati.ToString("N2")</td>
+                                                <td>
+                                                    <select class="form-select form-select-sm" @bind="satir.KapasiteId">
+                                                        <option value="">-- Kapasite --</option>
+                                                        @foreach (var kapasite in kapasiteListesi)
+                                                        {
+                                                            <option value="@kapasite.Id">@kapasite.KapasiteAdi</option>
+                                                        }
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <input type="date" class="form-control form-control-sm" @bind="satir.Tarih" />
+                                                </td>
+                                                <td>
+                                                    <input type="number" min="0.01" step="0.01" class="form-control form-control-sm" @bind="satir.SeferSayisi" />
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="PuantajModalKapat">İptal</button>
+                    <button type="button" class="btn btn-primary" @onclick="TopluPuantajOlusturAsync" disabled="@(!puantajSatirlari.Any(s => s.Secili))">
+                        Seçili Satırlardan Puantaj Oluştur
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private bool isLoading = true;
     private bool isModalOpen = false;
+    private bool isPuantajModalOpen = false;
     private int aktifFirmaId;
     private List<FiloGuzergahEslestirme> eslestirmeler = new();
+    private Kullanici? aktifKullanici;
 
     // Lookups
     private List<Cari> cariListesi = new();
     private List<Guzergah> guzergahListesi = new();
     private List<Arac> aracListesi = new();
     private List<Sofor> soforListesi = new();
+    private List<Kapasite> kapasiteListesi = new();
+
+    private List<Firma> puantajKurumListesi = new();
+    private int seciliPuantajKurumFirmaId;
+    private bool tumSatirlarSecili = true;
+    private List<PuantajSatirModel> puantajSatirlari = new();
+    private readonly Dictionary<int, List<FiloGunlukPuantaj>> olusanPuantajlarByEslestirme = new();
 
     private FiloGuzergahEslestirme model = new();
 
     protected override async Task OnInitializedAsync()
     {
         aktifFirmaId = FirmaService.GetAktifFirma().FirmaId;
+        aktifKullanici = await KullaniciService.GetAktifKullaniciAsync();
         await LoadLookups();
         await ListeYenile();
     }
@@ -202,6 +356,7 @@
         aracListesi = await FiloKomisyonService.GetAraclarAsync(aktifFirmaId);
         guzergahListesi = await FiloKomisyonService.GetGuzergahlarAsync();
         soforListesi = await FiloKomisyonService.GetSoforlerAsync();
+        kapasiteListesi = await KapasiteService.GetActiveAsync();
     }
 
     private async Task ListeYenile()
@@ -221,13 +376,126 @@
         }
     }
 
-    private void YeniEkleModalAc()
+    private void PuantajModalAc()
+    {
+        puantajKurumListesi = eslestirmeler
+            .Where(e => e.IsActive && e.KurumFirma is not null)
+            .Select(e => e.KurumFirma!)
+            .DistinctBy(k => k.Id)
+            .OrderBy(k => k.FirmaAdi)
+            .ToList();
+
+        seciliPuantajKurumFirmaId = 0;
+        puantajSatirlari.Clear();
+        tumSatirlarSecili = true;
+        isPuantajModalOpen = true;
+    }
+
+    private void PuantajModalKapat()
+    {
+        isPuantajModalOpen = false;
+    }
+
+    private Task PuantajKurumDegistiAsync()
+    {
+        puantajSatirlari = eslestirmeler
+            .Where(e => e.IsActive && e.KurumFirmaId == seciliPuantajKurumFirmaId)
+            .Select(e => new PuantajSatirModel
+            {
+                Secili = true,
+                EslestirmeId = e.Id,
+                KurumFirmaId = e.KurumFirmaId,
+                KurumAdi = e.KurumFirma?.FirmaAdi ?? "-",
+                GuzergahId = e.GuzergahId,
+                GuzergahAdi = e.Guzergah?.GuzergahAdi ?? "-",
+                AracId = e.AracId,
+                AracPlaka = e.Arac?.AktifPlaka ?? e.Arac?.AktifPlakaKaydi?.Plaka ?? "-",
+                SoforId = e.SoforId,
+                SoforAdi = e.Sofor?.TamAd ?? "-",
+                FirmaAdi = GetOperasyonFirmaAdi(e),
+                GelirFiyati = e.KurumaKesilecekUcret,
+                GiderFiyati = e.TaseronaOdenenUcret,
+                ServisTuru = e.ServisTuru,
+                Tarih = DateTime.Today,
+                SeferSayisi = 1m
+            })
+            .ToList();
+
+        tumSatirlarSecili = puantajSatirlari.Any();
+        return Task.CompletedTask;
+    }
+
+    private void TumSatirlariSec(ChangeEventArgs args)
+    {
+        var secili = args.Value is bool b && b;
+        tumSatirlarSecili = secili;
+
+        foreach (var satir in puantajSatirlari)
+            satir.Secili = secili;
+    }
+
+    private async Task TopluPuantajOlusturAsync()
+    {
+        if (seciliPuantajKurumFirmaId == 0)
+        {
+            ToastService.ShowError("Önce kurum seçiniz.");
+            return;
+        }
+
+        var secilenSatirlar = puantajSatirlari.Where(s => s.Secili).ToList();
+        if (!secilenSatirlar.Any())
+        {
+            ToastService.ShowError("Puantaj üretmek için en az bir satır seçiniz.");
+            return;
+        }
+
+        var olusturulan = 0;
+        foreach (var satir in secilenSatirlar)
+        {
+            var kapasiteAdi = satir.KapasiteId.HasValue
+                ? kapasiteListesi.FirstOrDefault(k => k.Id == satir.KapasiteId.Value)?.KapasiteAdi
+                : null;
+
+            var puantaj = new FiloGunlukPuantaj
+            {
+                FirmaId = aktifFirmaId,
+                Tarih = satir.Tarih.Date,
+                FiloGuzergahEslestirmeId = satir.EslestirmeId,
+                KurumFirmaId = satir.KurumFirmaId,
+                GuzergahId = satir.GuzergahId,
+                AracId = satir.AracId,
+                SoforId = satir.SoforId,
+                Durum = OperasyonDurumu.Gitti,
+                ServisTuru = satir.ServisTuru,
+                SeferSayisi = satir.SeferSayisi <= 0 ? 1m : satir.SeferSayisi,
+                PuantajCarpani = 1m,
+                Notlar = string.IsNullOrWhiteSpace(kapasiteAdi) ? null : $"Kapasite: {kapasiteAdi}"
+            };
+
+            var kaydedilen = await FiloKomisyonService.CreatePuantajAsync(puantaj);
+            if (!olusanPuantajlarByEslestirme.TryGetValue(satir.EslestirmeId, out var liste))
+            {
+                liste = new List<FiloGunlukPuantaj>();
+                olusanPuantajlarByEslestirme[satir.EslestirmeId] = liste;
+            }
+            liste.Add(kaydedilen);
+            olusturulan++;
+        }
+
+        ToastService.ShowSuccess($"{olusturulan} puantaj kaydı oluşturuldu.");
+        isPuantajModalOpen = false;
+        await ListeYenile();
+    }
+
+    private async Task YeniEkleModalAc()
     {
         model = new FiloGuzergahEslestirme { FirmaId = aktifFirmaId, IsActive = true };
+        await KurumSecimiDegistiAsync();
+        VarsayilanSoforuAta();
         isModalOpen = true;
     }
 
-    private void DuzenleModalAc(FiloGuzergahEslestirme esleme)
+    private async Task DuzenleModalAc(FiloGuzergahEslestirme esleme)
     {
         model = new FiloGuzergahEslestirme
         {
@@ -241,6 +509,7 @@
             TaseronaOdenenUcret = esleme.TaseronaOdenenUcret,
             IsActive = esleme.IsActive
         };
+        await KurumSecimiDegistiAsync();
         if (!SecilenAracKomisyonMu())
             model.TaseronaOdenenUcret = 0;
         isModalOpen = true;
@@ -283,6 +552,30 @@
         }
     }
 
+    private async Task KurumSecimiDegistiAsync()
+    {
+        if (model.KurumFirmaId > 0)
+            guzergahListesi = await GuzergahService.GetByCariIdAsync(model.KurumFirmaId);
+        else
+            guzergahListesi = await FiloKomisyonService.GetGuzergahlarAsync();
+
+        if (model.GuzergahId > 0 && !guzergahListesi.Any(g => g.Id == model.GuzergahId))
+            model.GuzergahId = 0;
+    }
+
+    private void VarsayilanSoforuAta()
+    {
+        if (model.SoforId > 0)
+            return;
+
+        var aktifKullaniciSoforId = aktifKullanici?.SoforId;
+        if (!aktifKullaniciSoforId.HasValue)
+            return;
+
+        if (soforListesi.Any(s => s.Id == aktifKullaniciSoforId.Value))
+            model.SoforId = aktifKullaniciSoforId.Value;
+    }
+
     private Task AracSecimiDegistiAsync()
     {
         if (!SecilenAracKomisyonMu())
@@ -302,4 +595,53 @@
     private static string GetSahiplikAlertClass(AracSahiplikTipi sahiplikTipi) => SahiplikHelper.GetAlertClass(sahiplikTipi);
 
     private static string GetSahiplikAciklama(AracSahiplikTipi sahiplikTipi) => SahiplikHelper.GetAciklama(sahiplikTipi);
+
+    private static string GetOperasyonFirmaAdi(FiloGuzergahEslestirme eslestirme)
+    {
+        if (eslestirme.Arac?.TasimaTedarikci is not null)
+            return eslestirme.Arac.TasimaTedarikci.Unvan;
+
+        if (eslestirme.Arac?.KomisyoncuCari is not null)
+            return eslestirme.Arac.KomisyoncuCari.Unvan;
+
+        if (eslestirme.Arac?.KiralikCari is not null)
+            return eslestirme.Arac.KiralikCari.Unvan;
+
+        if (eslestirme.Sofor?.Firma is not null)
+            return eslestirme.Sofor.Firma.FirmaAdi;
+
+        return "Özmal";
+    }
+
+    private static string GetKapasiteMetni(string? not)
+    {
+        if (string.IsNullOrWhiteSpace(not))
+            return "-";
+
+        const string prefix = "Kapasite: ";
+        return not.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            ? not[prefix.Length..]
+            : "-";
+    }
+
+    private sealed class PuantajSatirModel
+    {
+        public bool Secili { get; set; }
+        public int EslestirmeId { get; set; }
+        public int KurumFirmaId { get; set; }
+        public string KurumAdi { get; set; } = string.Empty;
+        public int GuzergahId { get; set; }
+        public string GuzergahAdi { get; set; } = string.Empty;
+        public int AracId { get; set; }
+        public string AracPlaka { get; set; } = string.Empty;
+        public int SoforId { get; set; }
+        public string SoforAdi { get; set; } = string.Empty;
+        public string FirmaAdi { get; set; } = string.Empty;
+        public decimal GelirFiyati { get; set; }
+        public decimal GiderFiyati { get; set; }
+        public int? KapasiteId { get; set; }
+        public DateTime Tarih { get; set; }
+        public decimal SeferSayisi { get; set; }
+        public ServisTuru ServisTuru { get; set; }
+    }
 }
