@@ -25,13 +25,13 @@ public class FiloKomisyonService : IFiloKomisyonService
             .Include(e => e.KurumFirma)
             .Include(e => e.Guzergah)
             .Include(e => e.Arac)
-                .ThenInclude(a => a.KiralikCari)
+                .ThenInclude(a => a!.KiralikCari)
             .Include(e => e.Arac)
-                .ThenInclude(a => a.KomisyoncuCari)
+                .ThenInclude(a => a!.KomisyoncuCari)
             .Include(e => e.Arac)
-                .ThenInclude(a => a.TasimaTedarikci)
+                .ThenInclude(a => a!.TasimaTedarikci)
             .Include(e => e.Sofor)
-                .ThenInclude(s => s.Firma)
+                .ThenInclude(s => s!.Firma)
             .Include(e => e.Kullanici)
             .Where(e => !e.IsDeleted);
 
