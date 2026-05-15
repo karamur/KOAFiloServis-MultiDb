@@ -67,6 +67,10 @@ public class Guzergah : BaseEntity
     // Foreign Key - Cari (eski uyumluluk için)
     public int CariId { get; set; }
 
+    // Kurum / Müşteri Kartı İlişkisi (opsiyonel, güzergahın bağlı olduğu kurum)
+    public int? KurumId { get; set; }
+    public virtual Kurum? Kurum { get; set; }
+
     // Navigation Properties
     public virtual Cari Cari { get; set; } = null!;
     public virtual ICollection<ServisCalisma> ServisCalismalari { get; set; } = new List<ServisCalisma>();

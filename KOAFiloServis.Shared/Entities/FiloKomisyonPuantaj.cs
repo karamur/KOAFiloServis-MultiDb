@@ -129,6 +129,12 @@ public class FiloGunlukPuantaj : BaseEntity
     public bool TaseronOdemeYapildiMi { get; set; } = false;
 
     /// <summary>
+    /// Puantaj onaylandı mı? Onaylanmış kayıtlar toplu yeniden hesapla işleminden etkilenmez.
+    /// </summary>
+    public bool Onaylandi { get; set; } = false;
+    public DateTime? OnayTarihi { get; set; }
+
+    /// <summary>
     /// Özmal/Kiralık araçlar için o sefer için hesaplanan birim maliyet snapshot'u
     /// </summary>
     public decimal? MaliyetOzmalKiralik { get; set; }

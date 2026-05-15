@@ -24,6 +24,9 @@ public class GuzergahService : IGuzergahService
                 .AsNoTracking()
                 .Include(g => g.Cari)
                 .Include(g => g.Firma)
+                .Include(g => g.Kurum)
+                .Include(g => g.VarsayilanArac)
+                .Include(g => g.VarsayilanSofor)
                 .Where(g => g.Cari == null || !g.Cari.IsDeleted)
                 .OrderBy(g => g.GuzergahAdi)
                 .ToListAsync();
@@ -72,6 +75,7 @@ public class GuzergahService : IGuzergahService
             .AsNoTracking()
             .Include(g => g.Cari)
             .Include(g => g.Firma)
+            .Include(g => g.Kurum)
             .Include(g => g.VarsayilanArac)
             .Include(g => g.VarsayilanSofor)
             .FirstOrDefaultAsync(g => g.Id == id);
@@ -115,6 +119,7 @@ public class GuzergahService : IGuzergahService
         existing.SeferTipi = guzergah.SeferTipi;
         existing.PersonelSayisi = guzergah.PersonelSayisi;
         existing.CariId = guzergah.CariId;
+        existing.KurumId = guzergah.KurumId;
         existing.FirmaId = guzergah.FirmaId;
         existing.VarsayilanAracId = guzergah.VarsayilanAracId;
         existing.VarsayilanSoforId = guzergah.VarsayilanSoforId;
