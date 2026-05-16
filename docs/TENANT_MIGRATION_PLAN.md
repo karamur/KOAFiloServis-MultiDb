@@ -29,8 +29,8 @@
 | Aşama | Açıklama | Durum | Commit/Migration |
 |------|----------|------|------------------|
 | A | Plan + IFirmaTenant + IAktifFirmaProvider + FirmaService bug fix | ✅ tamam | (commit edilecek) |
-| B | Firma.CariId kaldır, Cari.SirketId deprecate, DbContext global filter | ⏳ devam | - |
-| C | Master entity'lere FirmaId zorunlu (Cari, Kurum, Guzergah, Sofor, Arac, BankaHesap, Stok, MasrafKalemi…) | ⬜ bekliyor | - |
+| B | Firma.CariId kaldır, Cari.SirketId deprecate, DbContext global filter | ✅ tamam | (commit edilecek) |
+| C | Master entity'lere FirmaId zorunlu (Cari, Kurum, Guzergah, Sofor, Arac, BankaHesap, Stok, MasrafKalemi…) | ⏳ devam | - |
 | D | AracSahiplikTipi sadeleştirme + masraf sahibi helper | ⬜ bekliyor | - |
 | E | Kasa/Banka firma bazlı + FirmalarArasiTransfer | ⬜ bekliyor | - |
 | F | FirmaKopyalamaService + UI (toplu/tekil checkbox) | ⬜ bekliyor | - |
@@ -48,13 +48,15 @@
 - [x] `Program.cs`'te `IAktifFirmaProvider` ve `FirmaService` **Scoped** kaydı (eskiden Singleton'dı)
 - [x] `dotnet build` geçiyor
 
-## Aşama B — Yapılacaklar Detay
+## Aşama B — Yapılacaklar Detay (TAMAM)
 
-- [ ] `Firma.CariId` kolonu drop migration (varsa veriyi `Notlar` veya log'a yedekle)
-- [ ] `Cari.SirketId` opsiyonel, hâlâ var ama deprecated [Obsolete]
-- [ ] `ApplicationDbContext.OnModelCreating`'de `IFirmaTenant` entity'lere `HasQueryFilter(e => e.FirmaId == _aktifProvider.AktifFirmaId)` ekle
-- [ ] `SaveChanges` interceptor: yeni eklenen `IFirmaTenant` kayıtlarına aktif FirmaId otomatik ata
-- [ ] Bütçe + Muhasebe entity'lerine `[NoTenantFilter]` veya filter dışı bırak
+- [x] `Firma.CariId` `[Obsolete]` işaretlendi (kolon henüz drop edilmedi; veri güvenliği için Aşama F sonrasına ertelendi)
+- [x] `Cari.SirketId` ve `Cari.Sirket` `[Obsolete]` işaretlendi (legacy `Sirket` yapısı ileride emekliye)
+- [x] `TenantFilterIgnoreAttribute` eklendi (Bütçe/Muhasebe muafiyeti için)
+- [x] `ApplicationDbContext` artık `IAktifFirmaProvider`'ı lazy resolve ediyor (`ResolveAktifFirmaProvider`)
+- [x] `IFirmaTenant` entity'lere otomatik named query filter (`"Tenant"`) eklendi (`ApplyFirmaTenantQueryFilter`)
+- [x] `SaveChanges` / `SaveChangesAsync` artık yeni eklenen `IFirmaTenant` kayıtlarına aktif `FirmaId`'yi otomatik atıyor (`AssignFirmaTenantId`)
+- [x] `dotnet build` geçiyor (0 error, 54 obsolete warning — hepsi planlı temizlik)
 
 ## Aşama C — Master Entity FirmaId Listesi
 
@@ -81,24 +83,33 @@
 3. Aşama bitince satırını `✅ tamam` yap, commit at, bir sonraki aşamayı `⏳ devam` yap.
 4. Veri kaybı olmaması için Aşama B-C'deki migration sırasını **bozma** (nullable → doldur → required).
 
-### Şu Anki Devam Noktası (Aşama B İlk Adım)
+### Şu Anki Devam Noktası (Aşama C İlk Adım)
 
-**Sonraki adım:** `Firma.CariId` kolonunun analizi ve güvenli kağıtüzerinde kağıt planı:
+**Hedef:** Master kart entity'lerine `IFirmaTenant` implement ettir + `FirmaId` kolonu (nullable → doldur → required) adım adım.
 
-1. `Firma.cs` içindeki `CariId` alanını [Obsolete] olarak işaretle, fluent config'de hala kolon olarak kalsın.
-2. `ApplicationDbContext` içinde `IAktifFirmaProvider`'ı inject et (DbContext factory üzerinden scoped provider'a erişim için custom factory wrapper gerekecek; pattern: `IDbContextFactory<T>` yerine `IAktifFirmaContextFactory`).
-3. `OnModelCreating`'de `IFirmaTenant` implementasyonu olan her entity için:
-   `modelBuilder.Entity<T>().HasQueryFilter(e => provider.TumFirmalar || e.FirmaId == provider.AktifFirmaId);`
-4. Bütçe + Muhasebe namespace'lerindeki entity'lere **dokunma** (zaten `IFirmaTenant` implemente etmiyorlar).
-5. `SaveChangesInterceptor` ekle: `Added` state'inde `IFirmaTenant` ise ve `FirmaId == 0` ise `provider.AktifFirmaId` ata.
-6. Migration adı: `EnableTenantQueryFilter` (sadece OnModelCreating değişikliği, kolon ekleme yok).
+**Sıra (önce düşük riskli olan):**
 
-**Başlamadan önce yap:** `git status` temiz mi kontrol et, Aşama A commit'i at:
+1. `Kurum` — şu an `FirmaId` yok. `IFirmaTenant` ekle, `FirmaId` nullable kolon migration.
+2. `Guzergah` — `IFirmaTenant` + nullable `FirmaId`.
+3. `Arac` — `IFirmaTenant` + nullable `FirmaId` (legacy `SirketId` korunur, `[Obsolete]`).
+4. `Sofor` — zaten `FirmaId` opsiyonel; sadece `IFirmaTenant` implement et.
+5. `Cari` — zaten `FirmaId` opsiyonel; `IFirmaTenant` implement et.
+6. Veri doldurma scripti: NULL `FirmaId` olan kayıtlar için varsayılan firma ata.
+7. Sonra ayrı migration: `FirmaId` `IsRequired()` yap.
+8. `BankaHesap`, `Stok`, `MasrafKalemi`, `Fatura`, `ServisCalisma`, `BankaKasaHareket` için tekrar.
+
+**Önemli kural (K7):** Bütçe ve Muhasebe entity'leri `IFirmaTenant` IMPLEMENT ETMEZ. Bu sayede otomatik filter onları atlar. Yanlışlıkla implement edilirse `[TenantFilterIgnore]` ekle.
+
+**Başlamadan önce yap:** Aşama A + B commit'i at:
 ```
 git add docs/TENANT_MIGRATION_PLAN.md \
         KOAFiloServis.Shared/Entities/IFirmaTenant.cs \
+        KOAFiloServis.Shared/Entities/TenantFilterIgnoreAttribute.cs \
+        KOAFiloServis.Shared/Entities/Firma.cs \
+        KOAFiloServis.Shared/Entities/Cari.cs \
         KOAFiloServis.Web/Services/IAktifFirmaProvider.cs \
         KOAFiloServis.Web/Services/FirmaService.cs \
+        KOAFiloServis.Web/Data/ApplicationDbContext.cs \
         KOAFiloServis.Web/Program.cs
-git commit -m "tenant: Aşama A - IAktifFirmaProvider (scoped) + IFirmaTenant marker"
+git commit -m "tenant: Aşama A+B - scoped provider + global IFirmaTenant query filter"
 ```

@@ -54,6 +54,7 @@ public class Firma : BaseEntity
     /// muhasebe tarafında temsil ettiği Cari kaydı.
     /// Mutabakat / fatura eşleştirme bu ID üzerinden yapılır.
     /// </summary>
+    [Obsolete("Tenant yeniden yapılandırması (Aşama B): Firma artık Cari'ye bağlı değil. Yeni mantikta Cari, FirmaId ile sahibine bağlanır. Sadece eski veriyle uyum için tutuluyor; Aşama F sonrası migration ile drop edilecek.")]
     public int? CariId { get; set; }
 
     // Muhasebe Donem Bilgisi

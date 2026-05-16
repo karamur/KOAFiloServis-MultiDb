@@ -6,9 +6,12 @@
 public class Cari : BaseEntity
 {
     /// <summary>
-    /// Multi-tenant: Şirket ID (null = sistem geneli)
+    /// LEGACY — Eski multi-tenant Sirket kavramı. Yeni mimari `FirmaId` kullanır.
+    /// Aşama F sonrası migration ile drop edilecek.
     /// </summary>
+    [Obsolete("Tenant yeniden yapılandırması (Aşama B): SirketId yerine FirmaId kullanın.")]
     public int? SirketId { get; set; }
+    [Obsolete("Tenant yeniden yapılandırması (Aşama B): Sirket navigasyonu yerine Firma kullanın.")]
     public virtual Sirket? Sirket { get; set; }
 
     public string CariKodu { get; set; } = string.Empty;

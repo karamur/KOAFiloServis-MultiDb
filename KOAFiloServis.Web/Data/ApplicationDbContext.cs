@@ -1,4 +1,5 @@
 ﻿using KOAFiloServis.Shared.Entities;
+using KOAFiloServis.Web.Services;
 using KOAFiloServis.Web.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,6 +10,7 @@ public class ApplicationDbContext : DbContext
 {
     private IServiceProvider? _serviceProvider;
     private ITenantService? _tenantService;
+    private IAktifFirmaProvider? _aktifFirmaProvider;
 
     // Multi-tenant query filter yardımcı property'leri
     // EF Core expression tree'de _tenantService null olduğunda NullReferenceException'ı önler
@@ -24,6 +26,27 @@ public class ApplicationDbContext : DbContext
 
     private int? TenantId => ResolveTenantService()?.CurrentSirketId;
 
+    /// <summary>
+    /// Aktif firma (yeni tenant kavramı). Global query filter ve SaveChanges'te kullanılır.
+    /// 0 dönerse "filter pasif" anlamına gelir (henüz firma seçilmemiş / SuperAdmin / TumFirmalar).
+    /// </summary>
+    private int FirmaTenantId => ResolveAktifFirmaProvider()?.AktifFirmaId ?? 0;
+
+    /// <summary>
+    /// True ise IFirmaTenant entity'leri üzerindeki firma filter'ı devre dışı bırakılır
+    /// (SuperAdmin / TumFirmalar modu / provider yok).
+    /// </summary>
+    private bool FirmaTenantDisabled
+    {
+        get
+        {
+            var p = ResolveAktifFirmaProvider();
+            if (p == null) return true;
+            if (p.TumFirmalar) return true;
+            return p.AktifFirmaId is null or 0;
+        }
+    }
+
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
         : base(options)
     {
@@ -37,6 +60,7 @@ public class ApplicationDbContext : DbContext
     {
         _serviceProvider = serviceProvider;
         _tenantService = null; // Yeni scope, yeni tenant service
+        _aktifFirmaProvider = null; // Yeni scope, yeni aktif firma provider
     }
 
     private ITenantService? ResolveTenantService()
@@ -55,6 +79,23 @@ public class ApplicationDbContext : DbContext
             }
         }
         return _tenantService;
+    }
+
+    private IAktifFirmaProvider? ResolveAktifFirmaProvider()
+    {
+        if (_aktifFirmaProvider == null && _serviceProvider != null)
+        {
+            try
+            {
+                _aktifFirmaProvider = _serviceProvider.GetService<IAktifFirmaProvider>();
+            }
+            catch (ObjectDisposedException)
+            {
+                _serviceProvider = null;
+                return null;
+            }
+        }
+        return _aktifFirmaProvider;
     }
 
     // Firma Modulu
@@ -2829,12 +2870,50 @@ public class ApplicationDbContext : DbContext
 
             entity.HasQueryFilter(e => !e.IsDeleted);
         });
+
+        // ----------------------------------------------------------------
+        // GLOBAL TENANT FILTER (IFirmaTenant)
+        // ----------------------------------------------------------------
+        // Karar K3 + K4: FirmaId taşıyan tüm entity'lere otomatik firma filtresi.
+        // EF Core 10 named query filter API'si kullanılır; bu sayede mevcut soft-delete
+        // (IsDeleted) filtreleri ezilmez, ikinci bir bağımsız filter olarak eklenir.
+        // K7 muafiyeti: [TenantFilterIgnore] (Bütçe, Muhasebe vs.)
+        ApplyFirmaTenantQueryFilter(modelBuilder);
+    }
+
+    private void ApplyFirmaTenantQueryFilter(ModelBuilder modelBuilder)
+    {
+        var tenantInterface = typeof(IFirmaTenant);
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (entityType.ClrType == null) continue;
+            if (!tenantInterface.IsAssignableFrom(entityType.ClrType)) continue;
+            if (Attribute.IsDefined(entityType.ClrType, typeof(TenantFilterIgnoreAttribute))) continue;
+
+            // e => FirmaTenantDisabled || EF.Property<int>(e, "FirmaId") == FirmaTenantId
+            var parameter = System.Linq.Expressions.Expression.Parameter(entityType.ClrType, "e");
+            var firmaIdProp = System.Linq.Expressions.Expression.Property(parameter, "FirmaId");
+            var contextConst = System.Linq.Expressions.Expression.Constant(this);
+            var disabledProp = System.Linq.Expressions.Expression.Property(
+                contextConst,
+                typeof(ApplicationDbContext).GetProperty("FirmaTenantDisabled", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!);
+            var tenantIdProp = System.Linq.Expressions.Expression.Property(
+                contextConst,
+                typeof(ApplicationDbContext).GetProperty("FirmaTenantId", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!);
+            var equal = System.Linq.Expressions.Expression.Equal(firmaIdProp, tenantIdProp);
+            var body = System.Linq.Expressions.Expression.OrElse(disabledProp, equal);
+            var lambda = System.Linq.Expressions.Expression.Lambda(body, parameter);
+
+            // Named filter: mevcut soft-delete filter'ı ezmez.
+            modelBuilder.Entity(entityType.ClrType).HasQueryFilter("Tenant", lambda);
+        }
     }
 
     public override int SaveChanges()
     {
         ConvertDatesToUtc();
         UpdateTimestamps();
+        AssignFirmaTenantId();
         GenerateAuditLogs();
         return base.SaveChanges();
     }
@@ -2843,8 +2922,30 @@ public class ApplicationDbContext : DbContext
     {
         ConvertDatesToUtc();
         UpdateTimestamps();
+        AssignFirmaTenantId();
         GenerateAuditLogs();
         return base.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Yeni eklenen <see cref="IFirmaTenant"/> entity'lerine, henüz FirmaId set edilmemişse
+    /// aktif firma id'sini otomatik atar. Karar K3 + K4 gereği servis katmanında elle
+    /// FirmaId ataması yapılmasına gerek kalmaz.
+    /// </summary>
+    private void AssignFirmaTenantId()
+    {
+        var aktif = ResolveAktifFirmaProvider();
+        var firmaId = aktif?.AktifFirmaId ?? 0;
+        if (firmaId == 0) return; // Firma seçilmemiş → otomatik atama yapma (consumer explicit set etmeli)
+
+        foreach (var entry in ChangeTracker.Entries<IFirmaTenant>())
+        {
+            if (entry.State != EntityState.Added) continue;
+            if (entry.Entity.FirmaId == 0)
+            {
+                entry.Entity.FirmaId = firmaId;
+            }
+        }
     }
 
     private void GenerateAuditLogs()
