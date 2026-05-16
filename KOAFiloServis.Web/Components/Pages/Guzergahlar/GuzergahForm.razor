@@ -237,11 +237,11 @@
                     <div class="col-md-3">
                         <div class="mb-3">
                             <label class="form-label">Kapasite</label>
-                            <select class="form-select" @bind="guzergah.PersonelSayisi">
-                                <option value="0">-- Seçiniz --</option>
+                            <select class="form-select" value="@(guzergah.KapasiteAdi ?? "")" @onchange="KapasiteSecildi">
+                                <option value="">-- Seçiniz --</option>
                                 @foreach (var k in kapasiteSecenekleri)
                                 {
-                                    <option value="@k.Value">@k.Label</option>
+                                    <option value="@k.Label">@k.Label</option>
                                 }
                             </select>
                         </div>
@@ -404,6 +404,22 @@
         catch
         {
             kapasiteSecenekleri = new();
+        }
+    }
+
+    private void KapasiteSecildi(ChangeEventArgs e)
+    {
+        var ad = e.Value?.ToString();
+        guzergah.KapasiteAdi = string.IsNullOrWhiteSpace(ad) ? null : ad;
+        // Geriye dönük uyumluluk: PersonelSayisi'yı seçilen kapasite adının ilk sayısından türet
+        if (!string.IsNullOrWhiteSpace(ad))
+        {
+            var secim = kapasiteSecenekleri.FirstOrDefault(x => x.Label == ad);
+            guzergah.PersonelSayisi = secim.Value > 0 ? secim.Value : guzergah.PersonelSayisi;
+        }
+        else
+        {
+            guzergah.PersonelSayisi = 0;
         }
     }
 

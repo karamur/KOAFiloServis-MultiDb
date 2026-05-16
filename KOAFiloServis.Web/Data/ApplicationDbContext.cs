@@ -72,6 +72,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Arac> Araclar { get; set; }
     public DbSet<AracPlaka> AracPlakalar { get; set; }
     public DbSet<Guzergah> Guzergahlar { get; set; }
+    public DbSet<GuzergahSefer> GuzergahSeferleri { get; set; }
     public DbSet<MasrafKalemi> MasrafKalemleri { get; set; }
     public DbSet<AracMasraf> AracMasraflari { get; set; }
     public DbSet<ServisCalisma> ServisCalismalari { get; set; }

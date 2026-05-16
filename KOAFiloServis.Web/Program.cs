@@ -201,13 +201,16 @@ builder.Services.AddScoped<ICacheService, CacheService>();
 builder.Services.AddScoped<ITenantService, TenantService>();
 
 // Application Services
-builder.Services.AddSingleton<IFirmaService, FirmaService>(); // Singleton - aktif firma state tutmak icin
+// Aktif firma (tenant) state'i per-circuit tutulur; Blazor Server'da static state veri sizdiriyordu.
+builder.Services.AddScoped<IAktifFirmaProvider, AktifFirmaProvider>();
+builder.Services.AddScoped<IFirmaService, FirmaService>();
 builder.Services.AddSingleton<ILisansService, LisansService>(); // Singleton - lisans cache
 builder.Services.AddScoped<IKullaniciService, KullaniciService>(); // Scoped - her circuit kendi oturumunu yonetir
 builder.Services.AddScoped<ICariService, CariService>();
 builder.Services.AddScoped<ISoforService, SoforService>();
 builder.Services.AddScoped<IAracService, AracService>();
 builder.Services.AddScoped<IGuzergahService, GuzergahService>();
+builder.Services.AddScoped<IGuzergahSeferService, GuzergahSeferService>();
 builder.Services.AddScoped<IMasrafKalemiService, MasrafKalemiService>();
 builder.Services.AddScoped<IKapasiteService, KapasiteService>();
 builder.Services.AddScoped<IAracMasrafService, AracMasrafService>();

@@ -1,11 +1,40 @@
 ﻿@page "/guzergahlar"
 @using KOAFiloServis.Shared.Entities
 @using KOAFiloServis.Web.Services
+@using KOAFiloServis.Web.Data
+@using Microsoft.EntityFrameworkCore
 @using KOAFiloServis.Web.Components.Shared
 @inject IGuzergahService GuzergahService
 @inject IKurumService KurumService
+@inject IAracService AracService
+@inject ISoforService SoforService
+@inject IKapasiteService KapasiteService
+@inject IGuzergahSeferService GuzergahSeferService
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
 @inject NavigationManager Navigation
 @rendermode InteractiveServer
+
+<style>
+    .sefer-detay-row > td { background-color: #f8f9fa; padding: 0; }
+    .sefer-detay-icerik { padding: .75rem 1rem; border-top: 2px solid #0d6efd; }
+    .sefer-tipi-btn { cursor: pointer; min-width: 110px; }
+    .guzergah-row.acik { background-color: #e7f1ff !important; }
+
+    /* Sefer Durumu göstergeleri */
+    .sefer-durum-wrap { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; line-height: 1; }
+    .sefer-pill {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 4px 10px; border-radius: 999px;
+        font-size: .78rem; font-weight: 700; letter-spacing: .2px;
+    }
+    .sefer-pill.ok    { background: #e6f6ec; color: #146c43; border: 1px solid #a7e0bc; }
+    .sefer-pill.eksik { background: #fdecec; color: #b02a37; border: 1px solid #f1aeb5; animation: seferPulse 1.6s ease-in-out infinite; }
+    @@keyframes seferPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(220,53,69,0); } 50% { box-shadow: 0 0 0 4px rgba(220,53,69,.18); } }
+    .sefer-dots { display: inline-flex; gap: 3px; }
+    .sefer-dot { width: 10px; height: 10px; border-radius: 50%; border: 1px solid #c7c7c7; background: #fff; }
+    .sefer-dot.dolu { background: #198754; border-color: #146c43; }
+    .sefer-dot.bos  { background: #fff; border-color: #dc3545; box-shadow: inset 0 0 0 2px #f8d7da; }
+</style>
 
 <PageTitle>Güzergahlar</PageTitle>
 
@@ -179,31 +208,26 @@
                                     <th>Güzergah Adı</th>
                                     <th>Kurum / Müşteri</th>
                                     <th>Cari</th>
-                                    <th>Başlangıç</th>
-                                    <th>Bitiş</th>
-                                    <th>Sefer Tipi</th>
-                                    <th class="text-center">Personel</th>
+                                    <th class="text-center">Kapasite Adı</th>
                                     <th>Varsayılan Araç</th>
                                     <th>Şoför</th>
                                     <th class="text-end">Gelir ₺</th>
                                     <th class="text-end">Gider ₺</th>
                                     <th class="text-center">Konum</th>
                                     <th class="text-center">Durum</th>
-                                    <th style="width: 110px;">İşlemler</th>
+                                    <th class="text-center" style="width: 130px;">Sefer Durumu</th>
+                                    <th style="width: 150px;">İşlemler</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach (var guzergah in FiltrelenmisGuzergahlar)
                                 {
-                                    <tr>
+                                    <tr class="guzergah-row @(acikGuzergahId == guzergah.Id ? "acik" : "")">
                                         <td><strong>@guzergah.GuzergahKodu</strong></td>
                                         <td>@guzergah.GuzergahAdi</td>
                                         <td>@(guzergah.Kurum?.KurumAdi ?? KurumAdiBul(guzergah.CariId) ?? "-")</td>
                                         <td>@(guzergah.Cari?.Unvan ?? "-")</td>
-                                        <td>@guzergah.BaslangicNoktasi</td>
-                                        <td>@guzergah.BitisNoktasi</td>
-                                        <td><span class="badge bg-info">@guzergah.SeferTipi</span></td>
-                                        <td class="text-center">@guzergah.PersonelSayisi</td>
+                                        <td class="text-center">@(KapasiteAdiBul(guzergah) ?? guzergah.PersonelSayisi.ToString())</td>
                                         <td>@(guzergah.VarsayilanArac?.AktifPlaka ?? "-")</td>
                                         <td>@(guzergah.VarsayilanSofor?.TamAd ?? "-")</td>
                                         <td class="text-end"><strong class="text-success">@guzergah.GelirFiyat.ToString("N2")</strong></td>
@@ -228,7 +252,43 @@
                                                 <span class="badge bg-danger">Pasif</span>
                                             }
                                         </td>
+                                        <td class="text-center">
+                                            @{
+                                                var (eslesen, toplam) = SeferEslesmeDurumu(guzergah);
+                                                var eksik = toplam - eslesen;
+                                                var tamam = eksik == 0;
+                                                var titleTxt = tamam
+                                                    ? $"Tüm seferlere araç eşleştirildi ({eslesen}/{toplam})"
+                                                    : $"DİKKAT: {eksik} sefer için araç eşleştirilmedi ({eslesen}/{toplam})";
+                                            }
+                                            <div class="sefer-durum-wrap" title="@titleTxt">
+                                                @if (tamam)
+                                                {
+                                                    <span class="sefer-pill ok">
+                                                        <i class="bi bi-check-circle-fill"></i>@eslesen / @toplam
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="sefer-pill eksik">
+                                                        <i class="bi bi-exclamation-triangle-fill"></i>@eksik EKSİK
+                                                        <span class="opacity-75 fw-normal">(@eslesen/@toplam)</span>
+                                                    </span>
+                                                }
+                                                <span class="sefer-dots">
+                                                    @for (int i = 0; i < toplam; i++)
+                                                    {
+                                                        <span class="sefer-dot @(i < eslesen ? "dolu" : "bos")"
+                                                              title="@($"Sefer {i + 1}: " + (i < eslesen ? "eşleştirildi" : "eşleştirilmedi"))"></span>
+                                                    }
+                                                </span>
+                                            </div>
+                                        </td>
                                         <td>
+                                            <button type="button" class="btn btn-sm btn-info text-white me-1"
+                                                    @onclick="() => SeferDetayToggle(guzergah)" title="Sefer detaylarını göster/gizle">
+                                                <i class="bi @(acikGuzergahId == guzergah.Id ? "bi-chevron-down" : "bi-chevron-right")"></i>
+                                            </button>
                                             <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => Duzenle(guzergah.Id)" title="Düzenle">
                                                 <i class="bi bi-pencil"></i>
                                             </button>
@@ -237,6 +297,16 @@
                                             </button>
                                         </td>
                                     </tr>
+                                    @if (acikGuzergahId == guzergah.Id)
+                                    {
+                                        <tr class="sefer-detay-row">
+                                            <td colspan="12">
+                                                <div class="sefer-detay-icerik">
+                                                    @SeferDetayPanel(guzergah)
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
                                 }
                             </tbody>
                         </table>
@@ -271,10 +341,19 @@
 @code {
     private List<Guzergah>? guzergahlar;
     private List<Kurum> kurumlar = new();
+    private List<Arac> tumAraclar = new();
+    private List<Sofor> tumSoforler = new();
+    private List<Kapasite> tumKapasiteler = new();
     private bool showDeleteModal = false;
     private Guzergah? silinecekGuzergah;
     private string gorunumModu = "liste";
     private HaritaGosterici? harita;
+
+    // Sefer detay state
+    private int? acikGuzergahId;
+    private readonly Dictionary<int, List<SeferDetayKalemi>> seferDetaylari = new();
+    private int? kaydedenGuzergahId;
+    private int? kaydedildiGuzergahId;
 
     // Filtreler
     private int filtreKurumId;
@@ -369,6 +448,44 @@
     {
         guzergahlar = await GuzergahService.GetAllAsync();
         kurumlar = await KurumService.GetAktifAsync();
+        tumAraclar = await AracService.GetActiveAsync();
+        tumSoforler = await SoforService.GetActiveAsync();
+        try
+        {
+            // Önce aktif olanları, eksikse tümünü dene (pasif edilmiş eski kapasiteler için)
+            tumKapasiteler = await KapasiteService.GetActiveAsync() ?? new();
+            try
+            {
+                var hepsi = await KapasiteService.GetAllAsync() ?? new();
+                foreach (var k in hepsi)
+                {
+                    if (!tumKapasiteler.Any(x => x.Id == k.Id))
+                        tumKapasiteler.Add(k);
+                }
+            }
+            catch { /* GetAllAsync yoksa sorun değil */ }
+        }
+        catch { tumKapasiteler = new(); }
+
+        // Kayıtlı sefer detaylarını yükle
+        try
+        {
+            var grup = await GuzergahSeferService.GetAllGroupedAsync();
+            seferDetaylari.Clear();
+            foreach (var kv in grup)
+            {
+                seferDetaylari[kv.Key] = kv.Value.Select(s => new SeferDetayKalemi
+                {
+                    SeferTipi = s.SeferTipi,
+                    KapasiteAdi = s.KapasiteAdi,
+                    AracId = s.AracId,
+                    SoforAd = s.SoforAd,
+                    SoforTelefon = s.SoforTelefon,
+                    Firma = s.Firma
+                }).ToList();
+            }
+        }
+        catch { /* sefer yükleme isteyene bırakılır */ }
     }
 
     private async Task LoadMapData()
@@ -432,5 +549,447 @@
         }
         showDeleteModal = false;
         silinecekGuzergah = null;
+    }
+
+    // ── Sefer Detay ──────────────────────────────────────────────────
+    private (int eslesen, int toplam) SeferEslesmeDurumu(Guzergah g)
+    {
+        if (seferDetaylari.TryGetValue(g.Id, out var liste) && liste.Count > 0)
+        {
+            var eslesen = liste.Count(s => s.AracId.HasValue && s.AracId.Value > 0);
+            return (eslesen, liste.Count);
+        }
+        // Detay henüz açılmadıysa: varsayılan sefer sayısı 2; varsayılan araç varsa 2/2, yoksa 0/2
+        var varsayilan = g.VarsayilanAracId.HasValue && g.VarsayilanAracId.Value > 0 ? 2 : 0;
+        return (varsayilan, 2);
+    }
+
+    private string? KapasiteAdiBul(Guzergah g)
+    {
+        // 0) Öncelik: güzergahın kendi kayıtlı KapasiteAdi alanı
+        if (!string.IsNullOrWhiteSpace(g.KapasiteAdi))
+            return g.KapasiteAdi.Trim();
+
+        if (g.PersonelSayisi <= 0) return null;
+
+        var hedef = g.PersonelSayisi;
+        var hedefStr = hedef.ToString();
+
+        // 1) Birleştirilmiş rakam eşleşmesi (öncelik): "16+1" -> 161
+        foreach (var k in tumKapasiteler)
+        {
+            var ad = (k.KapasiteAdi ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(ad)) continue;
+            var rakam = new string(ad.Where(char.IsDigit).ToArray());
+            if (rakam == hedefStr) return ad;
+        }
+
+        // 2) Tam eşleşme: KapasiteAdi'ndaki ilk sayı bloğu PersonelSayisi'ye eşitse
+        foreach (var k in tumKapasiteler)
+        {
+            var ad = (k.KapasiteAdi ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(ad)) continue;
+            if (IlkSayiyiAl(ad) == hedef) return ad;
+        }
+
+        // 3) Toplam eşleşme: Sayıların toplamı PersonelSayisi'ye eşitse
+        foreach (var k in tumKapasiteler)
+        {
+            var ad = (k.KapasiteAdi ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(ad)) continue;
+            if (SayiToplamiAl(ad) == hedef) return ad;
+        }
+
+        // 4) Sayısal eşitlik (parse edilebilir tüm sayılar)
+        foreach (var k in tumKapasiteler)
+        {
+            var ad = (k.KapasiteAdi ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(ad)) continue;
+            if (int.TryParse(ad, out var n) && n == hedef) return ad;
+        }
+
+        return hedef.ToString();
+    }
+
+    private static int IlkSayiyiAl(string s)
+    {
+        int i = 0;
+        while (i < s.Length && !char.IsDigit(s[i])) i++;
+        int basla = i;
+        while (i < s.Length && char.IsDigit(s[i])) i++;
+        return basla < i && int.TryParse(s.AsSpan(basla, i - basla), out var n) ? n : -1;
+    }
+
+    private static int SayiToplamiAl(string s)
+    {
+        int toplam = 0; int i = 0; bool varMi = false;
+        while (i < s.Length)
+        {
+            if (char.IsDigit(s[i]))
+            {
+                int basla = i;
+                while (i < s.Length && char.IsDigit(s[i])) i++;
+                if (int.TryParse(s.AsSpan(basla, i - basla), out var n)) { toplam += n; varMi = true; }
+            }
+            else i++;
+        }
+        return varMi ? toplam : -1;
+    }
+
+    private void SeferDetayToggle(Guzergah g)
+    {
+        if (acikGuzergahId == g.Id)
+        {
+            acikGuzergahId = null;
+            return;
+        }
+        acikGuzergahId = g.Id;
+        if (!seferDetaylari.ContainsKey(g.Id))
+        {
+            seferDetaylari[g.Id] = new List<SeferDetayKalemi>
+            {
+                YeniSeferKalemi(g),
+                YeniSeferKalemi(g)
+            };
+        }
+    }
+
+    private SeferDetayKalemi YeniSeferKalemi(Guzergah g) => new()
+    {
+        SeferTipi = g.SeferTipi,
+        KapasiteAdi = KapasiteAdiBul(g),
+        AracId = g.VarsayilanAracId,
+        SoforAd = g.VarsayilanSofor?.TamAd,
+        SoforTelefon = g.VarsayilanSofor?.Telefon,
+        Firma = g.Firma?.FirmaAdi
+    };
+
+    private void SeferSayisiDegistir(Guzergah g, int yeniSayi)
+    {
+        if (yeniSayi < 1) yeniSayi = 1;
+        if (yeniSayi > 50) yeniSayi = 50;
+        var liste = seferDetaylari[g.Id];
+        if (liste.Count < yeniSayi)
+        {
+            while (liste.Count < yeniSayi)
+                liste.Add(YeniSeferKalemi(g));
+        }
+        else if (liste.Count > yeniSayi)
+        {
+            liste.RemoveRange(yeniSayi, liste.Count - yeniSayi);
+        }
+    }
+
+    private void TumSeferlereUygula(Guzergah g)
+    {
+        var liste = seferDetaylari[g.Id];
+        if (liste.Count == 0) return;
+        var ilk = liste[0];
+        for (int i = 1; i < liste.Count; i++)
+        {
+            liste[i] = new SeferDetayKalemi
+            {
+                SeferTipi = ilk.SeferTipi,
+                KapasiteAdi = ilk.KapasiteAdi,
+                AracId = ilk.AracId,
+                SoforAd = ilk.SoforAd,
+                SoforTelefon = ilk.SoforTelefon,
+                Firma = ilk.Firma
+            };
+        }
+    }
+
+    private async Task SeferleriKaydet(Guzergah g)
+    {
+        if (!seferDetaylari.TryGetValue(g.Id, out var liste)) return;
+        try
+        {
+            kaydedenGuzergahId = g.Id;
+            kaydedildiGuzergahId = null;
+            StateHasChanged();
+
+            var entities = liste.Select(k => new GuzergahSefer
+            {
+                GuzergahId = g.Id,
+                SeferTipi = k.SeferTipi,
+                KapasiteAdi = k.KapasiteAdi,
+                AracId = k.AracId,
+                SoforAd = k.SoforAd,
+                SoforTelefon = k.SoforTelefon,
+                Firma = k.Firma
+            }).ToList();
+
+            await GuzergahSeferService.ReplaceAllAsync(g.Id, entities);
+            kaydedildiGuzergahId = g.Id;
+        }
+        finally
+        {
+            kaydedenGuzergahId = null;
+            StateHasChanged();
+        }
+    }
+
+    private async Task PlakaDegisti(SeferDetayKalemi kalem, int? aracId)
+    {
+        kalem.AracId = aracId;
+        kalem.SoforAd = null;
+        kalem.SoforTelefon = null;
+        kalem.Firma = null;
+        if (!aracId.HasValue) return;
+
+        try
+        {
+            await using var ctx = await DbFactory.CreateDbContextAsync();
+            var arac = await ctx.Araclar
+                .AsNoTracking()
+                .Include(a => a.KiralikCari)
+                .Include(a => a.KomisyoncuCari)
+                .Include(a => a.TasimaTedarikci)
+                    .ThenInclude(t => t!.Personeller)
+                .FirstOrDefaultAsync(a => a.Id == aracId.Value);
+            if (arac == null) return;
+
+            if (arac.SahiplikTipi == AracSahiplikTipi.Tedarikci && arac.TasimaTedarikci != null)
+            {
+                kalem.Firma = arac.TasimaTedarikci.Unvan;
+                var sofor = arac.TasimaTedarikci.Personeller?
+                    .FirstOrDefault(s => s.Aktif && s.Gorev == PersonelGorev.Sofor);
+                kalem.SoforAd = sofor?.TamAd ?? arac.TasimaTedarikci.YetkiliKisi;
+                kalem.SoforTelefon = sofor?.Telefon ?? arac.TasimaTedarikci.Telefon;
+            }
+            else
+            {
+                kalem.Firma = arac.KiralikCari?.Unvan ?? arac.KomisyoncuCari?.Unvan;
+
+                // Özmal: Bu araçla eşleşmiş FiloGuzergahEslestirme üzerinden şoförü bul
+                var eslesme = await ctx.Set<FiloGuzergahEslestirme>()
+                    .AsNoTracking()
+                    .Where(e => e.AracId == aracId.Value && !e.IsDeleted)
+                    .OrderByDescending(e => e.Id)
+                    .FirstOrDefaultAsync();
+                if (eslesme != null)
+                {
+                    var sofor = await ctx.Soforler.AsNoTracking()
+                        .FirstOrDefaultAsync(s => s.Id == eslesme.SoforId);
+                    if (sofor != null)
+                    {
+                        kalem.SoforAd = sofor.TamAd;
+                        kalem.SoforTelefon = sofor.Telefon;
+                    }
+                }
+            }
+        }
+        catch { /* en kötü senaryoda alanlar boş kalır */ }
+        StateHasChanged();
+    }
+
+    private RenderFragment SeferDetayPanel(Guzergah g) => builder =>
+    {
+        if (!seferDetaylari.ContainsKey(g.Id))
+            seferDetaylari[g.Id] = new List<SeferDetayKalemi> { YeniSeferKalemi(g), YeniSeferKalemi(g) };
+
+        var liste = seferDetaylari[g.Id];
+
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "row g-2 align-items-end mb-2");
+
+        // Sefer Sayısı input
+        builder.AddMarkupContent(2, "<div class='col-md-2'><label class='form-label small mb-1'>Sefer Sayısı</label></div>");
+        builder.OpenElement(3, "div");
+        builder.AddAttribute(4, "class", "col-md-2");
+        builder.OpenElement(5, "input");
+        builder.AddAttribute(6, "type", "number");
+        builder.AddAttribute(7, "min", "1");
+        builder.AddAttribute(8, "max", "50");
+        builder.AddAttribute(9, "class", "form-control form-control-sm");
+        builder.AddAttribute(10, "value", liste.Count);
+        builder.AddAttribute(11, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e =>
+        {
+            if (int.TryParse(e.Value?.ToString(), out var n)) SeferSayisiDegistir(g, n);
+        }));
+        builder.CloseElement();
+        builder.CloseElement();
+
+        // Tüm seferlere uygula
+        builder.OpenElement(20, "div");
+        builder.AddAttribute(21, "class", "col-md-3");
+        builder.OpenElement(22, "button");
+        builder.AddAttribute(23, "type", "button");
+        builder.AddAttribute(24, "class", "btn btn-sm btn-outline-primary");
+        builder.AddAttribute(25, "onclick", EventCallback.Factory.Create(this, () => TumSeferlereUygula(g)));
+        builder.AddMarkupContent(26, "<i class='bi bi-arrow-down-square me-1'></i>1. Seferi Tüm Seferlere Uygula");
+        builder.CloseElement();
+        builder.CloseElement();
+
+        // Kaydet butonu
+        builder.OpenElement(27, "div");
+        builder.AddAttribute(28, "class", "col-md-2 text-end");
+        builder.OpenElement(29, "button");
+        builder.AddAttribute(40, "type", "button");
+        var kaydetClass = "btn btn-sm btn-success";
+        if (kaydedenGuzergahId == g.Id) kaydetClass += " disabled";
+        builder.AddAttribute(41, "class", kaydetClass);
+        builder.AddAttribute(42, "onclick", EventCallback.Factory.Create(this, () => SeferleriKaydet(g)));
+        builder.AddMarkupContent(43, kaydedenGuzergahId == g.Id
+            ? "<span class='spinner-border spinner-border-sm me-1'></span>Kaydediliyor..."
+            : "<i class='bi bi-save me-1'></i>Seferleri Kaydet");
+        builder.CloseElement();
+        if (kaydedildiGuzergahId == g.Id)
+        {
+            builder.OpenElement(44, "span");
+            builder.AddAttribute(45, "class", "text-success small ms-2");
+            builder.AddMarkupContent(46, "<i class='bi bi-check-circle-fill'></i> Kaydedildi");
+            builder.CloseElement();
+        }
+        builder.CloseElement();
+
+        builder.CloseElement(); // row
+
+        // Sefer satırları tablosu
+        builder.OpenElement(30, "div");
+        builder.AddAttribute(31, "class", "table-responsive");
+        builder.OpenElement(32, "table");
+        builder.AddAttribute(33, "class", "table table-sm table-bordered align-middle mb-0");
+        builder.AddMarkupContent(34, @"<thead class='table-light'>
+            <tr>
+                <th style='width:50px;'>#</th>
+                <th>Sefer Tipi</th>
+                <th>Kapasite</th>
+                <th>Araç Plakası</th>
+                <th>Şoför</th>
+                <th>Şoför Telefon</th>
+                <th>Firma / Tedarikçi</th>
+            </tr>
+        </thead>");
+        builder.OpenElement(35, "tbody");
+
+        int seq = 100;
+        for (int i = 0; i < liste.Count; i++)
+        {
+            var idx = i;
+            var kalem = liste[idx];
+
+            builder.OpenElement(seq++, "tr");
+
+            builder.OpenElement(seq++, "td");
+            builder.AddContent(seq++, $"{idx + 1}");
+            builder.CloseElement();
+
+            // Sefer Tipi
+            builder.OpenElement(seq++, "td");
+            builder.OpenElement(seq++, "select");
+            builder.AddAttribute(seq++, "class", "form-select form-select-sm");
+            builder.AddAttribute(seq++, "value", kalem.SeferTipi.ToString());
+            builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e =>
+            {
+                if (Enum.TryParse<SeferTipi>(e.Value?.ToString(), out var st)) kalem.SeferTipi = st;
+            }));
+            foreach (SeferTipi st in Enum.GetValues(typeof(SeferTipi)))
+            {
+                builder.OpenElement(seq++, "option");
+                builder.AddAttribute(seq++, "value", st.ToString());
+                builder.AddContent(seq++, st.ToString());
+                builder.CloseElement();
+            }
+            builder.CloseElement();
+            builder.CloseElement();
+
+            // Kapasite (kapasite adı)
+            builder.OpenElement(seq++, "td");
+            builder.OpenElement(seq++, "select");
+            builder.AddAttribute(seq++, "class", "form-select form-select-sm");
+            builder.AddAttribute(seq++, "value", kalem.KapasiteAdi ?? "");
+            builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e =>
+                kalem.KapasiteAdi = e.Value?.ToString()));
+            builder.OpenElement(seq++, "option");
+            builder.AddAttribute(seq++, "value", "");
+            builder.AddContent(seq++, "-- Seçiniz --");
+            builder.CloseElement();
+            foreach (var k in tumKapasiteler.OrderBy(k => k.KapasiteAdi))
+            {
+                if (string.IsNullOrWhiteSpace(k.KapasiteAdi)) continue;
+                builder.OpenElement(seq++, "option");
+                builder.AddAttribute(seq++, "value", k.KapasiteAdi);
+                builder.AddContent(seq++, k.KapasiteAdi);
+                builder.CloseElement();
+            }
+            builder.CloseElement();
+            builder.CloseElement();
+
+            // Araç Plakası
+            builder.OpenElement(seq++, "td");
+            builder.OpenElement(seq++, "select");
+            builder.AddAttribute(seq++, "class", "form-select form-select-sm");
+            builder.AddAttribute(seq++, "value", kalem.AracId?.ToString() ?? "");
+            builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, async e =>
+            {
+                int? id = int.TryParse(e.Value?.ToString(), out var n) ? n : (int?)null;
+                await PlakaDegisti(kalem, id);
+            }));
+            builder.OpenElement(seq++, "option");
+            builder.AddAttribute(seq++, "value", "");
+            builder.AddContent(seq++, "-- Seçiniz --");
+            builder.CloseElement();
+            foreach (var arac in tumAraclar.OrderBy(a => a.AktifPlaka))
+            {
+                if (string.IsNullOrWhiteSpace(arac.AktifPlaka)) continue;
+                builder.OpenElement(seq++, "option");
+                builder.AddAttribute(seq++, "value", arac.Id.ToString());
+                var ek = arac.SahiplikTipi == AracSahiplikTipi.Tedarikci ? " [T]" : "";
+                builder.AddContent(seq++, $"{arac.AktifPlaka}{ek}");
+                builder.CloseElement();
+            }
+            builder.CloseElement();
+            builder.CloseElement();
+
+            // Şoför Ad
+            builder.OpenElement(seq++, "td");
+            builder.OpenElement(seq++, "input");
+            builder.AddAttribute(seq++, "type", "text");
+            builder.AddAttribute(seq++, "class", "form-control form-control-sm");
+            builder.AddAttribute(seq++, "value", kalem.SoforAd ?? "");
+            builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e =>
+                kalem.SoforAd = e.Value?.ToString()));
+            builder.CloseElement();
+            builder.CloseElement();
+
+            // Telefon
+            builder.OpenElement(seq++, "td");
+            builder.OpenElement(seq++, "input");
+            builder.AddAttribute(seq++, "type", "text");
+            builder.AddAttribute(seq++, "class", "form-control form-control-sm");
+            builder.AddAttribute(seq++, "value", kalem.SoforTelefon ?? "");
+            builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e =>
+                kalem.SoforTelefon = e.Value?.ToString()));
+            builder.CloseElement();
+            builder.CloseElement();
+
+            // Firma / Tedarikçi
+            builder.OpenElement(seq++, "td");
+            builder.OpenElement(seq++, "input");
+            builder.AddAttribute(seq++, "type", "text");
+            builder.AddAttribute(seq++, "class", "form-control form-control-sm");
+            builder.AddAttribute(seq++, "value", kalem.Firma ?? "");
+            builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e =>
+                kalem.Firma = e.Value?.ToString()));
+            builder.CloseElement();
+            builder.CloseElement();
+
+            builder.CloseElement(); // tr
+        }
+
+        builder.CloseElement(); // tbody
+        builder.CloseElement(); // table
+        builder.CloseElement(); // table-responsive
+    };
+
+    private class SeferDetayKalemi
+    {
+        public SeferTipi SeferTipi { get; set; } = SeferTipi.SabahAksam;
+        public string? KapasiteAdi { get; set; }
+        public int? AracId { get; set; }
+        public string? SoforAd { get; set; }
+        public string? SoforTelefon { get; set; }
+        public string? Firma { get; set; }
     }
 }

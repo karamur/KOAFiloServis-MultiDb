@@ -47,8 +47,11 @@ public class Guzergah : BaseEntity
     // Sefer Tipi (Sabah, Akşam, Sabah-Akşam, Saatlik)
     public SeferTipi SeferTipi { get; set; } = SeferTipi.SabahAksam;
 
-    // Personel Sayısı
+    // Personel Sayısı (sayısal değer, hesaplamalar için)
     public int PersonelSayisi { get; set; } = 0;
+
+    // Kapasite Adı (Kapasite tablosundan gelen serbest metin: "16+1", "27+1" vb.)
+    public string? KapasiteAdi { get; set; }
 
     // Varsayılan Araç ve Şoför
     public int? VarsayilanAracId { get; set; }

@@ -1,18 +1,30 @@
-using KOAFiloServis.Shared.Entities;
+﻿using KOAFiloServis.Shared.Entities;
 using KOAFiloServis.Web.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace KOAFiloServis.Web.Services;
 
+/// <summary>
+/// Firma CRUD + aktif firma cephesi (facade).
+/// <para>
+/// Aktif firma state'i artık <see cref="IAktifFirmaProvider"/> üzerinden tutulur;
+/// böylece her circuit / kullanıcı kendi firmasına sahiptir. Eski <c>static</c>
+/// yaklaşım Blazor Server'da multi-user veri sızıntısına yol açıyordu.
+/// Mevcut UI çağrıları kırılmasın diye eski API imzaları korunup içerik
+/// provider'a delege edilmiştir.
+/// </para>
+/// </summary>
 public class FirmaService : IFirmaService
 {
     private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
-    private static AktifFirmaBilgisi _aktifFirma = new();
-    private static readonly object _lock = new();
+    private readonly IAktifFirmaProvider _aktifFirmaProvider;
 
-    public FirmaService(IDbContextFactory<ApplicationDbContext> contextFactory)
+    public FirmaService(
+        IDbContextFactory<ApplicationDbContext> contextFactory,
+        IAktifFirmaProvider aktifFirmaProvider)
     {
         _contextFactory = contextFactory;
+        _aktifFirmaProvider = aktifFirmaProvider;
     }
 
     #region CRUD
@@ -110,98 +122,75 @@ public class FirmaService : IFirmaService
 
     public AktifFirmaBilgisi GetAktifFirma()
     {
-        lock (_lock)
-        {
-            // Eger aktif firma secilmemisse, varsayilan firmayi getir
-            if (_aktifFirma.FirmaId == 0)
+        var mevcut = _aktifFirmaProvider.Mevcut;
+        if (mevcut.FirmaId != 0)
+            return mevcut;
+
+        // İlk erişim: varsayılan firmayı yükle ve provider'a set et.
+        using var context = _contextFactory.CreateDbContext();
+        var varsayilan = context.Firmalar.FirstOrDefault(f => f.VarsayilanFirma && f.Aktif);
+
+        var bilgi = varsayilan != null
+            ? new AktifFirmaBilgisi
             {
-                using var context = _contextFactory.CreateDbContext();
-                var varsayilan = context.Firmalar.FirstOrDefault(f => f.VarsayilanFirma && f.Aktif);
-                if (varsayilan != null)
-                {
-                    _aktifFirma = new AktifFirmaBilgisi
-                    {
-                        FirmaId = varsayilan.Id,
-                        FirmaKodu = varsayilan.FirmaKodu,
-                        FirmaAdi = varsayilan.FirmaAdi,
-                        AktifDonemYil = varsayilan.AktifDonemYil,
-                        AktifDonemAy = varsayilan.AktifDonemAy,
-                        TumFirmalar = false
-                    };
-                }
-                else
-                {
-                    // Hic firma yoksa default degerler
-                    _aktifFirma = new AktifFirmaBilgisi
-                    {
-                        FirmaId = 0,
-                        FirmaKodu = "VARSAYILAN",
-                        FirmaAdi = "Varsayilan Firma",
-                        AktifDonemYil = DateTime.Today.Year,
-                        AktifDonemAy = DateTime.Today.Month,
-                        TumFirmalar = true
-                    };
-                }
+                FirmaId = varsayilan.Id,
+                FirmaKodu = varsayilan.FirmaKodu,
+                FirmaAdi = varsayilan.FirmaAdi,
+                AktifDonemYil = varsayilan.AktifDonemYil,
+                AktifDonemAy = varsayilan.AktifDonemAy,
+                TumFirmalar = false
             }
-            return _aktifFirma;
-        }
+            : new AktifFirmaBilgisi
+            {
+                FirmaId = 0,
+                FirmaKodu = "VARSAYILAN",
+                FirmaAdi = "Varsayilan Firma",
+                AktifDonemYil = DateTime.Today.Year,
+                AktifDonemAy = DateTime.Today.Month,
+                TumFirmalar = true
+            };
+
+        _aktifFirmaProvider.Set(bilgi);
+        return bilgi;
     }
 
     public void SetAktifFirma(int firmaId)
     {
-        lock (_lock)
+        using var context = _contextFactory.CreateDbContext();
+        var firma = context.Firmalar.Find(firmaId);
+        if (firma == null) return;
+
+        _aktifFirmaProvider.Set(new AktifFirmaBilgisi
         {
-            using var context = _contextFactory.CreateDbContext();
-            var firma = context.Firmalar.Find(firmaId);
-            if (firma != null)
-            {
-                _aktifFirma = new AktifFirmaBilgisi
-                {
-                    FirmaId = firma.Id,
-                    FirmaKodu = firma.FirmaKodu,
-                    FirmaAdi = firma.FirmaAdi,
-                    AktifDonemYil = firma.AktifDonemYil,
-                    AktifDonemAy = firma.AktifDonemAy,
-                    TumFirmalar = false
-                };
-            }
-        }
+            FirmaId = firma.Id,
+            FirmaKodu = firma.FirmaKodu,
+            FirmaAdi = firma.FirmaAdi,
+            AktifDonemYil = firma.AktifDonemYil,
+            AktifDonemAy = firma.AktifDonemAy,
+            TumFirmalar = false
+        });
     }
 
     public void SetAktifFirma(AktifFirmaBilgisi firma)
-    {
-        lock (_lock)
-        {
-            _aktifFirma = firma;
-        }
-    }
+        => _aktifFirmaProvider.Set(firma);
 
     public void SetTumFirmalar(bool tumFirmalar)
-    {
-        lock (_lock)
-        {
-            _aktifFirma.TumFirmalar = tumFirmalar;
-        }
-    }
+        => _aktifFirmaProvider.SetTumFirmalar(tumFirmalar);
 
     public void SetAktifDonem(int yil, int ay)
     {
-        lock (_lock)
-        {
-            _aktifFirma.AktifDonemYil = yil;
-            _aktifFirma.AktifDonemAy = ay;
+        _aktifFirmaProvider.SetDonem(yil, ay);
 
-            // Firmada da guncelle
-            if (_aktifFirma.FirmaId > 0)
+        var mevcut = _aktifFirmaProvider.Mevcut;
+        if (mevcut.FirmaId > 0)
+        {
+            using var context = _contextFactory.CreateDbContext();
+            var firma = context.Firmalar.Find(mevcut.FirmaId);
+            if (firma != null)
             {
-                using var context = _contextFactory.CreateDbContext();
-                var firma = context.Firmalar.Find(_aktifFirma.FirmaId);
-                if (firma != null)
-                {
-                    firma.AktifDonemYil = yil;
-                    firma.AktifDonemAy = ay;
-                    context.SaveChanges();
-                }
+                firma.AktifDonemYil = yil;
+                firma.AktifDonemAy = ay;
+                context.SaveChanges();
             }
         }
     }

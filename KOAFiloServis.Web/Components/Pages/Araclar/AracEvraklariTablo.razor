@@ -207,7 +207,7 @@
                                     <td><small class="text-muted">@item.SaseNo</small></td>
                                     <td>@item.MarkaModel</td>
                                     <td class="text-center"><span class="badge bg-dark">@item.AracTipi</span></td>
-                                    <td class="text-center p-1" @onclick:stopPropagation="true">@BelgeBadge(item, "Ruhsat", item.RuhsatGecerlilik)</td>
+                                    <td class="text-center p-1" @onclick:stopPropagation="true">@RuhsatVarYokBadge(item)</td>
                                     <td class="text-center p-1" @onclick:stopPropagation="true">@BelgeBadge(item, "Sigorta", item.SigortaGecerlilik)</td>
                                     <td class="text-center p-1" @onclick:stopPropagation="true">@BelgeBadge(item, "Muayene", item.MuayeneGecerlilik)</td>
                                     <td class="text-center p-1" @onclick:stopPropagation="true">@BelgeBadge(item, "Uygunluk", item.UygunlukGecerlilik)</td>
@@ -780,6 +780,14 @@
     };
 
     // ── Render fragments ─────────────────────────────────────────────
+    private static RenderFragment RuhsatVarYokBadge(AracBelgeTabloKalemi item) => builder =>
+    {
+        builder.OpenElement(0, "span");
+        builder.AddAttribute(1, "class", item.RuhsatVarMi ? "badge bg-success" : "badge bg-danger");
+        builder.AddContent(2, item.RuhsatVarMi ? "Var" : "Yok");
+        builder.CloseElement();
+    };
+
     private RenderFragment BelgeBadge(AracBelgeTabloKalemi item, string alan, DateTime? tarih) => builder =>
     {
         var cls = AracBelgeTabloKalemi.BelgeDurumClass(tarih);
@@ -801,6 +809,9 @@
         // Sol: Belge Tarihleri Özeti
         builder.OpenElement(10, "div");
         builder.AddAttribute(11, "class", "col-md-5");
+        var ruhsatBadge = item.RuhsatVarMi
+            ? "<span class='badge bg-success'>Var</span>"
+            : "<span class='badge bg-danger'>Yok</span>";
         builder.AddMarkupContent(12, $@"
             <div class='card border-warning h-100'>
                 <div class='card-header py-2 bg-warning bg-opacity-25'>
@@ -808,7 +819,7 @@
                 </div>
                 <div class='card-body py-2'>
                     <table class='table table-sm table-borderless mb-0' style='font-size:0.85rem;'>
-                        <tr><td>Ruhsat</td><td class='text-end'>{TarihYazi(item.RuhsatGecerlilik)}</td></tr>
+                        <tr><td>Ruhsat</td><td class='text-end'>{ruhsatBadge}</td></tr>
                         <tr><td>Trafik Sigortası</td><td class='text-end'>{TarihYazi(item.SigortaGecerlilik)}</td></tr>
                         <tr><td>Muayene</td><td class='text-end'>{TarihYazi(item.MuayeneGecerlilik)}</td></tr>
                         <tr><td>Uygunluk</td><td class='text-end'>{TarihYazi(item.UygunlukGecerlilik)}</td></tr>
