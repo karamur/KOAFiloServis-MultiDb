@@ -30,7 +30,7 @@
 |------|----------|------|------------------|
 | A | Plan + IFirmaTenant + IAktifFirmaProvider + FirmaService bug fix | ✅ tamam | (commit edilecek) |
 | B | Firma.CariId kaldır, Cari.SirketId deprecate, DbContext global filter | ✅ tamam | (commit edilecek) |
-| C | Master entity'lere FirmaId zorunlu (Cari, Kurum, Guzergah, Sofor, Arac, BankaHesap, Stok, MasrafKalemi…) | ⏳ devam | - |
+| C | Master entity'lere FirmaId zorunlu (Cari, Kurum, Guzergah, Sofor, Arac, BankaHesap, Stok, MasrafKalemi…) | ⏳ devam (C1 tamam) | TenantC1_AddFirmaIdToMasterEntities |
 | D | AracSahiplikTipi sadeleştirme + masraf sahibi helper | ⬜ bekliyor | - |
 | E | Kasa/Banka firma bazlı + FirmalarArasiTransfer | ⬜ bekliyor | - |
 | F | FirmaKopyalamaService + UI (toplu/tekil checkbox) | ⬜ bekliyor | - |
@@ -60,19 +60,36 @@
 
 ## Aşama C — Master Entity FirmaId Listesi
 
+### C1 — Marker interface + nullable FirmaId (TAMAM)
+
+| Entity | Durum | Not |
+|--------|-------|-----|
+| Kurum | ✅ IFirmaTenant + FirmaId (yeni kolon) | Migration `TenantC1_AddFirmaIdToMasterEntities` |
+| Guzergah | ✅ IFirmaTenant (FirmaId zaten vardı) | SirketId `[Obsolete]` |
+| Arac | ✅ IFirmaTenant + FirmaId (yeni kolon) | SirketId `[Obsolete]` |
+| Sofor | ✅ IFirmaTenant (FirmaId zaten vardı) | SirketId `[Obsolete]` |
+| Cari | ✅ IFirmaTenant (FirmaId zaten vardı) | SirketId `[Obsolete]` (Aşama B) |
+
+### C2 — Veri doldurma + NOT NULL (bekliyor)
+
+| Entity | Durum | Not |
+|--------|-------|-----|
+| Kurum | ⬜ | NULL kayıtlara varsayılan firma ata, sonra `IsRequired()` |
+| Guzergah | ⬜ | aynı |
+| Arac | ⬜ | aynı |
+| Sofor | ⬜ | aynı |
+| Cari | ⬜ | aynı |
+
+### C3 — Kalan entity'ler (bekliyor)
+
 | Entity | Şu an FirmaId? | Yapılacak |
 |--------|----------------|-----------|
-| Cari | ✅ var (opsiyonel) | zorunlu yap |
-| Kurum | ❌ yok | ekle, zorunlu |
-| Guzergah | ❌ (KurumId var) | ekle, zorunlu |
-| Sofor | ✅ var (opsiyonel) | zorunlu yap |
-| Arac | ❌ (SirketId var) | FirmaId ekle, zorunlu |
-| BankaHesap | kontrol | zorunlu |
-| Stok | kontrol | zorunlu |
-| MasrafKalemi | kontrol | zorunlu |
-| Fatura | kontrol | zorunlu (Cari üzerinden gelir ama explicit olsun) |
-| ServisCalisma | kontrol | zorunlu |
-| BankaKasaHareket | kontrol | zorunlu |
+| BankaHesap | kontrol | Aşama E içinde zaten yapılacak |
+| BankaKasaHareket | kontrol | Aşama E içinde |
+| Stok | kontrol | C3 |
+| MasrafKalemi | kontrol | C3 |
+| Fatura | kontrol | C3 (Cari üzerinden gelir ama explicit olsun) |
+| ServisCalisma | kontrol | C3 |
 
 ---
 
@@ -83,33 +100,33 @@
 3. Aşama bitince satırını `✅ tamam` yap, commit at, bir sonraki aşamayı `⏳ devam` yap.
 4. Veri kaybı olmaması için Aşama B-C'deki migration sırasını **bozma** (nullable → doldur → required).
 
-### Şu Anki Devam Noktası (Aşama C İlk Adım)
+### Şu Anki Devam Noktası (Aşama C2 — Veri Doldurma)
 
-**Hedef:** Master kart entity'lerine `IFirmaTenant` implement ettir + `FirmaId` kolonu (nullable → doldur → required) adım adım.
+**Hedef:** C1 ile eklenen nullable `FirmaId` kolonlarındaki NULL kayıtları varsayılan firma ile doldur, sonra C2 migration ile `IsRequired()` yap.
 
-**Sıra (önce düşük riskli olan):**
+**Önemli yeni karar (K9 güncelleme):** `IFirmaTenant.FirmaId` `int?` olarak tanımlandı (eski `int` deneyince Sofor/Cari'de 60+ derleme hatası çıktı; nullable yaklaşım K9 stratejisine zaten daha uygun). Filter ve SaveChanges buna göre güncellendi.
 
-1. `Kurum` — şu an `FirmaId` yok. `IFirmaTenant` ekle, `FirmaId` nullable kolon migration.
-2. `Guzergah` — `IFirmaTenant` + nullable `FirmaId`.
-3. `Arac` — `IFirmaTenant` + nullable `FirmaId` (legacy `SirketId` korunur, `[Obsolete]`).
-4. `Sofor` — zaten `FirmaId` opsiyonel; sadece `IFirmaTenant` implement et.
-5. `Cari` — zaten `FirmaId` opsiyonel; `IFirmaTenant` implement et.
-6. Veri doldurma scripti: NULL `FirmaId` olan kayıtlar için varsayılan firma ata.
-7. Sonra ayrı migration: `FirmaId` `IsRequired()` yap.
-8. `BankaHesap`, `Stok`, `MasrafKalemi`, `Fatura`, `ServisCalisma`, `BankaKasaHareket` için tekrar.
+**Sıradaki adımlar:**
 
-**Önemli kural (K7):** Bütçe ve Muhasebe entity'leri `IFirmaTenant` IMPLEMENT ETMEZ. Bu sayede otomatik filter onları atlar. Yanlışlıkla implement edilirse `[TenantFilterIgnore]` ekle.
+1. Veri scripti (her tenant entity için): `UPDATE Kurumlar SET FirmaId = (SELECT Id FROM Firmalar WHERE VarsayilanFirma = true) WHERE FirmaId IS NULL;` (Cari, Sofor, Guzergah, Arac, Kurum)
+2. `Firma.cs` veya seed kodunda "ANA firma" mevcut değilse seed et.
+3. Entity'lerde `int? FirmaId` → `int FirmaId` çevirip migration `TenantC2_RequireFirmaIdOnMasterEntities` oluştur. **Ama önce** üst aklımızda 60+ kullanım yerini (`HasValue`/`Value`/`??`) toplu temizle. Aksi halde derleme patlar.
+4. Ya da pragmatik seçim: Şimdilik nullable bırak, query filter zaten korumayı sağlıyor. NOT NULL'a geçişi Aşama F (kopyalama) sonrasına erteleyebiliriz.
 
-**Başlamadan önce yap:** Aşama A + B commit'i at:
+**Tercih:** Pragmatik seçim. NOT NULL'a geçiş sonra. **Şimdi doğrudan Aşama D'ye geçiyoruz** (Arac sahiplik 3 tip + masraf sahibi helper). C2/C3 daha sonra toplu temizlik arasında yapılır.
+
+**Başlamadan önce yap:** Aşama C1 commit:
 ```
 git add docs/TENANT_MIGRATION_PLAN.md \
         KOAFiloServis.Shared/Entities/IFirmaTenant.cs \
-        KOAFiloServis.Shared/Entities/TenantFilterIgnoreAttribute.cs \
-        KOAFiloServis.Shared/Entities/Firma.cs \
+        KOAFiloServis.Shared/Entities/Kurum.cs \
+        KOAFiloServis.Shared/Entities/Guzergah.cs \
+        KOAFiloServis.Shared/Entities/Arac.cs \
+        KOAFiloServis.Shared/Entities/Sofor.cs \
         KOAFiloServis.Shared/Entities/Cari.cs \
-        KOAFiloServis.Web/Services/IAktifFirmaProvider.cs \
-        KOAFiloServis.Web/Services/FirmaService.cs \
         KOAFiloServis.Web/Data/ApplicationDbContext.cs \
-        KOAFiloServis.Web/Program.cs
-git commit -m "tenant: Aşama A+B - scoped provider + global IFirmaTenant query filter"
+        KOAFiloServis.Web/Migrations/20260517000621_TenantC1_AddFirmaIdToMasterEntities.cs \
+        KOAFiloServis.Web/Migrations/20260517000621_TenantC1_AddFirmaIdToMasterEntities.Designer.cs \
+        KOAFiloServis.Web/Migrations/ApplicationDbContextModelSnapshot.cs
+git commit -m "tenant: Aşama C1 - IFirmaTenant on master entities + nullable FirmaId migration"
 ```

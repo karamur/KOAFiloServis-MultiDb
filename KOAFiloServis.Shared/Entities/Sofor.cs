@@ -1,16 +1,18 @@
-using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.ComponentModel.DataAnnotations.Schema;
 
 namespace KOAFiloServis.Shared.Entities;
 
 /// <summary>
 /// Personel bilgileri (Şoför, Ofis Çalışanı, Yönetici vb.)
 /// </summary>
-public class Sofor : BaseEntity
+public class Sofor : BaseEntity, IFirmaTenant
 {
     /// <summary>
-    /// Multi-tenant: Şirket ID (null = sistem geneli)
+    /// LEGACY — Eski multi-tenant Sirket kavramı. Yeni mimari `FirmaId` kullanır.
     /// </summary>
+    [Obsolete("Tenant yeniden yapılandırması (Aşama C): SirketId yerine FirmaId kullanın.")]
     public int? SirketId { get; set; }
+    [Obsolete("Tenant yeniden yapılandırması (Aşama C): Sirket navigasyonu yerine Firma kullanın.")]
     public virtual Sirket? Sirket { get; set; }
 
     public string SoforKodu { get; set; } = string.Empty;

@@ -19,6 +19,11 @@ public interface IFirmaTenant
 {
     /// <summary>
     /// Bu kaydın ait olduğu Firma (tenant) Id'si.
+    /// <para>
+    /// <b>Nullable:</b> Aktif firma seçilmemiş eski kayıtlar için NULL olabilir.
+    /// Aşama C "doldur" adımında varsayılan firma ile güncellenir; ardından
+    /// DB tarafında NOT NULL'a alınır (K9).
+    /// </para>
     /// </summary>
-    int FirmaId { get; set; }
+    int? FirmaId { get; set; }
 }

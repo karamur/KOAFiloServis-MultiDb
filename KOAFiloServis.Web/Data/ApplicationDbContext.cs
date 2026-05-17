@@ -30,7 +30,7 @@ public class ApplicationDbContext : DbContext
     /// Aktif firma (yeni tenant kavramı). Global query filter ve SaveChanges'te kullanılır.
     /// 0 dönerse "filter pasif" anlamına gelir (henüz firma seçilmemiş / SuperAdmin / TumFirmalar).
     /// </summary>
-    private int FirmaTenantId => ResolveAktifFirmaProvider()?.AktifFirmaId ?? 0;
+    private int? FirmaTenantId => ResolveAktifFirmaProvider()?.AktifFirmaId;
 
     /// <summary>
     /// True ise IFirmaTenant entity'leri üzerindeki firma filter'ı devre dışı bırakılır
@@ -2890,7 +2890,21 @@ public class ApplicationDbContext : DbContext
             if (!tenantInterface.IsAssignableFrom(entityType.ClrType)) continue;
             if (Attribute.IsDefined(entityType.ClrType, typeof(TenantFilterIgnoreAttribute))) continue;
 
-            // e => FirmaTenantDisabled || EF.Property<int>(e, "FirmaId") == FirmaTenantId
+            var builder = modelBuilder.Entity(entityType.ClrType);
+
+            // EF Core 10: Aynı entity'de hem anonymous hem named filter olamaz.
+            // IFirmaTenant entity'leri için OnModelCreating içinde önceden tanımlanmış
+            // anonymous filter (örn. !IsDeleted) varsa onu "SoftDelete" adıyla taşı, sonra
+            // "Tenant" named filter ekle.
+            var existingAnonymous = entityType.GetQueryFilter();
+            if (existingAnonymous != null)
+            {
+                // Metadata seviyesinde anonymous filter'ı temizle, sonra "SoftDelete" adıyla geri ekle.
+                entityType.SetQueryFilter((System.Linq.Expressions.LambdaExpression?)null);
+                builder.HasQueryFilter("SoftDelete", existingAnonymous);
+            }
+
+            // e => FirmaTenantDisabled || EF.Property<int?>(e, "FirmaId") == FirmaTenantId
             var parameter = System.Linq.Expressions.Expression.Parameter(entityType.ClrType, "e");
             var firmaIdProp = System.Linq.Expressions.Expression.Property(parameter, "FirmaId");
             var contextConst = System.Linq.Expressions.Expression.Constant(this);
@@ -2904,8 +2918,7 @@ public class ApplicationDbContext : DbContext
             var body = System.Linq.Expressions.Expression.OrElse(disabledProp, equal);
             var lambda = System.Linq.Expressions.Expression.Lambda(body, parameter);
 
-            // Named filter: mevcut soft-delete filter'ı ezmez.
-            modelBuilder.Entity(entityType.ClrType).HasQueryFilter("Tenant", lambda);
+            builder.HasQueryFilter("Tenant", lambda);
         }
     }
 
@@ -2936,12 +2949,12 @@ public class ApplicationDbContext : DbContext
     {
         var aktif = ResolveAktifFirmaProvider();
         var firmaId = aktif?.AktifFirmaId ?? 0;
-        if (firmaId == 0) return; // Firma seçilmemiş → otomatik atama yapma (consumer explicit set etmeli)
+        if (firmaId == 0) return; // Firma seçilmemiş → otomatik atama yapma
 
         foreach (var entry in ChangeTracker.Entries<IFirmaTenant>())
         {
             if (entry.State != EntityState.Added) continue;
-            if (entry.Entity.FirmaId == 0)
+            if (!entry.Entity.FirmaId.HasValue || entry.Entity.FirmaId == 0)
             {
                 entry.Entity.FirmaId = firmaId;
             }

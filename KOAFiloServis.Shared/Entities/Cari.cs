@@ -3,7 +3,7 @@
 /// <summary>
 /// Cari hesap (Musteri/Tedarikci/Firma/Personel)
 /// </summary>
-public class Cari : BaseEntity
+public class Cari : BaseEntity, IFirmaTenant
 {
     /// <summary>
     /// LEGACY — Eski multi-tenant Sirket kavramı. Yeni mimari `FirmaId` kullanır.
@@ -45,7 +45,7 @@ public class Cari : BaseEntity
     public int? PersonelAvansHesapId { get; set; }
     public virtual MuhasebeHesap? PersonelAvansHesap { get; set; }
 
-    // Firma iliskisi (coklu firma destegi)
+    // Firma iliskisi (tenant - K3+K4)
     public int? FirmaId { get; set; }
     public virtual Firma? Firma { get; set; }
     

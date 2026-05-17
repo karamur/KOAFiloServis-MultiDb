@@ -5,8 +5,15 @@ namespace KOAFiloServis.Shared.Entities;
 /// <summary>
 /// Müşteri / Kurum kartı bilgileri
 /// </summary>
-public class Kurum : BaseEntity
+public class Kurum : BaseEntity, IFirmaTenant
 {
+    /// <summary>
+    /// Tenant: Bu kurum kartının ait olduğu firma. (K3+K4)
+    /// Nullable: Aşama C "doldur" adımında varsayılan firma ile güncellenir; ardından NOT NULL.
+    /// </summary>
+    public int? FirmaId { get; set; }
+    public virtual Firma? Firma { get; set; }
+
     [Required]
     [StringLength(50)]
     public string KurumKodu { get; set; } = string.Empty;

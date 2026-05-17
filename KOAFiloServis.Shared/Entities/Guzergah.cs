@@ -5,13 +5,21 @@ namespace KOAFiloServis.Shared.Entities;
 /// <summary>
 /// Güzergah bilgileri (Firma bazlı)
 /// </summary>
-public class Guzergah : BaseEntity
+public class Guzergah : BaseEntity, IFirmaTenant
 {
     /// <summary>
-    /// Multi-tenant: Şirket ID (null = sistem geneli)
+    /// LEGACY — Eski multi-tenant Sirket kavramı. Yeni mimari `FirmaId` kullanır.
     /// </summary>
+    [Obsolete("Tenant yeniden yapılandırması (Aşama C): SirketId yerine FirmaId kullanın.")]
     public int? SirketId { get; set; }
+    [Obsolete("Tenant yeniden yapılandırması (Aşama C): Sirket navigasyonu yerine Firma kullanın.")]
     public virtual Sirket? Sirket { get; set; }
+
+    /// <summary>
+    /// Tenant: Bu güzergahın ait olduğu firma. (K3+K4)
+    /// </summary>
+    public int? FirmaId { get; set; }
+    public virtual Firma? Firma { get; set; }
 
     public string GuzergahKodu { get; set; } = string.Empty;
     public string GuzergahAdi { get; set; } = string.Empty;
@@ -62,10 +70,6 @@ public class Guzergah : BaseEntity
 
     // Fatura Kalem İlişkisi (Hangi fatura kaleminden oluşturuldu)
     public int? FaturaKalemId { get; set; }
-
-    // Firma İlişkisi
-    public int? FirmaId { get; set; }
-    public virtual Firma? Firma { get; set; }
 
     // Foreign Key - Cari (eski uyumluluk için)
     public int CariId { get; set; }

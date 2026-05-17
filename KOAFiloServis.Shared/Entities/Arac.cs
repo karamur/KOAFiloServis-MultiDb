@@ -5,13 +5,22 @@ namespace KOAFiloServis.Shared.Entities;
 /// <summary>
 /// Araç bilgileri - Şase numarasına göre tekil
 /// </summary>
-public class Arac : BaseEntity
+public class Arac : BaseEntity, IFirmaTenant
 {
     /// <summary>
-    /// Multi-tenant: Şirket ID (null = sistem geneli)
+    /// LEGACY — Eski multi-tenant Sirket kavramı. Yeni mimari `FirmaId` kullanır.
     /// </summary>
+    [Obsolete("Tenant yeniden yapılandırması (Aşama C): SirketId yerine FirmaId kullanın.")]
     public int? SirketId { get; set; }
+    [Obsolete("Tenant yeniden yapılandırması (Aşama C): Sirket navigasyonu yerine Firma kullanın.")]
     public virtual Sirket? Sirket { get; set; }
+
+    /// <summary>
+    /// Tenant: Bu aracın ait olduğu firma. (K3+K4) Sahiplik tipi ne olursa olsun (Özmal/Kiralık/Tedarikçi)
+    /// kaydın yönetici firması bu alanla belirlenir.
+    /// </summary>
+    public int? FirmaId { get; set; }
+    public virtual Firma? Firma { get; set; }
 
     // Şase numarası - Tekil (Unique)
     public string SaseNo { get; set; } = string.Empty;
