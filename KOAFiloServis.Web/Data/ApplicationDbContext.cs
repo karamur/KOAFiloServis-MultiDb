@@ -127,6 +127,7 @@ public class ApplicationDbContext : DbContext
     // Banka/Kasa Modulu
     public DbSet<BankaHesap> BankaHesaplari { get; set; }
     public DbSet<BankaKasaHareket> BankaKasaHareketleri { get; set; }
+    public DbSet<FirmalarArasiTransfer> FirmalarArasiTransferler { get; set; }
     public DbSet<OdemeEslestirme> OdemeEslestirmeleri { get; set; }
 
     // Checklist Modulu
@@ -887,6 +888,49 @@ public class ApplicationDbContext : DbContext
             // Global Query Filter: IsDeleted + Multi-tenant
             entity.HasQueryFilter(e => !e.IsDeleted && 
                 (TenantFilterDisabled || e.SirketId == null || e.SirketId == TenantId));
+        });
+
+        // Firmalar Arası Transfer (K6)
+        modelBuilder.Entity<FirmalarArasiTransfer>(entity =>
+        {
+            entity.HasIndex(e => e.KaynakFirmaId);
+            entity.HasIndex(e => e.HedefFirmaId);
+            entity.HasIndex(e => e.TransferTarihi);
+
+            entity.HasOne(e => e.KaynakFirma)
+                .WithMany()
+                .HasForeignKey(e => e.KaynakFirmaId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.HedefFirma)
+                .WithMany()
+                .HasForeignKey(e => e.HedefFirmaId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.KaynakHesap)
+                .WithMany()
+                .HasForeignKey(e => e.KaynakHesapId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.HedefHesap)
+                .WithMany()
+                .HasForeignKey(e => e.HedefHesapId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.KaynakHareket)
+                .WithMany()
+                .HasForeignKey(e => e.KaynakHareketId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.HedefHareket)
+                .WithMany()
+                .HasForeignKey(e => e.HedefHareketId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // FirmaId getter/setter KaynakFirmaId'yi proxy'ler; EF'in ayrı kolon yaratmasını engelle.
+            entity.Ignore(e => e.FirmaId);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
         });
 
         // Ödeme Eşleştirme

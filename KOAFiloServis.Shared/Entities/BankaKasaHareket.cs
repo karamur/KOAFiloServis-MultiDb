@@ -5,13 +5,21 @@ namespace KOAFiloServis.Shared.Entities;
 /// <summary>
 /// Banka/Kasa hareketleri
 /// </summary>
-public class BankaKasaHareket : BaseEntity
+public class BankaKasaHareket : BaseEntity, IFirmaTenant
 {
     /// <summary>
-    /// Multi-tenant: Şirket ID (null = sistem geneli)
+    /// LEGACY — Eski multi-tenant Sirket kavramı. Yeni mimari `FirmaId` kullanır.
     /// </summary>
+    [Obsolete("Tenant yeniden yapılandırması (Aşama E): SirketId yerine FirmaId kullanın.")]
     public int? SirketId { get; set; }
+    [Obsolete("Tenant yeniden yapılandırması (Aşama E): Sirket navigasyonu yerine Firma kullanın.")]
     public virtual Sirket? Sirket { get; set; }
+
+    /// <summary>
+    /// Tenant: Bu hareketin ait olduğu firma. (K6)
+    /// </summary>
+    public int? FirmaId { get; set; }
+    public virtual Firma? Firma { get; set; }
 
     public string IslemNo { get; set; } = string.Empty;
     public DateTime IslemTarihi { get; set; }

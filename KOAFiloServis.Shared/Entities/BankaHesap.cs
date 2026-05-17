@@ -1,15 +1,23 @@
-namespace KOAFiloServis.Shared.Entities;
+﻿namespace KOAFiloServis.Shared.Entities;
 
 /// <summary>
 /// Banka hesapları
 /// </summary>
-public class BankaHesap : BaseEntity
+public class BankaHesap : BaseEntity, IFirmaTenant
 {
     /// <summary>
-    /// Multi-tenant: Şirket ID (null = sistem geneli)
+    /// LEGACY — Eski multi-tenant Sirket kavramı. Yeni mimari `FirmaId` kullanır.
     /// </summary>
+    [Obsolete("Tenant yeniden yapılandırması (Aşama E): SirketId yerine FirmaId kullanın.")]
     public int? SirketId { get; set; }
+    [Obsolete("Tenant yeniden yapılandırması (Aşama E): Sirket navigasyonu yerine Firma kullanın.")]
     public virtual Sirket? Sirket { get; set; }
+
+    /// <summary>
+    /// Tenant: Bu kasa/banka hesabının ait olduğu firma. (K6)
+    /// </summary>
+    public int? FirmaId { get; set; }
+    public virtual Firma? Firma { get; set; }
 
     public string HesapKodu { get; set; } = string.Empty;
     public string HesapAdi { get; set; } = string.Empty;

@@ -204,6 +204,7 @@ builder.Services.AddScoped<ITenantService, TenantService>();
 // Aktif firma (tenant) state'i per-circuit tutulur; Blazor Server'da static state veri sizdiriyordu.
 builder.Services.AddScoped<IAktifFirmaProvider, AktifFirmaProvider>();
 builder.Services.AddScoped<IFirmaService, FirmaService>();
+builder.Services.AddScoped<IFirmalarArasiTransferService, FirmalarArasiTransferService>();
 builder.Services.AddSingleton<ILisansService, LisansService>(); // Singleton - lisans cache
 builder.Services.AddScoped<IKullaniciService, KullaniciService>(); // Scoped - her circuit kendi oturumunu yonetir
 builder.Services.AddScoped<ICariService, CariService>();
