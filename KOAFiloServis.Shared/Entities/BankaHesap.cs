@@ -3,6 +3,7 @@
 /// <summary>
 /// Banka hesapları
 /// </summary>
+[TenantNullableFirmaId]
 public class BankaHesap : BaseEntity, IFirmaTenant
 {
     /// <summary>

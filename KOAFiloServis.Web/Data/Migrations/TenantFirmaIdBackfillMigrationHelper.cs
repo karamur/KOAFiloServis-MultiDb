@@ -37,6 +37,7 @@ public static class TenantFirmaIdBackfillMigrationHelper
         "Hakedisler",
         "HakedisDetaylari",
         "GuzergahSeferleri",
+        "Kapasiteler",
     ];
 
     public static async Task BackfillAsync(ApplicationDbContext context, ILogger logger)

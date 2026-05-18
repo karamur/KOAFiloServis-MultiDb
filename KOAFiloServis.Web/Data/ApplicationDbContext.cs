@@ -435,11 +435,7 @@ public class ApplicationDbContext : DbContext
                 .HasForeignKey(e => e.SoforId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // Sirket iliskisi (Multi-tenant)
-            entity.HasOne(e => e.Sirket)
-                .WithMany()
-                .HasForeignKey(e => e.SirketId)
-                .OnDelete(DeleteBehavior.Restrict);
+            // Sirket iliskisi (Multi-tenant) - LEGACY drop edildi (Teknik Borç #5)
 
             // Cari -> Firma (FirmaId) ilişkisini EXPLICIT tanımla.
             // Aksi halde Firma.CariId tarafındaki HasOne<Cari>().WithMany() Cari.Firma navigation'ını
@@ -449,9 +445,8 @@ public class ApplicationDbContext : DbContext
                 .HasForeignKey(e => e.FirmaId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // Global Query Filter: IsDeleted + Multi-tenant
-            entity.HasQueryFilter(e => !e.IsDeleted && 
-                (TenantFilterDisabled || e.SirketId == null || e.SirketId == TenantId));
+            // Global Query Filter: IsDeleted (Tenant izolasyonu IFirmaTenant filter'ı tarafından otomatik ekleniyor)
+            entity.HasQueryFilter(e => !e.IsDeleted);
         });
 
         // CariSeferUcreti - Bir cariye birden fazla sefer ücreti tanımlanabilir
@@ -509,11 +504,7 @@ public class ApplicationDbContext : DbContext
                 .HasForeignKey(e => e.MuhasebeHesapId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // Sirket iliskisi (Multi-tenant)
-            entity.HasOne(e => e.Sirket)
-                .WithMany()
-                .HasForeignKey(e => e.SirketId)
-                .OnDelete(DeleteBehavior.Restrict);
+            // Sirket iliskisi (Multi-tenant) - LEGACY drop edildi (Faz C-extend, Teknik Borç #5)
 
             // Firma ilişkisi (çalıştığı firma)
             entity.HasOne(e => e.Firma)
@@ -523,9 +514,8 @@ public class ApplicationDbContext : DbContext
 
             entity.Property(e => e.SgkCalismaTuru).HasDefaultValue(SgkCalismaTuru.TamZamanli).HasSentinel(null);
 
-            // Global Query Filter: IsDeleted + Multi-tenant
-            entity.HasQueryFilter(e => !e.IsDeleted && 
-                (TenantFilterDisabled || e.SirketId == null || e.SirketId == TenantId));
+            // Global Query Filter: IsDeleted (Tenant izolasyonu IFirmaTenant filter'ı tarafından otomatik ekleniyor)
+            entity.HasQueryFilter(e => !e.IsDeleted);
         });
 
         // Araç
@@ -566,16 +556,17 @@ public class ApplicationDbContext : DbContext
                 .HasForeignKey(e => e.KomisyoncuCariId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Sirket iliskisi (Multi-tenant)
-            entity.HasOne(e => e.Sirket)
+            // Sirket iliskisi (Multi-tenant) - LEGACY drop edildi (Faz C-extend, Teknik Borç #5)
+
+            // Firma ilişkisi (Tenant)
+            entity.HasOne(e => e.Firma)
                 .WithMany()
-                .HasForeignKey(e => e.SirketId)
+                .HasForeignKey(e => e.FirmaId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             // PlakaGecmisi navigation'ı AracPlaka entity'sinde tanımlanıyor
-            // Global Query Filter: IsDeleted + Multi-tenant
-            entity.HasQueryFilter(e => !e.IsDeleted && 
-                (TenantFilterDisabled || e.SirketId == null || e.SirketId == TenantId));
+            // Global Query Filter: IsDeleted (Tenant izolasyonu IFirmaTenant filter'ı tarafından otomatik ekleniyor)
+            entity.HasQueryFilter(e => !e.IsDeleted);
         });
 
         // Araç Plaka Geçmişi
@@ -616,15 +607,16 @@ public class ApplicationDbContext : DbContext
                 .HasForeignKey(e => e.CariId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Sirket iliskisi (Multi-tenant)
-            entity.HasOne(e => e.Sirket)
+            // Sirket iliskisi (Multi-tenant) - LEGACY drop edildi (Faz C-extend, Teknik Borç #5)
+
+            // Firma ilişkisi (Tenant)
+            entity.HasOne(e => e.Firma)
                 .WithMany()
-                .HasForeignKey(e => e.SirketId)
+                .HasForeignKey(e => e.FirmaId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Global Query Filter: IsDeleted + Multi-tenant
-            entity.HasQueryFilter(e => !e.IsDeleted && 
-                (TenantFilterDisabled || e.SirketId == null || e.SirketId == TenantId));
+            // Global Query Filter: IsDeleted (Tenant izolasyonu IFirmaTenant filter'ı tarafından otomatik ekleniyor)
+            entity.HasQueryFilter(e => !e.IsDeleted);
         });
 
         // Masraf Kalemi
@@ -640,15 +632,21 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Kapasite>(entity =>
         {
             entity.HasIndex(e => new { e.SirketId, e.KapasiteAdi }).IsUnique();
+            entity.HasIndex(e => new { e.FirmaId, e.KapasiteAdi });
             entity.Property(e => e.KapasiteAdi).HasMaxLength(100);
             entity.Property(e => e.Aciklama).HasMaxLength(500);
             entity.Property(e => e.Carpan).HasPrecision(18, 2);
-            entity.HasOne(e => e.Sirket)
+
+            // Sirket iliskisi (Multi-tenant) - LEGACY drop edildi (Faz C-extend, Teknik Borç #5)
+
+            // Firma ilişkisi
+            entity.HasOne(e => e.Firma)
                 .WithMany()
-                .HasForeignKey(e => e.SirketId)
+                .HasForeignKey(e => e.FirmaId)
                 .OnDelete(DeleteBehavior.Restrict);
-            entity.HasQueryFilter(e => !e.IsDeleted &&
-                (TenantFilterDisabled || e.SirketId == null || e.SirketId == TenantId));
+
+            // Global Query Filter: IsDeleted (Tenant izolasyonu IFirmaTenant filter'ı tarafından otomatik ekleniyor)
+            entity.HasQueryFilter(e => !e.IsDeleted);
         });
 
         // Araç Masraf
@@ -745,7 +743,6 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => new { e.CariId, e.FaturaTarihi });
             entity.HasIndex(e => new { e.Durum, e.VadeTarihi });
             entity.HasIndex(e => new { e.FaturaTipi, e.FaturaTarihi });
-            entity.HasIndex(e => new { e.SirketId, e.FaturaTarihi });
             entity.Property(e => e.FaturaNo).HasMaxLength(50);
             entity.Property(e => e.AraToplam).HasPrecision(18, 2);
             entity.Property(e => e.KdvOrani).HasPrecision(5, 2);
@@ -774,15 +771,10 @@ public class ApplicationDbContext : DbContext
                 .HasForeignKey(e => e.EslesenFaturaId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // Sirket iliskisi (Multi-tenant)
-            entity.HasOne(e => e.Sirket)
-                .WithMany()
-                .HasForeignKey(e => e.SirketId)
-                .OnDelete(DeleteBehavior.Restrict);
+            // Sirket iliskisi (Multi-tenant) - LEGACY drop edildi (Teknik Borç #5)
 
-            // Global Query Filter: IsDeleted + Multi-tenant
-            entity.HasQueryFilter(e => !e.IsDeleted && 
-                (TenantFilterDisabled || e.SirketId == null || e.SirketId == TenantId));
+            // Global Query Filter: IsDeleted (Tenant izolasyonu IFirmaTenant filter'ı tarafından otomatik ekleniyor)
+            entity.HasQueryFilter(e => !e.IsDeleted);
         });
 
         // Fatura Kalem
@@ -824,15 +816,16 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.ParaBirimi).HasMaxLength(3);
             entity.Property(e => e.AcilisBakiye).HasPrecision(18, 2);
 
-            // Sirket iliskisi (Multi-tenant)
-            entity.HasOne(e => e.Sirket)
+            // Sirket iliskisi (Multi-tenant) - LEGACY drop edildi (Faz C-extend, Teknik Borç #5)
+
+            // Firma ilişkisi (Tenant)
+            entity.HasOne(e => e.Firma)
                 .WithMany()
-                .HasForeignKey(e => e.SirketId)
+                .HasForeignKey(e => e.FirmaId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Global Query Filter: IsDeleted + Multi-tenant
-            entity.HasQueryFilter(e => !e.IsDeleted && 
-                (TenantFilterDisabled || e.SirketId == null || e.SirketId == TenantId));
+            // Global Query Filter: IsDeleted (Tenant izolasyonu IFirmaTenant filter'ı tarafından otomatik ekleniyor)
+            entity.HasQueryFilter(e => !e.IsDeleted);
         });
 
         // Banka/Kasa Hareket
@@ -879,15 +872,16 @@ public class ApplicationDbContext : DbContext
                 .HasForeignKey(e => e.MuhasebeFisId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // Sirket iliskisi (Multi-tenant)
-            entity.HasOne(e => e.Sirket)
+            // Sirket iliskisi (Multi-tenant) - LEGACY drop edildi (Faz C-extend, Teknik Borç #5)
+
+            // Firma ilişkisi (Tenant)
+            entity.HasOne(e => e.Firma)
                 .WithMany()
-                .HasForeignKey(e => e.SirketId)
+                .HasForeignKey(e => e.FirmaId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Global Query Filter: IsDeleted + Multi-tenant
-            entity.HasQueryFilter(e => !e.IsDeleted && 
-                (TenantFilterDisabled || e.SirketId == null || e.SirketId == TenantId));
+            // Global Query Filter: IsDeleted (Tenant izolasyonu IFirmaTenant filter'ı tarafından otomatik ekleniyor)
+            entity.HasQueryFilter(e => !e.IsDeleted);
         });
 
         // Firmalar Arası Transfer (K6)

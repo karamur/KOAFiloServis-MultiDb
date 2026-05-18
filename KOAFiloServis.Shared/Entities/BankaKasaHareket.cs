@@ -5,6 +5,7 @@ namespace KOAFiloServis.Shared.Entities;
 /// <summary>
 /// Banka/Kasa hareketleri
 /// </summary>
+[TenantNullableFirmaId]
 public class BankaKasaHareket : BaseEntity, IFirmaTenant
 {
     /// <summary>

@@ -5,7 +5,8 @@ namespace KOAFiloServis.Shared.Entities;
 /// <summary>
 /// Personel bilgileri (Şoför, Ofis Çalışanı, Yönetici vb.)
 /// </summary>
-public class Sofor : BaseEntity, IKopyalanabilirTenant
+[TenantNullableFirmaId]
+public class Sofor : BaseEntity, IKopyalanabilirTenant, IFirmaTenant
 {
     /// <summary>Firma kopyalama (K8) audit: kaynak firma Id'si.</summary>
     public int? KaynakFirmaId { get; set; }

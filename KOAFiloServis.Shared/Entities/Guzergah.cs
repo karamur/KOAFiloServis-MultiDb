@@ -5,7 +5,8 @@ namespace KOAFiloServis.Shared.Entities;
 /// <summary>
 /// Güzergah bilgileri (Firma bazlı)
 /// </summary>
-public class Guzergah : BaseEntity, IKopyalanabilirTenant
+[TenantNullableFirmaId]
+public class Guzergah : BaseEntity, IKopyalanabilirTenant, IFirmaTenant
 {
     /// <summary>Firma kopyalama (K8) audit: kaynak firma Id'si.</summary>
     public int? KaynakFirmaId { get; set; }

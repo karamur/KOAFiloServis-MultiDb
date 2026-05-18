@@ -5,7 +5,8 @@ namespace KOAFiloServis.Shared.Entities;
 /// <summary>
 /// Araç bilgileri - Şase numarasına göre tekil
 /// </summary>
-public class Arac : BaseEntity, IKopyalanabilirTenant
+[TenantNullableFirmaId]
+public class Arac : BaseEntity, IKopyalanabilirTenant, IFirmaTenant
 {
     /// <summary>Firma kopyalama (K8) audit: kaynak firma Id'si.</summary>
     public int? KaynakFirmaId { get; set; }
