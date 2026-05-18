@@ -335,6 +335,67 @@ Faz 5.1 sonrasında `TenantService.TransferCariAsync` ve `TransferFaturaAsync` a
 
 ---
 
+## ✅ FAZ 5.3-B1 + B2 TAMAMLANDI (Bu oturum)
+
+### Bu oturumda yapılanlar
+
+**Faz 5.3-B1 (DbContext ölü kod temizliği) + B2 (TenantService dosya silme)** birleşik bitirildi:
+
+- ✅ `CariSeferUcreti` entity'sine `[TenantNullableFirmaId]` + `IFirmaTenant` + nullable `FirmaId` + `Firma` navigation + `[Obsolete] SirketId/Sirket` eklendi (Kapasite şablonu)
+- ✅ `ApplicationDbContext`'te `CariSeferUcreti` için Sirket FK config + manuel `TenantFilterDisabled` query filter kaldırıldı, Firma FK eklendi → tenant izolasyonu artık `IFirmaTenant` global filter üzerinden
+- ✅ `ApplicationDbContext` ölü kod temizliği:
+  - `_tenantService` private field silindi
+  - `ResolveTenantService()` metodu silindi
+  - `TenantId` private property silindi
+  - `TenantFilterDisabled` private property silindi
+  - `SetServiceProvider`'daki `_tenantService = null` reset satırı silindi
+- ✅ Migration `20260518132902_TenantB1_AddFirmaIdToCariSeferUcreti` üretildi + PostgreSQL'e uygulandı
+  - `CariSeferUcretleri.FirmaId` nullable kolon + Restrict FK
+  - `Sirket` FK navigation hâlâ olduğu için EF auto-regenerate etti (5.3-B3'te tamamen kalkacak)
+- ✅ `TenantFirmaIdBackfillMigrationHelper`: `CariSeferUcretleri` tablosu eklendi
+- ✅ `KOAFiloServis.Web/Services/TenantService.cs` **silindi** (~700 satır)
+- ✅ `KOAFiloServis.Web/Services/Interfaces/ITenantService.cs` **silindi**
+- ✅ `Program.cs`: `AddScoped<ITenantService, TenantService>()` DI kaydı kaldırıldı
+- ✅ Build: **0 error, 7 warning** (önceki 38 → 7; planlı obsolete uyarılarının çoğu TenantService.cs içindeydi)
+- ✅ 2 commit + push (`dcbb805` Faz 5.1+5.3-A, `e29cc98` Faz 5.3-B1+B2)
+
+### Bir sonraki oturumda yapılacak adaylar (öncelik sırası)
+
+**ÖNCELİK 1 — Faz 5.3-B3 (12 entity'den SirketId/Sirket property drop)**:
+Etkilenen entity'ler (17 dosya, Shared/Entities/*.cs içinde `\bSirket\b` referansı olanlar):
+`Arac`, `AracMaliyetSnapshot`, `AuditLog`, `BankaHesap`, `BankaKasaHareket`, `CariSeferUcreti`, `Guzergah`, `Hakedis`, `Kapasite`, `KullaniciVeLisans`, `Lastik`, `ServisKontrat`, `Sofor`, `TasimaTedarikci`
+- Her entity'den `[Obsolete] SirketId` + `[Obsolete] Sirket` navigation sil
+- `ApplicationDbContext`'ten 12 `HasOne(Sirket).HasForeignKey(SirketId)` mapping sil
+- `Kapasite.cs` index'inden `SirketId` kaldır
+- `BankaKasaHareket.cs` index'inden `SirketId` kaldır
+- `DbSet<Sirket>` + `DbSet<SirketTransferLog>` sil
+- Build kontrol et — kullanan UI/servis varsa düzelt
+- **Çıktı:** Migration üretildiğinde sadece FK drop'ları olacak (kolonlar 5.3-B4'te)
+
+**ÖNCELİK 2 — Faz 5.3-B4 (DB drop migration)**:
+- `Sirketler` + `SirketTransferLoglari` tabloları drop
+- 12+ tablodaki `SirketId` kolonları + indeksleri drop
+- PL/pgSQL idempotent pattern (`TenantZ1` şablonu)
+- **YÜKSEK RİSK:** Önce DB backup şart. Geri dönüş yok.
+
+**ÖNCELİK 3 — Faz 5.2 (Firma.CariId drop)**: Hâlâ iş tarafı onayı önerilir.
+
+**ÖNCELİK 4 — Teknik Borç #1 (True Excel grid)**.
+
+### Açık dosyalar / referans (bu oturum sonu)
+- 📌 `docs/TENANT_MIGRATION_PLAN.md` (bookmark)
+- ✅ `KOAFiloServis.Web/Data/Migrations/20260518132902_TenantB1_AddFirmaIdToCariSeferUcreti.cs` (DB'ye uygulandı)
+- ✅ `KOAFiloServis.Shared/Entities/Kapasite.cs` (şablon, B3'te referans)
+- ✅ `KOAFiloServis.Web/Data/Migrations/20260517212717_TenantZ1_DropLegacyCariFaturaSirketColumns.cs` (PL/pgSQL idempotent drop pattern — B4'te lazım)
+
+### Git durumu (bu oturum sonu)
+- Branch: `main`, push edildi (origin'e kadar güncel)
+- Son 2 commit: `dcbb805` Faz 5.1+5.3-A, `e29cc98` Faz 5.3-B1+B2
+
+**Devam komutu (sonraki oturum):** "kaldığımız yerden devam" → Faz 5.3-B3 başlat (entity'lerden SirketId/Sirket property drop). B4 (DB drop) **ayrı oturuma**, backup şart.
+
+---
+
 ## ✅ FAZ C-EXTEND TAMAMLANDI (Bu oturum)
 
 ### Bu oturumda yapılanlar
