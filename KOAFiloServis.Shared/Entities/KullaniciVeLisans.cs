@@ -87,12 +87,6 @@ public class Kullanici : BaseEntity
     [StringLength(20)]
     public string? Telefon { get; set; }
 
-    /// <summary>
-    /// Kullanıcının ait olduğu şirket (Multi-tenant desteği)
-    /// Null ise sistem admin kullanıcısı (tüm şirketlere erişebilir)
-    /// </summary>
-    public int? SirketId { get; set; }
-
     public int? SoforId { get; set; } // Personel ile iliskilendirme
     public virtual Sofor? Sofor { get; set; }
 

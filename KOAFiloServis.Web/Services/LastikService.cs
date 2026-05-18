@@ -125,7 +125,6 @@ public class LastikService : ILastikService
         {
             var yeni = new LastikStok
             {
-                SirketId = sablon.SirketId,
                 DepoId = sablon.DepoId,
                 AracId = sablon.AracId,
                 KaynakAracId = sablon.KaynakAracId,
@@ -425,7 +424,6 @@ public class LastikService : ILastikService
 
                 var satinAlinanStok = new LastikStok
                 {
-                    SirketId = degisim.SirketId,
                     DepoId = s.KaynakDepoId,
                     AracId = null,
                     YedekMi = false,
@@ -492,7 +490,6 @@ public class LastikService : ILastikService
                 // Sökülen stok seçilmedi → kayıp olarak yeni bir stok kaydı üret
                 var kayip = new LastikStok
                 {
-                    SirketId = degisim.SirketId,
                     AracId = null,
                     DepoId = null,
                     YedekMi = false,

@@ -11,12 +11,12 @@ namespace KOAFiloServis.Web.Services.Interfaces;
 public interface IAracMaliyetService
 {
     /// <summary>Belirli dönem için araç maliyet snapshot'unu üretir/günceller.</summary>
-    Task<AracMaliyetSnapshot> SnapshotUretAsync(int aracId, int yil, int ay, int? sirketId = null);
+    Task<AracMaliyetSnapshot> SnapshotUretAsync(int aracId, int yil, int ay);
 
     /// <summary>Bir dönem için tüm özmal+kiralık araçların snapshot'unu üretir.</summary>
-    Task<List<AracMaliyetSnapshot>> TumAraclarIcinUretAsync(int yil, int ay, int? sirketId = null);
+    Task<List<AracMaliyetSnapshot>> TumAraclarIcinUretAsync(int yil, int ay);
 
-    Task<List<AracMaliyetSnapshot>> GetSnapshotlarAsync(int? aracId = null, int? yil = null, int? ay = null, int? sirketId = null);
+    Task<List<AracMaliyetSnapshot>> GetSnapshotlarAsync(int? aracId = null, int? yil = null, int? ay = null);
 
     Task<AracMaliyetSnapshot?> GetByIdAsync(int id);
 

@@ -19,7 +19,7 @@ public class AracMaliyetService : IAracMaliyetService
         _contextFactory = contextFactory;
     }
 
-    public async Task<AracMaliyetSnapshot> SnapshotUretAsync(int aracId, int yil, int ay, int? sirketId = null)
+    public async Task<AracMaliyetSnapshot> SnapshotUretAsync(int aracId, int yil, int ay)
     {
         if (yil < 2000 || ay < 1 || ay > 12)
             throw new ArgumentException("Geçersiz dönem.");
@@ -45,7 +45,6 @@ public class AracMaliyetService : IAracMaliyetService
                 AracId = aracId,
                 Yil = yil,
                 Ay = ay,
-                SirketId = sirketId,
                 SahiplikTipi = arac.SahiplikTipi,
                 CreatedAt = DateTime.UtcNow
             };
@@ -139,7 +138,7 @@ public class AracMaliyetService : IAracMaliyetService
         return snap;
     }
 
-    public async Task<List<AracMaliyetSnapshot>> TumAraclarIcinUretAsync(int yil, int ay, int? sirketId = null)
+    public async Task<List<AracMaliyetSnapshot>> TumAraclarIcinUretAsync(int yil, int ay)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         var araclar = await context.Araclar
@@ -152,7 +151,7 @@ public class AracMaliyetService : IAracMaliyetService
         {
             try
             {
-                sonuc.Add(await SnapshotUretAsync(aracId, yil, ay, sirketId));
+                sonuc.Add(await SnapshotUretAsync(aracId, yil, ay));
             }
             catch
             {
@@ -162,14 +161,13 @@ public class AracMaliyetService : IAracMaliyetService
         return sonuc;
     }
 
-    public async Task<List<AracMaliyetSnapshot>> GetSnapshotlarAsync(int? aracId = null, int? yil = null, int? ay = null, int? sirketId = null)
+    public async Task<List<AracMaliyetSnapshot>> GetSnapshotlarAsync(int? aracId = null, int? yil = null, int? ay = null)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         var q = context.AracMaliyetSnapshotlari.Include(s => s.Arac).AsQueryable();
         if (aracId.HasValue) q = q.Where(s => s.AracId == aracId.Value);
         if (yil.HasValue) q = q.Where(s => s.Yil == yil.Value);
         if (ay.HasValue) q = q.Where(s => s.Ay == ay.Value);
-        if (sirketId.HasValue) q = q.Where(s => s.SirketId == sirketId.Value);
         return await q.OrderByDescending(s => s.Yil).ThenByDescending(s => s.Ay).ThenBy(s => s.AracId).ToListAsync();
     }
 

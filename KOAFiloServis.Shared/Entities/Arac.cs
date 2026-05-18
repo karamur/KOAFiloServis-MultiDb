@@ -14,12 +14,6 @@ public class Arac : BaseEntity, IKopyalanabilirTenant, IFirmaTenant
     public int? KaynakKayitId { get; set; }
 
     /// <summary>
-    /// LEGACY — Eski multi-tenant Sirket kavramı. Yeni mimari `FirmaId` kullanır.
-    /// </summary>
-    [Obsolete("Tenant yeniden yapılandırması (Aşama C): SirketId yerine FirmaId kullanın.")]
-    public int? SirketId { get; set; }
-
-    /// <summary>
     /// Tenant: Bu aracın ait olduğu firma. (K3+K4) Sahiplik tipi ne olursa olsun (Özmal/Kiralık/Tedarikçi)
     /// kaydın yönetici firması bu alanla belirlenir.
     /// </summary>

@@ -118,12 +118,10 @@ public class SoforService : ISoforService
         await ValidateSoforAsync(context, sofor, existing);
 
         var createdAt = existing.CreatedAt;
-        var currentSirketId = existing.SirketId;
 
         context.Entry(existing).CurrentValues.SetValues(sofor);
 
         existing.CreatedAt = createdAt;
-        existing.SirketId = currentSirketId;
         existing.UpdatedAt = DateTime.UtcNow;
 
         // existing zaten tracked durumda, SaveChanges değişiklikleri otomatik kaydeder

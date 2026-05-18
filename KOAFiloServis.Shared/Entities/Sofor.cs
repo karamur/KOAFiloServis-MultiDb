@@ -13,12 +13,6 @@ public class Sofor : BaseEntity, IKopyalanabilirTenant, IFirmaTenant
     /// <summary>Firma kopyalama (K8) audit: kaynak kayıt Id'si.</summary>
     public int? KaynakKayitId { get; set; }
 
-    /// <summary>
-    /// LEGACY — Eski multi-tenant Sirket kavramı. Yeni mimari `FirmaId` kullanır.
-    /// </summary>
-    [Obsolete("Tenant yeniden yapılandırması (Aşama C): SirketId yerine FirmaId kullanın.")]
-    public int? SirketId { get; set; }
-
     public string SoforKodu { get; set; } = string.Empty;
     public string Ad { get; set; } = string.Empty;
     public string Soyad { get; set; } = string.Empty;

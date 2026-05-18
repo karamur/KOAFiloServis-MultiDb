@@ -19,19 +19,19 @@ public interface IOperasyonelHakedisService
     /// Kurum bazlı gelir hakedişi üretir.
     /// FiloGunlukPuantaj kayıtlarından (KurumFirmaId == kurumFirmaId) toplulaştırır.
     /// </summary>
-    Task<Hakedis> KurumHakedisiUretAsync(int kurumFirmaId, int yil, int ay, int? sirketId = null);
+    Task<Hakedis> KurumHakedisiUretAsync(int kurumFirmaId, int yil, int ay);
 
     /// <summary>
     /// Tedarikçi bazlı gider hakedişi üretir.
     /// Aracı tedarikçiye ait olan FiloGunlukPuantaj kayıtlarını toplulaştırır.
     /// </summary>
-    Task<Hakedis> TedarikciHakedisiUretAsync(int tasimaTedarikciId, int yil, int ay, int? sirketId = null);
+    Task<Hakedis> TedarikciHakedisiUretAsync(int tasimaTedarikciId, int yil, int ay);
 
     /// <summary>
     /// Araç bazlı iç hakediş/karlılık özeti.
     /// Faturalanmaz; sadece raporlama amaçlıdır.
     /// </summary>
-    Task<Hakedis> AracHakedisiUretAsync(int aracId, int yil, int ay, int? sirketId = null);
+    Task<Hakedis> AracHakedisiUretAsync(int aracId, int yil, int ay);
 
     Task<Hakedis> OnaylaAsync(int hakedisId, string onaylayanKisi);
     Task<Hakedis> IptalEtAsync(int hakedisId, string? aciklama = null);
@@ -54,7 +54,7 @@ public interface IOperasyonelHakedisService
     /// tespit edip her biri için ayrı hakediş üretir. Mevcut Onaylı/Faturalı kayıtlar atlanır,
     /// Taslak kayıtların üzerine yazılır.
     /// </summary>
-    Task<TopluHakedisSonuc> TopluUretAsync(HakedisTipi tip, int yil, int ay, int? sirketId = null);
+    Task<TopluHakedisSonuc> TopluUretAsync(HakedisTipi tip, int yil, int ay);
 
     /// <summary>Verilen id listesindeki Taslak hakedişleri toplu onaylar.</summary>
     Task<TopluIslemSonuc> TopluOnaylaAsync(IEnumerable<int> hakedisIds, string onaylayanKisi);

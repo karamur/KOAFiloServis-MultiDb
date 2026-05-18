@@ -90,9 +90,9 @@ public class AuditLog
     public string? Aciklama { get; set; }
     
     /// <summary>
-    /// Şirket ID (multi-tenant)
+    /// Aktif firma ID (multi-tenant) — eski adı SirketId, Faz 5.3-B4'te FirmaId'ye rename edildi.
     /// </summary>
-    public int? SirketId { get; set; }
+    public int? FirmaId { get; set; }
     
     /// <summary>
     /// İşlem tarihi

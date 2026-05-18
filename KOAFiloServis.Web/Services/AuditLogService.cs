@@ -166,7 +166,7 @@ public class AuditLogService : IAuditLogService
             Basarili = dto.Basarili,
             HataMesaji = dto.HataMesaji,
             IslemSuresiMs = dto.IslemSuresiMs,
-            SirketId = _aktifFirmaProvider.AktifFirmaId,
+            FirmaId = _aktifFirmaProvider.AktifFirmaId,
             IslemTarihi = DateTime.UtcNow
         };
         
@@ -396,7 +396,7 @@ public class AuditLogService : IAuditLogService
         if (!_aktifFirmaProvider.TumFirmalar && _aktifFirmaProvider.AktifFirmaId.HasValue)
         {
             var aktifId = _aktifFirmaProvider.AktifFirmaId.Value;
-            query = query.Where(x => x.SirketId == null || x.SirketId == aktifId);
+            query = query.Where(x => x.FirmaId == null || x.FirmaId == aktifId);
         }
 
         // Toplam kayıt
@@ -504,7 +504,7 @@ public class AuditLogService : IAuditLogService
         if (!_aktifFirmaProvider.TumFirmalar && _aktifFirmaProvider.AktifFirmaId.HasValue)
         {
             var aktifId = _aktifFirmaProvider.AktifFirmaId.Value;
-            query = query.Where(x => x.SirketId == null || x.SirketId == aktifId);
+            query = query.Where(x => x.FirmaId == null || x.FirmaId == aktifId);
         }
 
         var tarihQuery = query.Where(x => x.IslemTarihi >= bas && x.IslemTarihi <= bit);

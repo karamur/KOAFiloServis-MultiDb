@@ -1617,7 +1617,6 @@ WHERE IsDeleted = 0;");
                 await EnsureSqliteColumnAsync(connection, "Kullanicilar", "Kilitli", "INTEGER NOT NULL DEFAULT 0");
                 await EnsureSqliteColumnAsync(connection, "Kullanicilar", "Tema", "TEXT NOT NULL DEFAULT 'Default'");
                 await EnsureSqliteColumnAsync(connection, "Kullanicilar", "KompaktMod", "INTEGER NOT NULL DEFAULT 0");
-                await EnsureSqliteColumnAsync(connection, "Kullanicilar", "SirketId", "INTEGER NULL");
                 await EnsureSqliteColumnAsync(connection, "Kullanicilar", "SoforId", "INTEGER NULL");
                 await EnsureSqliteColumnAsync(connection, "Kullanicilar", "IkiFaktorAktif", "INTEGER NOT NULL DEFAULT 0");
                 await EnsureSqliteColumnAsync(connection, "Kullanicilar", "IkiFaktorSecretKey", "TEXT NULL");
@@ -1709,7 +1708,6 @@ WHERE IsDeleted = 0;");
                 ""Kilitli"" INTEGER NOT NULL DEFAULT 0,
                 ""Tema"" TEXT NOT NULL DEFAULT 'Default',
                 ""KompaktMod"" INTEGER NOT NULL DEFAULT 0,
-                ""SirketId"" INTEGER NULL,
                 ""SoforId"" INTEGER NULL,
                 ""IkiFaktorAktif"" INTEGER NOT NULL DEFAULT 0,
                 ""IkiFaktorSecretKey"" TEXT NULL,
@@ -1826,7 +1824,6 @@ WHERE IsDeleted = 0;");
                 ""IBAN"" TEXT NULL,
                 ""Notlar"" TEXT NULL,
                 ""Aktif"" INTEGER NOT NULL DEFAULT 1,
-                ""SirketId"" INTEGER NULL,
                 ""CreatedAt"" TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 ""UpdatedAt"" TEXT NULL,
                 ""IsDeleted"" INTEGER NOT NULL DEFAULT 0
@@ -1891,7 +1888,6 @@ WHERE IsDeleted = 0;");
                 ""Aktif"" INTEGER NOT NULL DEFAULT 1,
                 ""Notlar"" TEXT NULL,
                 ""FirmaId"" INTEGER NULL,
-                ""SirketId"" INTEGER NULL,
                 ""CreatedAt"" TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 ""UpdatedAt"" TEXT NULL,
                 ""IsDeleted"" INTEGER NOT NULL DEFAULT 0
@@ -1936,7 +1932,6 @@ WHERE IsDeleted = 0;");
                 ""SgkMaasi"" REAL NOT NULL DEFAULT 0,
                 ""BankaAdi"" TEXT NULL,
                 ""IBAN"" TEXT NULL,
-                ""SirketId"" INTEGER NULL,
                 ""CreatedAt"" TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 ""UpdatedAt"" TEXT NULL,
                 ""IsDeleted"" INTEGER NOT NULL DEFAULT 0
@@ -2660,16 +2655,6 @@ WHERE IsDeleted = 0;");
              ("MuhasebeFisleri", "BordroId", "INTEGER", null),
 
             // ========== Mega-migration (EbysEvrakKategoriler_Fix) eksik kolonları ==========
-
-            // SirketId kolonları - 8 tablo (multi-tenant)
-            ("Faturalar", "SirketId", "INTEGER", null),
-            ("Cariler", "SirketId", "INTEGER", null),
-            ("Araclar", "SirketId", "INTEGER", null),
-            ("Guzergahlar", "SirketId", "INTEGER", null),
-            ("BankaHesaplari", "SirketId", "INTEGER", null),
-            ("BankaKasaHareketleri", "SirketId", "INTEGER", null),
-            ("Personeller", "SirketId", "INTEGER", null),
-            ("Kullanicilar", "SirketId", "INTEGER", null),
 
             // PersonelOzlukEvraklar tablosu - Versiyon/dosya alanları
             ("PersonelOzlukEvraklar", "DosyaAdi", "TEXT", null),
@@ -3405,51 +3390,7 @@ WHERE IsDeleted = 0;");
 
         // ========== Mega-migration (EbysEvrakKategoriler_Fix) eksik tabloları ==========
 
-        // Sirketler tablosu (multi-tenant)
-        if (!existingTables.Contains("Sirketler"))
-        {
-            try
-            {
-                await using var createCmd = new NpgsqlCommand(@"
-                    CREATE TABLE ""Sirketler"" (
-                        ""Id"" SERIAL PRIMARY KEY,
-                        ""SirketKodu"" VARCHAR(20) NOT NULL,
-                        ""Unvan"" VARCHAR(250) NOT NULL,
-                        ""KisaAd"" VARCHAR(100),
-                        ""VergiDairesi"" VARCHAR(100),
-                        ""VergiNo"" VARCHAR(11),
-                        ""Adres"" VARCHAR(500),
-                        ""Il"" VARCHAR(50),
-                        ""Ilce"" VARCHAR(50),
-                        ""PostaKodu"" VARCHAR(10),
-                        ""Telefon"" VARCHAR(20),
-                        ""Email"" VARCHAR(100),
-                        ""WebSitesi"" VARCHAR(200),
-                        ""LogoUrl"" VARCHAR(500),
-                        ""Aktif"" BOOLEAN NOT NULL DEFAULT TRUE,
-                        ""ParaBirimi"" VARCHAR(5) NOT NULL DEFAULT 'TRY',
-                        ""AyarlarJson"" TEXT,
-                        ""LisansBitisTarihi"" TIMESTAMP WITHOUT TIME ZONE,
-                        ""MaxKullaniciSayisi"" INTEGER NOT NULL DEFAULT 10,
-                        ""CreatedAt"" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                        ""UpdatedAt"" TIMESTAMP WITHOUT TIME ZONE,
-                        ""IsDeleted"" BOOLEAN NOT NULL DEFAULT FALSE
-                    )", connection);
-                await createCmd.ExecuteNonQueryAsync();
-                existingTables.Add("Sirketler");
-
-                // Unique index
-                await using var idxCmd = new NpgsqlCommand(@"
-                    CREATE UNIQUE INDEX IF NOT EXISTS ""IX_Sirketler_SirketKodu"" ON ""Sirketler"" (""SirketKodu"")", connection);
-                await idxCmd.ExecuteNonQueryAsync();
-
-                Console.WriteLine("Sirketler tablosu oluşturuldu.");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Sirketler tablosu oluşturulurken hata: {ex.Message}");
-            }
-        }
+        // Sirketler tablosu — Faz 5.3-B3-i'de rename edildi (_LEGACY_Sirketler), B4'te drop. CREATE bloğu kaldırıldı.
 
         // BildirimAyarlari tablosu
         if (!existingTables.Contains("BildirimAyarlari"))
@@ -3931,40 +3872,6 @@ WHERE IsDeleted = 0;");
             catch (Exception ex)
             {
                 Console.WriteLine($"AracEvrakDosyaVersiyonlar tablosu oluşturulurken hata: {ex.Message}");
-            }
-        }
-
-        // SirketTransferLoglari tablosu
-        if (!existingTables.Contains("SirketTransferLoglari"))
-        {
-            try
-            {
-                await using var createCmd = new NpgsqlCommand(@"
-                    CREATE TABLE ""SirketTransferLoglari"" (
-                        ""Id"" SERIAL PRIMARY KEY,
-                        ""EntityTuru"" VARCHAR(50) NOT NULL,
-                        ""EntityId"" INTEGER NOT NULL,
-                        ""EntityAciklama"" VARCHAR(500),
-                        ""KaynakSirketId"" INTEGER NOT NULL,
-                        ""HedefSirketId"" INTEGER NOT NULL,
-                        ""KullaniciId"" INTEGER NOT NULL,
-                        ""TransferTarihi"" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                        ""Durum"" INTEGER NOT NULL DEFAULT 0,
-                        ""HataMesaji"" VARCHAR(2000),
-                        ""IliskiliVerilerTransferEdildi"" BOOLEAN NOT NULL DEFAULT FALSE,
-                        ""IliskiliEntitySayisi"" INTEGER NOT NULL DEFAULT 0,
-                        ""Notlar"" VARCHAR(1000),
-                        ""CreatedAt"" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                        ""UpdatedAt"" TIMESTAMP WITHOUT TIME ZONE,
-                        ""IsDeleted"" BOOLEAN NOT NULL DEFAULT FALSE
-                    )", connection);
-                await createCmd.ExecuteNonQueryAsync();
-                existingTables.Add("SirketTransferLoglari");
-                Console.WriteLine("SirketTransferLoglari tablosu oluşturuldu.");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"SirketTransferLoglari tablosu oluşturulurken hata: {ex.Message}");
             }
         }
 

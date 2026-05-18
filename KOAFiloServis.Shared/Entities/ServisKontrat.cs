@@ -57,8 +57,6 @@ public enum OdemeVeTahsilatSekli
 /// </summary>
 public class ServisKontrat : BaseEntity
 {
-    public int? SirketId { get; set; }
-
     /// <summary>Otomatik kod (KNT-00001 vb.)</summary>
     public string KontratKodu { get; set; } = string.Empty;
 
@@ -120,8 +118,6 @@ public class ServisKontrat : BaseEntity
 /// </summary>
 public class ServisPuantaj : BaseEntity
 {
-    public int? SirketId { get; set; }
-
     public int ServisKontratId { get; set; }
     public virtual ServisKontrat? ServisKontrat { get; set; }
 
@@ -159,8 +155,6 @@ public class ServisPuantaj : BaseEntity
 /// </summary>
 public class ServisOdeme : BaseEntity
 {
-    public int? SirketId { get; set; }
-
     public int ServisPuantajId { get; set; }
     public virtual ServisPuantaj? ServisPuantaj { get; set; }
 
@@ -180,8 +174,6 @@ public class ServisOdeme : BaseEntity
 /// </summary>
 public class ServisTahsilat : BaseEntity
 {
-    public int? SirketId { get; set; }
-
     public int ServisPuantajId { get; set; }
     public virtual ServisPuantaj? ServisPuantaj { get; set; }
 

@@ -9,12 +9,6 @@ namespace KOAFiloServis.Shared.Entities;
 public class BankaKasaHareket : BaseEntity, IFirmaTenant
 {
     /// <summary>
-    /// LEGACY — Eski multi-tenant Sirket kavramı. Yeni mimari `FirmaId` kullanır.
-    /// </summary>
-    [Obsolete("Tenant yeniden yapılandırması (Aşama E): SirketId yerine FirmaId kullanın.")]
-    public int? SirketId { get; set; }
-
-    /// <summary>
     /// Tenant: Bu hareketin ait olduğu firma. (K6)
     /// </summary>
     public int? FirmaId { get; set; }

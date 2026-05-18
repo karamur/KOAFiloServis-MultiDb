@@ -48,16 +48,16 @@ public class OperasyonelHakedisService : IOperasyonelHakedisService
             .FirstOrDefaultAsync(h => h.Id == id);
     }
 
-    public Task<Hakedis> KurumHakedisiUretAsync(int kurumFirmaId, int yil, int ay, int? sirketId = null) =>
-        UretInternalAsync(HakedisTipi.Kurum, kurumFirmaId, yil, ay, sirketId);
+    public Task<Hakedis> KurumHakedisiUretAsync(int kurumFirmaId, int yil, int ay) =>
+        UretInternalAsync(HakedisTipi.Kurum, kurumFirmaId, yil, ay);
 
-    public Task<Hakedis> TedarikciHakedisiUretAsync(int tasimaTedarikciId, int yil, int ay, int? sirketId = null) =>
-        UretInternalAsync(HakedisTipi.Tedarikci, tasimaTedarikciId, yil, ay, sirketId);
+    public Task<Hakedis> TedarikciHakedisiUretAsync(int tasimaTedarikciId, int yil, int ay) =>
+        UretInternalAsync(HakedisTipi.Tedarikci, tasimaTedarikciId, yil, ay);
 
-    public Task<Hakedis> AracHakedisiUretAsync(int aracId, int yil, int ay, int? sirketId = null) =>
-        UretInternalAsync(HakedisTipi.Arac, aracId, yil, ay, sirketId);
+    public Task<Hakedis> AracHakedisiUretAsync(int aracId, int yil, int ay) =>
+        UretInternalAsync(HakedisTipi.Arac, aracId, yil, ay);
 
-    private async Task<Hakedis> UretInternalAsync(HakedisTipi tip, int referansId, int yil, int ay, int? sirketId)
+    private async Task<Hakedis> UretInternalAsync(HakedisTipi tip, int referansId, int yil, int ay)
     {
         if (yil < 2000 || ay < 1 || ay > 12)
             throw new ArgumentException("Geçersiz dönem (yıl/ay).");
@@ -106,7 +106,6 @@ public class OperasyonelHakedisService : IOperasyonelHakedisService
                 ReferansId = referansId,
                 Yil = yil,
                 Ay = ay,
-                SirketId = sirketId,
                 Durum = HakedisDurum.Taslak,
                 CreatedAt = DateTime.UtcNow
             };
@@ -352,7 +351,7 @@ public class OperasyonelHakedisService : IOperasyonelHakedisService
         );
     }
 
-    public async Task<TopluHakedisSonuc> TopluUretAsync(HakedisTipi tip, int yil, int ay, int? sirketId = null)
+    public async Task<TopluHakedisSonuc> TopluUretAsync(HakedisTipi tip, int yil, int ay)
     {
         if (yil < 2000 || ay < 1 || ay > 12)
             throw new ArgumentException("Geçersiz dönem (yıl/ay).");
@@ -440,7 +439,7 @@ public class OperasyonelHakedisService : IOperasyonelHakedisService
 
             try
             {
-                var h = await UretInternalAsync(tip, refId, yil, ay, sirketId);
+                var h = await UretInternalAsync(tip, refId, yil, ay);
                 uretilen++;
                 toplamTutar += h.GenelToplam;
                 satirlar.Add(new TopluHakedisSatir(

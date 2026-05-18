@@ -14,12 +14,6 @@ public class Guzergah : BaseEntity, IKopyalanabilirTenant, IFirmaTenant
     public int? KaynakKayitId { get; set; }
 
     /// <summary>
-    /// LEGACY — Eski multi-tenant Sirket kavramı. Yeni mimari `FirmaId` kullanır.
-    /// </summary>
-    [Obsolete("Tenant yeniden yapılandırması (Aşama C): SirketId yerine FirmaId kullanın.")]
-    public int? SirketId { get; set; }
-
-    /// <summary>
     /// Tenant: Bu güzergahın ait olduğu firma. (K3+K4)
     /// </summary>
     public int? FirmaId { get; set; }

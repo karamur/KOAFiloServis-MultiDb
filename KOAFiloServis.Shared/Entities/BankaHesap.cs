@@ -7,12 +7,6 @@
 public class BankaHesap : BaseEntity, IFirmaTenant
 {
     /// <summary>
-    /// LEGACY — Eski multi-tenant Sirket kavramı. Yeni mimari `FirmaId` kullanır.
-    /// </summary>
-    [Obsolete("Tenant yeniden yapılandırması (Aşama E): SirketId yerine FirmaId kullanın.")]
-    public int? SirketId { get; set; }
-
-    /// <summary>
     /// Tenant: Bu kasa/banka hesabının ait olduğu firma. (K6)
     /// </summary>
     public int? FirmaId { get; set; }

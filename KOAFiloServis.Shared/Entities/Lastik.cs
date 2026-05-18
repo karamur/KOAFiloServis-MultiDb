@@ -5,8 +5,6 @@
 /// </summary>
 public class LastikDepo : BaseEntity
 {
-    public int? SirketId { get; set; }
-
     /// <summary>Depo adı (ör: "Ana Depo", "Şube Garaj", "Dış Oto")</summary>
     public string DepoAdi { get; set; } = string.Empty;
 
@@ -30,8 +28,6 @@ public class LastikDepo : BaseEntity
 /// </summary>
 public class LastikStok : BaseEntity
 {
-    public int? SirketId { get; set; }
-
     /// <summary>Lastiğin şu an bulunduğu depo (araçta takılı değilse)</summary>
     public int? DepoId { get; set; }
     public virtual LastikDepo? Depo { get; set; }
@@ -78,8 +74,6 @@ public class LastikStok : BaseEntity
 /// </summary>
 public class LastikDegisim : BaseEntity
 {
-    public int? SirketId { get; set; }
-
     public int AracId { get; set; }
     public virtual Arac Arac { get; set; } = null!;
 
@@ -171,8 +165,6 @@ public enum LastikSezonTipi
 /// </summary>
 public class LastikSezonAyar : BaseEntity
 {
-    public int? SirketId { get; set; }
-
     /// <summary>Dönem adı (ör: "Yaz Dönemi", "Kış Dönemi")</summary>
     public string Ad { get; set; } = string.Empty;
 

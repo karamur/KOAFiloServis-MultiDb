@@ -9,12 +9,6 @@ namespace KOAFiloServis.Shared.Entities;
 public class Kapasite : BaseEntity, IFirmaTenant
 {
     /// <summary>
-    /// LEGACY — Eski multi-tenant Sirket kavramı. Yeni mimari `FirmaId` kullanır.
-    /// </summary>
-    [Obsolete("Tenant yeniden yapılandırması (Faz C-extend): SirketId yerine FirmaId kullanın.")]
-    public int? SirketId { get; set; }
-
-    /// <summary>
     /// Tenant: Bu kapasitenin ait olduğu firma. (K3+K4)
     /// </summary>
     public int? FirmaId { get; set; }
