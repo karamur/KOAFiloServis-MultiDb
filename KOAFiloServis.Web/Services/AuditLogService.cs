@@ -1,4 +1,4 @@
-using KOAFiloServis.Shared.Entities;
+﻿using KOAFiloServis.Shared.Entities;
 using KOAFiloServis.Web.Data;
 using KOAFiloServis.Web.Services.Interfaces;
 using Microsoft.AspNetCore.Http;
@@ -16,7 +16,7 @@ public class AuditLogService : IAuditLogService
 {
     private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
     private readonly IHttpContextAccessor _httpContextAccessor;
-    private readonly ITenantService _tenantService;
+    private readonly IAktifFirmaProvider _aktifFirmaProvider;
     private readonly ILogger<AuditLogService> _logger;
     
     private static readonly JsonSerializerOptions _jsonOptions = new()
@@ -30,12 +30,12 @@ public class AuditLogService : IAuditLogService
     public AuditLogService(
         IDbContextFactory<ApplicationDbContext> contextFactory,
         IHttpContextAccessor httpContextAccessor,
-        ITenantService tenantService,
+        IAktifFirmaProvider aktifFirmaProvider,
         ILogger<AuditLogService> logger)
     {
         _contextFactory = contextFactory;
         _httpContextAccessor = httpContextAccessor;
-        _tenantService = tenantService;
+        _aktifFirmaProvider = aktifFirmaProvider;
         _logger = logger;
     }
     
@@ -166,7 +166,7 @@ public class AuditLogService : IAuditLogService
             Basarili = dto.Basarili,
             HataMesaji = dto.HataMesaji,
             IslemSuresiMs = dto.IslemSuresiMs,
-            SirketId = _tenantService.CurrentSirketId,
+            SirketId = _aktifFirmaProvider.AktifFirmaId,
             IslemTarihi = DateTime.UtcNow
         };
         
@@ -392,10 +392,13 @@ public class AuditLogService : IAuditLogService
                 x.EntityAdi.ToLower().Contains(arama));
         }
         
-        // Multi-tenant
-        if (!_tenantService.IsSuperAdmin && _tenantService.CurrentSirketId.HasValue)
-            query = query.Where(x => x.SirketId == null || x.SirketId == _tenantService.CurrentSirketId);
-        
+        // Multi-tenant: TumFirmalar (eski SuperAdmin) modunda filter atlanır.
+        if (!_aktifFirmaProvider.TumFirmalar && _aktifFirmaProvider.AktifFirmaId.HasValue)
+        {
+            var aktifId = _aktifFirmaProvider.AktifFirmaId.Value;
+            query = query.Where(x => x.SirketId == null || x.SirketId == aktifId);
+        }
+
         // Toplam kayıt
         var toplamKayit = await query.CountAsync();
         
@@ -497,10 +500,13 @@ public class AuditLogService : IAuditLogService
         
         var query = context.Set<AuditLog>().AsNoTracking();
         
-        // Multi-tenant
-        if (!_tenantService.IsSuperAdmin && _tenantService.CurrentSirketId.HasValue)
-            query = query.Where(x => x.SirketId == null || x.SirketId == _tenantService.CurrentSirketId);
-        
+        // Multi-tenant: TumFirmalar (eski SuperAdmin) modunda filter atlanır.
+        if (!_aktifFirmaProvider.TumFirmalar && _aktifFirmaProvider.AktifFirmaId.HasValue)
+        {
+            var aktifId = _aktifFirmaProvider.AktifFirmaId.Value;
+            query = query.Where(x => x.SirketId == null || x.SirketId == aktifId);
+        }
+
         var tarihQuery = query.Where(x => x.IslemTarihi >= bas && x.IslemTarihi <= bit);
         
         var dashboard = new AuditLogDashboard

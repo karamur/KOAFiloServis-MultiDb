@@ -3,21 +3,12 @@
 /// <summary>
 /// Cari hesap (Musteri/Tedarikci/Firma/Personel)
 /// </summary>
-public class Cari : BaseEntity, IKopyalanabilirTenant
+public class Cari : BaseEntity, IKopyalanabilirTenant, IFirmaTenant
 {
     /// <summary>Firma kopyalama (K8) audit: kaynak firma Id'si.</summary>
     public int? KaynakFirmaId { get; set; }
     /// <summary>Firma kopyalama (K8) audit: kaynak kayıt Id'si.</summary>
     public int? KaynakKayitId { get; set; }
-
-    /// <summary>
-    /// LEGACY — Eski multi-tenant Sirket kavramı. Yeni mimari `FirmaId` kullanır.
-    /// Aşama F sonrası migration ile drop edilecek.
-    /// </summary>
-    [Obsolete("Tenant yeniden yapılandırması (Aşama B): SirketId yerine FirmaId kullanın.")]
-    public int? SirketId { get; set; }
-    [Obsolete("Tenant yeniden yapılandırması (Aşama B): Sirket navigasyonu yerine Firma kullanın.")]
-    public virtual Sirket? Sirket { get; set; }
 
     public string CariKodu { get; set; } = string.Empty;
     public string Unvan { get; set; } = string.Empty;

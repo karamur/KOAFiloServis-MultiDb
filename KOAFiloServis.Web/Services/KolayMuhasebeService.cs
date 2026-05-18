@@ -1271,7 +1271,6 @@ public class KolayMuhasebeService : IKolayMuhasebeService
                 Email = personel.Email,
                 Adres = personel.Adres,
                 SoforId = personel.Id,
-                SirketId = personel.SirketId,
                 Aktif = true,
                 CreatedAt = DateTime.UtcNow
             };

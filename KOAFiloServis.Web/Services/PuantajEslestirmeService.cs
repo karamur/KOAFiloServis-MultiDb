@@ -334,8 +334,7 @@ public class PuantajEslestirmeService : IPuantajEslestirmeService
         var faturalar = await ctx.Faturalar
             .Include(f => f.Cari)
             .Where(f => f.FaturaYonu == FaturaYonu.Giden
-                && f.FaturaTarihi >= baslangic && f.FaturaTarihi <= bitis
-                && (firmaId == 0 || f.SirketId == null || f.SirketId == firmaId))
+                && f.FaturaTarihi >= baslangic && f.FaturaTarihi <= bitis)
             .Select(f => new { f.CariId, Unvan = f.Cari!.Unvan, f.GenelToplam })
             .ToListAsync();
 
@@ -495,8 +494,7 @@ public class PuantajEslestirmeService : IPuantajEslestirmeService
 
         var faturalar = await ctx.Faturalar
             .Where(f => f.CariId == cariId && f.FaturaYonu == FaturaYonu.Giden
-                && f.FaturaTarihi >= baslangic && f.FaturaTarihi <= bitis
-                && (firmaId == 0 || f.SirketId == null || f.SirketId == firmaId))
+                && f.FaturaTarihi >= baslangic && f.FaturaTarihi <= bitis)
             .OrderBy(f => f.FaturaTarihi)
             .ToListAsync();
 

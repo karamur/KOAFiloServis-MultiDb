@@ -1,4 +1,4 @@
-using KOAFiloServis.Shared.Entities;
+﻿using KOAFiloServis.Shared.Entities;
 using KOAFiloServis.Web.Data;
 using KOAFiloServis.Web.Services.Interfaces;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -485,10 +485,10 @@ public class TenantService : ITenantService
         var cari = await context.Cariler.FindAsync(cariId)
             ?? throw new InvalidOperationException("Cari bulunamadı.");
 
-        log.KaynakSirketId = cari.SirketId ?? 0;
+        log.KaynakSirketId = 0; // Legacy SirketId Cari'den kaldırıldı (Teknik Borç #5).
         log.EntityAciklama = $"{cari.CariKodu} - {cari.Unvan}";
 
-        cari.SirketId = hedefSirketId;
+        // Legacy Cari.SirketId kolonu drop edildi; tenant izolasyonu artık FirmaId ile sağlanıyor.
         cari.UpdatedAt = DateTime.UtcNow;
 
         if (iliskiliVeriler)
@@ -500,7 +500,7 @@ public class TenantService : ITenantService
 
             foreach (var fatura in faturalar)
             {
-                fatura.SirketId = hedefSirketId;
+                // Legacy Fatura.SirketId kolonu drop edildi (Teknik Borç #5).
                 fatura.UpdatedAt = DateTime.UtcNow;
             }
 
@@ -588,10 +588,10 @@ public class TenantService : ITenantService
             .FirstOrDefaultAsync(f => f.Id == faturaId)
             ?? throw new InvalidOperationException("Fatura bulunamadı.");
 
-        log.KaynakSirketId = fatura.SirketId ?? 0;
+        log.KaynakSirketId = 0; // Legacy Fatura.SirketId kaldırıldı (Teknik Borç #5).
         log.EntityAciklama = $"{fatura.FaturaNo} - {fatura.Cari?.Unvan}";
 
-        fatura.SirketId = hedefSirketId;
+        // Legacy Fatura.SirketId kolonu drop edildi; tenant izolasyonu artık FirmaId ile sağlanıyor.
         fatura.UpdatedAt = DateTime.UtcNow;
 
         await context.SaveChangesAsync();
@@ -685,7 +685,6 @@ public class TenantService : ITenantService
 
         var cari = await context.Cariler
             .AsNoTracking()
-            .Include(c => c.Sirket)
             .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
 
         if (cari == null) return null;
@@ -698,8 +697,8 @@ public class TenantService : ITenantService
             EntityTuru = TransferEntityTurleri.Cari,
             Id = cari.Id,
             Aciklama = $"{cari.CariKodu} - {cari.Unvan}",
-            MevcutSirketId = cari.SirketId,
-            MevcutSirketAdi = cari.Sirket?.KisaAd ?? cari.Sirket?.Unvan,
+            MevcutSirketId = null,
+            MevcutSirketAdi = null,
             IliskiliEntitySayisi = faturaCount
         };
     }
@@ -782,7 +781,6 @@ public class TenantService : ITenantService
 
         var fatura = await context.Faturalar
             .AsNoTracking()
-            .Include(f => f.Sirket)
             .Include(f => f.Cari)
             .FirstOrDefaultAsync(f => f.Id == id && !f.IsDeleted);
 
@@ -793,8 +791,8 @@ public class TenantService : ITenantService
             EntityTuru = TransferEntityTurleri.Fatura,
             Id = fatura.Id,
             Aciklama = $"{fatura.FaturaNo} - {fatura.Cari?.Unvan}",
-            MevcutSirketId = fatura.SirketId,
-            MevcutSirketAdi = fatura.Sirket?.KisaAd ?? fatura.Sirket?.Unvan,
+            MevcutSirketId = null,
+            MevcutSirketAdi = null,
             IliskiliEntitySayisi = 0
         };
     }

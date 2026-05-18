@@ -251,7 +251,6 @@ public class OperasyonelHakedisService : IOperasyonelHakedisService
             Durum = FaturaDurum.Beklemede,
             EFaturaTipi = EFaturaTipi.EArsiv,
             CariId = cariId.Value,
-            SirketId = h.SirketId,
             AraToplam = h.Tutar,
             KdvOrani = h.KdvOran,
             KdvTutar = h.KdvTutar,
