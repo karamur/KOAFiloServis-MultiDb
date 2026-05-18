@@ -377,6 +377,80 @@ Faz 5.1 sonrasında `TenantService.TransferCariAsync` ve `TransferFaturaAsync` a
 
 ---
 
+## ✅ FAZ 5.3-B4 TAMAMLANDI (v1.0.21 — 2026-05-19)
+
+### Bu oturumda yapılanlar
+
+**Faz 5.3-B4 (Legacy SirketId kolon DROP + _LEGACY_ tablo DROP + AuditLog rename)**:
+
+#### Entity temizliği (13 dosya)
+- `Arac`, `AracMaliyetSnapshot`, `BankaHesap`, `BankaKasaHareket`, `CariSeferUcreti`, `Guzergah`, `Hakedis`, `Kapasite`, `KullaniciVeLisans`, `Sofor`, `TasimaTedarikci`
+- `Lastik.cs` (4 alt sınıf), `ServisKontrat.cs` (4 alt sınıf)
+- `int? SirketId` property + `[Obsolete]` attribute'ları silindi
+- **`AuditLog.SirketId` istisna**: silinmedi, `FirmaId`'ye **rename** edildi (semantik koru kararı verildi).
+
+#### Servis temizliği
+- `AuditLogService` → `LogAsync` + `GetListAsync` + `GetDashboardAsync` artık `FirmaId` üzerinden çalışıyor
+- `AracMaliyetService` / `IAracMaliyetService` → tüm `sirketId` parametreleri kaldırıldı
+- `OperasyonelHakedisService` / `IOperasyonelHakedisService` → tüm `sirketId` parametreleri kaldırıldı; `Hakedis.SirketId` atamaları silindi
+- `LastikService` → stok kopyalama/sezon değişim akışlarındaki `SirketId` kopyalama satırları silindi
+- `SoforService` → no-op `currentSirketId` capture/restore deseni silindi
+- `LastikSezonTakip.razor` → build error fix (legacy SirketId initialization kaldırıldı)
+- `DbInitializer.cs` → legacy Sirket şema bootstrap'ı (SQLite ensure + inline CREATE TABLE + PG mega-migration + SirketTransferLoglari create) tamamen kaldırıldı
+
+#### Migration'lar
+- **`20260518195552_TenantB4a_DropSirketIdColumnsAndRenameAuditLog`**
+  - 20 tablodan `SirketId` kolonu DROP (PL/pgSQL idempotent, FK/index dinamik tarama)
+  - `AuditLoglar.SirketId` → `FirmaId` RENAME
+- **`20260518200342_TenantB4b_DropLegacyTables`**
+  - `_LEGACY_Sirketler` ve `_LEGACY_SirketTransferLoglari` tabloları DROP
+  - `Down()` bilinçli olarak boş (geri dönüş yalnızca backup restore)
+
+#### Veri güvenliği
+- Kullanıcı onayı: **"backup OK"** → `pg_dump` ile DB yedeği alındıktan sonra uygulandı.
+- DB hedef: `KOAFiloServisV2` (önemli: `KOAFiloServis` adında DB yok).
+- `dotnet ef database update` ✅ — her iki B4 migration uygulandı.
+- `dotnet ef migrations list` → Pending değil ✅
+- Build: **0 error**
+
+#### Dokümantasyon
+- README.md **profesyonel revizyon** — mimari diyagram, tenant modeli, idempotent PL/pgSQL örnekleri, kurulum/dağıtım, güvenlik, yol haritası, commit konvansiyonu (commit `3f87167`).
+- CHANGELOG.md `[1.0.21]` bölümü eklendi.
+- `setup/RELEASE-NOTES-v1.0.21.md` oluşturuldu.
+- `setupolustur.bat` 1.0.20 → 1.0.21 bump.
+
+### Kümülatif kazanım (v1.0.20 + v1.0.21)
+- Legacy `Sirket` mimarisi **hem kodda hem DB'de** tamamen kalktı.
+- Tek tenant izolasyonu: `IFirmaTenant` + global query filter + `IAktifFirmaProvider`.
+
+### Bir sonraki oturumda yapılacak adaylar (öncelik sırası)
+
+**ÖNCELİK 1 — Faz 5.2 (`Firma.CariId` drop)**: İş tarafı onayı gerekir (Unvan fallback regresyon riski).
+
+**ÖNCELİK 2 — Teknik Borç #1 (True Excel grid)** — Puantaj ekranı performans/UX.
+
+**ÖNCELİK 3 — Teknik Borç #5** — Roadmap'ten seçilecek.
+
+### Açık dosyalar / referans (bu oturum sonu)
+- 📌 `docs/TENANT_MIGRATION_PLAN.md` (bu bookmark)
+- ✅ `KOAFiloServis.Web/Data/Migrations/20260518195552_TenantB4a_DropSirketIdColumnsAndRenameAuditLog.cs` (DB'ye uygulandı)
+- ✅ `KOAFiloServis.Web/Data/Migrations/20260518200342_TenantB4b_DropLegacyTables.cs` (DB'ye uygulandı)
+- 📄 `CHANGELOG.md` (1.0.21 eklendi)
+- 📄 `setup/RELEASE-NOTES-v1.0.21.md` (yeni)
+- 📄 `README.md` (profesyonel revizyon)
+
+### Git durumu (bu oturum sonu)
+- Branch: `main`, push edildi
+- Son commit'ler:
+  - `3f87167` docs(readme): profesyonel README
+  - `34638af` tenant Faz 5.3-B4 (kod): Legacy SirketId emekliye
+  - `fd95849` (tag `v1.0.20`) build(setup): BOM temizliği
+- **Sıradaki commit:** `release: v1.0.21` (changelog + release notes + setup bump) → tag `v1.0.21`.
+
+**Devam komutu (sonraki oturum):** "kaldığımız yerden devam" → Faz 5.2 (`Firma.CariId` drop) ya da Teknik Borç #1 önerilir.
+
+---
+
 ## ✅ FAZ 5.3-B3-i TAMAMLANDI (Bu oturum)
 
 ### Bu oturumda yapılanlar
