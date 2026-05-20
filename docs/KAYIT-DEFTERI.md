@@ -5,6 +5,29 @@
 
 ---
 
+## 📅 20.05.2026 — Temizlik + Guzergah + README Oturumu
+
+### Yapılanlar
+
+| # | İş | Detay |
+|---|-----|-------|
+| 1 | Veri göçü FK fix | `session_replication_role = replica` ile FK kısıtlamaları geçici devre dışı |
+| 2 | Veri göçü 2 adımlı | Adım 1: lookup tabloları, Adım 2: FirmaId'li tenant verileri |
+| 3 | GuzergahList colspan fix | `colspan="12"` → `colspan="13"` |
+| 4 | GitHub push | Tüm commit'ler `karamur/KOAFiloServis-MultiDb` reposuna push'landı |
+| 5 | README güncelleme | Database-Per-Firma mimarisi, faz durumu, repo URL'si güncellendi |
+| 6 | Kayıt defteri güncelleme | Bu kayıt |
+
+### ⚠️ Bilinen Riskler
+
+| Risk | Durum |
+|------|:-----:|
+| Tenant DB veri göçü FK fix test edilmedi | 🔴 Manuel test bekliyor |
+| `AylikOdemeGerceklesenler` tablosu tenant DB'de yok (legacy) | 🟡 Atlanıyor |
+| Holding girişi henüz yok | 🔴 Tasarım aşamasında |
+
+---
+
 ## 📅 20.05.2026 — Faz 3 Uygulama Oturumu
 
 ### Commit: `0261aa6`

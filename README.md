@@ -1,12 +1,12 @@
 ﻿<div align="center">
 
-<img src="https://img.shields.io/badge/-KOA%20Filo%20Servis-1f6feb?style=for-the-badge&logo=bus&logoColor=white" alt="KOA Filo Servis" />
+<img src="https://img.shields.io/badge/-KOA%20Filo%20Servis%20MultiDb-1f6feb?style=for-the-badge&logo=bus&logoColor=white" alt="KOA Filo Servis MultiDb" />
 
-# 🚍 KOA Filo Servis
+# 🚍 KOA Filo Servis — MultiDb
 
-**Kurumsal Personel Servis Taşımacılığı & Filo Yönetim Platformu**
+**Database-Per-Firma Mimarisi ile Kurumsal Filo Yönetim Platformu**
 
-_Filo · Operasyon · Hakediş · Muhasebe · EBYS — tek panelden, uçtan uca._
+_Her firma için ayrı PostgreSQL veritabanı · Hybrid shared/tenant geçiş · Holding konsolidasyon_
 
 <br />
 
@@ -17,7 +17,8 @@ _Filo · Operasyon · Hakediş · Muhasebe · EBYS — tek panelden, uçtan uca.
 [![Quartz.NET](https://img.shields.io/badge/Quartz.NET-3.x-FB7A24?style=flat-square)](https://www.quartz-scheduler.net)
 [![Tests](https://img.shields.io/badge/Tests-xUnit%20%2B%20Playwright-25A162?style=flat-square&logo=testinglibrary&logoColor=white)](#-test-stratejisi)
 [![License](https://img.shields.io/badge/License-Proprietary-red?style=flat-square)](#-lisans)
-[![Version](https://img.shields.io/badge/Version-1.0.20-success?style=flat-square)](setup/RELEASE-NOTES-v1.0.20.md)
+[![Version](https://img.shields.io/badge/Version-2.0--preview-blue?style=flat-square)](#-yol-haritası)
+[![DB-Per-Tenant](https://img.shields.io/badge/Architecture-DB--Per--Tenant-green?style=flat-square)](#-database-per-firma-mimarisi)
 
 </div>
 
@@ -26,18 +27,13 @@ _Filo · Operasyon · Hakediş · Muhasebe · EBYS — tek panelden, uçtan uca.
 ## 📚 İçindekiler
 
 - [Proje Hakkında](#-proje-hakkında)
+- [Database-Per-Firma Mimarisi](#-database-per-firma-mimarisi)
 - [Öne Çıkan Yetenekler](#-öne-çıkan-yetenekler)
 - [Mimari Genel Bakış](#-mimari-genel-bakış)
-- [Veri Akışı](#-veri-akışı-yüksek-düzey)
-- [Teknoloji Yığını](#-teknoloji-yığını)
-- [Çözüm Yapısı](#-çözüm-yapısı)
 - [Hızlı Başlangıç](#-hızlı-başlangıç)
 - [Yapılandırma](#-yapılandırma)
-- [Multi-Tenant Mimarisi](#-multi-tenant-mimarisi)
 - [Veritabanı & Migration Stratejisi](#-veritabanı--migration-stratejisi)
 - [Test Stratejisi](#-test-stratejisi)
-- [Kurulum / Deploy](#-kurulum--deploy)
-- [Güvenlik](#-güvenlik)
 - [Yol Haritası](#-yol-haritası)
 - [Katkıda Bulunma](#-katkıda-bulunma)
 - [Lisans](#-lisans)
@@ -276,8 +272,8 @@ KOAFiloServis.sln
 
 ```pwsh
 # 1) Repoyu klonla
-git clone https://github.com/karamur/KOAFiloServis.git
-cd KOAFiloServis
+git clone https://github.com/karamur/KOAFiloServis-MultiDb.git
+cd KOAFiloServis-MultiDb
 
 # 2) EF Core tool (yoksa)
 dotnet tool install --global dotnet-ef
@@ -338,16 +334,56 @@ dotnet test --filter "Category!=E2E"
 
 ---
 
-## 🏢 Multi-Tenant Mimarisi
+## 🏢 Database-Per-Firma Mimarisi
 
-Sistem **firma bazlı (FirmaId) yatay tenant** modelini kullanır:
+Bu proje (**KOAFiloServis-MultiDb**), orijinal `KOAFiloServis` projesinin **Database-Per-Tenant** mimarisiyle yükseltilmiş versiyonudur.
 
-- **`IFirmaTenant`** interface'ini implement eden tüm entity'ler global EF query filter ile **otomatik izole edilir**.
-- **`IAktifFirmaProvider`** (scoped) → giriş yapan kullanıcının aktif firma seçimini taşır.
-- **TumFirmalar** (eski "SuperAdmin") modunda filter atlanır → cross-firma raporlama.
-- Firmalar arası **kopyalama** (`IKopyalanabilirTenant`) ve **transfer** servisleri mevcuttur.
+### Mimari
 
-> 📜 **Geçmiş not:** Eski `Sirket` tenant modeli **Faz 5.3 (v1.0.20 + B4)** ile tamamen emekliye alındı. Tüm entity'lerden `SirketId` kolonu drop edildi, `AuditLog.SirketId` → `FirmaId` rename edildi, `Sirketler` ve `SirketTransferLoglari` legacy tabloları kaldırıldı. Detay: [`docs/TENANT_MIGRATION_PLAN.md`](docs/TENANT_MIGRATION_PLAN.md).
+```
+PostgreSQL Server
+├── KOAFiloServis_Master     → Firmalar, Kullanicilar, Lisans, Roller (global)
+├── Koa_USTUN_GRUP_001       → ÜSTÜN GRUP SEYAHAT (tam izolasyon)
+├── Koa_RECEP_USTUN_003      → RECEP ÜSTÜN (tam izolasyon)
+└── Koa_USTUN_FILO_005       → ÜSTÜN FİLO TURİZM (tam izolasyon)
+```
+
+### Hybrid Geçiş Modeli
+
+- `Firma.DatabaseName == null` → Shared DB modu (eski sistem, `IFirmaTenant` query filter ile)
+- `Firma.DatabaseName != null` → Dedicated tenant DB (fiziksel izolasyon)
+- **Startup'ta otomatik tenant DB oluşturma** — tüm aktif firmalar için
+- **Otomatik veri göçü** — shared DB'den tenant DB'ye lookup + tenant veri kopyalama
+
+### Avantajlar
+
+- 🔒 **Fiziksel veri izolasyonu** — her firma kendi veritabanında
+- 📦 **Firma bazlı yedekleme/geri yükleme**
+- ⚖️ **KVKK/Compliance** — veriler fiziksel olarak ayrı
+- 🚀 **Ölçeklenebilirlik** — firmalar farklı sunuculara dağıtılabilir
+
+### Teknik Detaylar
+
+| Bileşen | Açıklama |
+|---------|-----------|
+| `MasterDbContext` | Global tablolar (Firmalar, Kullanicilar, Lisans, Roller, RolYetkileri) |
+| `ApplicationDbContext` | Tenant verileri (tüm IFirmaTenant entity'leri) |
+| `TenantDbContextFactory` | Aktif firmaya göre dinamik connection string |
+| `ITenantConnectionStringProvider` | Connection string çözümleyici |
+| `TenantDatabaseService` | Tenant DB oluşturma, migration, veri göçü |
+| `ITenantDatabaseService` | Admin panelinden tenant DB yönetimi |
+
+### Geliştirme Fazları
+
+| Faz | Durum | Commit |
+|-----|:-----:|--------|
+| **Faz 1** — Altyapı (entity, factory, DI) | ✅ | `cba5d90` |
+| **Faz 2** — Master DB fiziksel ayrım | ✅ | `2de0ef4` |
+| **Faz 3** — Tenant DB UI + veri göçü | ✅ | `0261aa6` |
+| **Faz 4** — IFirmaTenant temizliği | ⚪ | — |
+| **Faz 5** — Holding konsolidasyon | ⚪ | — |
+
+> 📜 **Geçmiş:** Orijinal `KOAFiloServis` projesinde tenant izolasyonu `IFirmaTenant` + EF Core Global Query Filter ile sağlanıyordu. Bu repo, Database-Per-Firma mimarisine geçiş için fork'lanmıştır. Orijinal proje: [`karamur/KOAFiloServis`](https://github.com/karamur/KOAFiloServis).
 
 ---
 
