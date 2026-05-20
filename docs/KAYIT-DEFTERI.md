@@ -7,7 +7,10 @@
 
 ## 📅 20.05.2026 — Faz 3 Uygulama Oturumu
 
-### Commit: (aşağıda)
+### Commit: `0261aa6`
+```
+feat(multi-db): Faz 3 - Tenant DB olusturma UI + veri gocu altyapisi
+```
 
 ### ✅ Faz 3 — Tamamlanan Adımlar
 
