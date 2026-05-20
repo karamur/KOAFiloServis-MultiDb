@@ -7,7 +7,10 @@
 
 ## 📅 20.05.2026 — Faz 2 Uygulama Oturumu
 
-### Commit: (aşağıda)
+### Commit: `2de0ef4`
+```
+feat(multi-db): Faz 2 - Master DB fiziksel ayrim + TenantDatabaseService
+```
 
 ### ✅ Faz 2 — Tamamlanan Adımlar
 
