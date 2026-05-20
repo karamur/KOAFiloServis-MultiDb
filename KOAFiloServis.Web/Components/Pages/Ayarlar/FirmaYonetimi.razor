@@ -4,6 +4,7 @@
 @using Microsoft.AspNetCore.Components.Forms
 @inject IFirmaService FirmaService
 @inject ICariService CariService
+@inject ITenantDatabaseService TenantDbService
 @inject IToastService ToastService
 @rendermode InteractiveServer
 
@@ -101,6 +102,18 @@
                             <span class="badge @(firma.Aktif ? "bg-success" : "bg-secondary")">
                                 @(firma.Aktif ? "Aktif" : "Pasif")
                             </span>
+                            @if (!string.IsNullOrEmpty(firma.DatabaseName))
+                            {
+                                <span class="badge bg-info" title="Bu firma kendi tenant veritabaninda">
+                                    <i class="bi bi-database"></i> @firma.DatabaseName
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning text-dark" title="Bu firma shared veritabaninda">
+                                    <i class="bi bi-database"></i> Shared DB
+                                </span>
+                            }
                         </div>
                         <div class="card-body">
                             <table class="table table-borderless table-sm mb-0">
@@ -168,19 +181,33 @@
                             </table>
                         </div>
                         <div class="card-footer bg-transparent">
-                            <div class="btn-group btn-group-sm w-100">
-                                <button class="btn btn-outline-primary" @onclick="() => FirmaDuzenle(firma)">
-                                    <i class="bi bi-pencil me-1"></i>Duzenle
-                                </button>
-                                @if (!firma.VarsayilanFirma)
+                            <div class="d-flex flex-column gap-2">
+                                <div class="btn-group btn-group-sm w-100">
+                                    <button class="btn btn-outline-primary" @onclick="() => FirmaDuzenle(firma)">
+                                        <i class="bi bi-pencil me-1"></i>Duzenle
+                                    </button>
+                                    @if (!firma.VarsayilanFirma)
+                                    {
+                                        <button class="btn btn-outline-success" @onclick="() => VarsayilanYap(firma)">
+                                            <i class="bi bi-star me-1"></i>Varsayilan Yap
+                                        </button>
+                                    }
+                                    <button class="btn btn-outline-danger" @onclick="() => FirmaSil(firma)" disabled="@firma.VarsayilanFirma">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                                @if (string.IsNullOrEmpty(firma.DatabaseName))
                                 {
-                                    <button class="btn btn-outline-success" @onclick="() => VarsayilanYap(firma)">
-                                        <i class="bi bi-star me-1"></i>Varsayilan Yap
+                                    <button class="btn btn-outline-info btn-sm w-100"
+                                            disabled="@(tenantDbYukleniyor == firma.Id)"
+                                            @onclick="() => TenantDbOlustur(firma)">
+                                        @if (tenantDbYukleniyor == firma.Id)
+                                        { <span class="spinner-border spinner-border-sm me-1"></span> }
+                                        else
+                                        { <i class="bi bi-database-add me-1"></i> }
+                                        Tenant DB Olustur
                                     </button>
                                 }
-                                <button class="btn btn-outline-danger" @onclick="() => FirmaSil(firma)" disabled="@firma.VarsayilanFirma">
-                                    <i class="bi bi-trash"></i>
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -345,6 +372,7 @@
     private string? logoHata;
     private int? atamaYukleniyorFirmaId;
     private bool topluAtaYukleniyor = false;
+    private int? tenantDbYukleniyor;
     private string aramaMetni = string.Empty;
     private string durumFiltre = string.Empty;
     private string cariFiltre = string.Empty;
@@ -627,6 +655,25 @@
         catch (Exception ex)
         {
             ToastService.ShowError("Hata: " + ex.Message);
+        }
+    }
+
+    private async Task TenantDbOlustur(Firma firma)
+    {
+        tenantDbYukleniyor = firma.Id;
+        try
+        {
+            await TenantDbService.CreateTenantDatabaseAsync(firma.Id, migrateData: true);
+            ToastService.ShowSuccess($"Tenant DB olusturuldu: kofa_firma_{firma.Id:D3}. Veri gocu tamamlandi.");
+            await YenileAsync();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Tenant DB olusturulamadi: " + ex.Message);
+        }
+        finally
+        {
+            tenantDbYukleniyor = null;
         }
     }
 

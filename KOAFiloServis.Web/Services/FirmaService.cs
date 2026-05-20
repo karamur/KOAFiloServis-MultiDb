@@ -73,15 +73,30 @@ public class FirmaService : IFirmaService
     public async Task<Firma> UpdateAsync(Firma firma)
     {
         using var context = await _contextFactory.CreateDbContextAsync();
-        
-        // Entity'yi attach et ve modified olarak isaretle
-        context.Firmalar.Attach(firma);
-        context.Entry(firma).State = EntityState.Modified;
-        
-        firma.UpdatedAt = DateTime.UtcNow;
-        
+
+        var existing = await context.Firmalar.FindAsync(firma.Id);
+        if (existing == null)
+            throw new InvalidOperationException($"Firma bulunamadi: {firma.Id}");
+
+        existing.FirmaKodu = firma.FirmaKodu;
+        existing.FirmaAdi = firma.FirmaAdi;
+        existing.UnvanTam = firma.UnvanTam;
+        existing.VergiNo = firma.VergiNo;
+        existing.VergiDairesi = firma.VergiDairesi;
+        existing.Adres = firma.Adres;
+        existing.Il = firma.Il;
+        existing.Ilce = firma.Ilce;
+        existing.Telefon = firma.Telefon;
+        existing.Email = firma.Email;
+        existing.WebSite = firma.WebSite;
+        existing.Logo = firma.Logo;
+        existing.Aktif = firma.Aktif;
+        existing.CariId = firma.CariId;
+        existing.UpdatedAt = DateTime.UtcNow;
+        // DatabaseName KORUNUR — UI uzerinden degistirilemez (TenantDatabaseService yonetir)
+
         await context.SaveChangesAsync();
-        return firma;
+        return existing;
     }
 
     public async Task DeleteAsync(int id)

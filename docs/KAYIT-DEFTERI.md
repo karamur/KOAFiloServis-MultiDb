@@ -5,6 +5,43 @@
 
 ---
 
+## 📅 20.05.2026 — Faz 3 Uygulama Oturumu
+
+### Commit: (aşağıda)
+
+### ✅ Faz 3 — Tamamlanan Adımlar
+
+| # | Adım | Değişen Dosyalar | Özet |
+|---|------|-----------------|------|
+| 1 | FirmaYonetimi.razor UI | `Components/Pages/Ayarlar/FirmaYonetimi.razor` | DatabaseName badge (Shared DB / tenant adı), Tenant DB Oluştur butonu, loading state |
+| 2 | Veri göçü metodu | `Services/TenantDatabaseService.cs`, `Services/ITenantDatabaseService.cs` | `MigrateFirmaDataAsync`: FirmaId kolonu içeren tüm tablolardan shared→tenant veri kopyalama (sütun eşleştirmeli), `CreateTenantDatabaseAsync` artık otomatik veri göçü yapıyor |
+| 3 | DatabaseName koruması | `Services/FirmaService.cs` | `UpdateAsync`: mevcut entity okunup seçici alan güncellemesi, DatabaseName overwrite edilemez |
+| 4 | Smoke test | — | `dotnet build` → **0 hata**, Login + FirmaYonetimi sayfaları HTTP 200 |
+
+### 🧪 Smoke Test
+
+| Kontrol | Sonuç |
+|---------|:-----:|
+| `dotnet build` | ✅ 0 hata, 5 uyarı |
+| `GET /` login sayfası | ✅ HTTP 200 |
+| `GET /ayarlar/firmalar` | ✅ HTTP 200 |
+| DatabaseName badge UI | ✅ Shared DB / tenant adı gösterimi hazır |
+| Tenant DB Oluştur butonu | ✅ UI'da görünür (sadece DatabaseName null ise) |
+
+### ⚠️ Güncel Riskler
+
+| Risk | Durum |
+|------|:-----:|
+| Tenant DB oluşturma UI üzerinden test edilmedi (manuel login gerek) | 🟡 Kullanıcı testi bekliyor |
+| Veri göçü sırasında büyük tablolarda performans | 🟡 İlk testte izlenecek |
+| Authentication hala shared DB'den yapılıyor | 🟡 Faz 4'te ele alınacak |
+
+### 📊 Faz 3 Durumu: 🟢 TAMAMLANDI
+
+Tenant DB oluşturma UI + veri göçü altyapısı hazır. Manuel test için: Admin panel → Firma Yönetimi → "Tenant DB Oluştur" butonu.
+
+---
+
 ## 📅 20.05.2026 — Faz 2 Uygulama Oturumu
 
 ### Commit: `2de0ef4`
