@@ -149,6 +149,9 @@ builder.Services.AddPooledDbContextFactory<ApplicationDbContext>((sp, options) =
 // ITenantConnectionStringProvider - firma bazlı dinamik connection string çözümleyici
 builder.Services.AddScoped<ITenantConnectionStringProvider, TenantConnectionStringProvider>();
 
+// TenantDatabaseService - tenant DB olusturma ve migration yonetimi
+builder.Services.AddScoped<ITenantDatabaseService, TenantDatabaseService>();
+
 // TenantDbContextFactory: aktif firmanın DatabaseName'ine göre doğru DB'ye bağlanır
 builder.Services.AddScoped<IDbContextFactory<ApplicationDbContext>, TenantDbContextFactory>();
 
@@ -575,6 +578,13 @@ static async Task RunScopedSafeAsync(WebApplication app, string taskName, Func<I
         throw;
     }
 }
+
+// Master DB: olustur ve tablolari hazirla (raw SQL ile, EF migration cascade sorununu bypass eder)
+await RunScopedSafeAsync(app, "MasterDatabase", async services =>
+{
+    var configuration = services.GetRequiredService<IConfiguration>();
+    await DbInitializer.EnsureMasterDatabaseAsync(configuration);
+});
 
 // Seed Database
 await RunScopedSafeAsync(app, "DbInitializer", async services =>

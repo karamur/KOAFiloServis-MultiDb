@@ -5,6 +5,52 @@
 
 ---
 
+## 📅 20.05.2026 — Faz 2 Uygulama Oturumu
+
+### Commit: (aşağıda)
+
+### ✅ Faz 2 — Tamamlanan Adımlar
+
+| # | Adım | Değişen Dosyalar | Özet |
+|---|------|-----------------|------|
+| 1 | Master DB oluşturma script'i | `Data/DbInitializer.cs` | `EnsureMasterDatabaseAsync` eklendi: raw SQL ile `KOAFiloServis_Master` DB + 6 tablo oluşturur, shared DB'den veri kopyalar (sütun eşleştirmeli) |
+| 2 | `TenantDatabaseService` | `Services/ITenantDatabaseService.cs` (YENİ), `Services/TenantDatabaseService.cs` (YENİ) | `CreateTenantDatabaseAsync`: tenant DB oluşturur, migration uygular, `Firma.DatabaseName` günceller |
+| 3 | DbInitializer akış güncelleme | `Program.cs` | `EnsureMasterDatabaseAsync` DbInitializer'dan ÖNCE çağrılır |
+| 4 | Config + DI | `appsettings.json`, `Program.cs` | `MasterConnection` ayrı DB'ye yönlendirildi, `ITenantDatabaseService` DI kaydı eklendi |
+| 5 | Build + smoke test | — | `dotnet build` → **0 hata**, app başlatma → Master DB otomatik oluştu, **6/6 tablo veri kopyalandı** |
+
+### 🧪 Smoke Test Sonuçları
+
+| Tablo | Satır | Durum |
+|-------|:-----:|:-----:|
+| Firmalar | 4 | ✅ |
+| Kullanicilar | 10 | ✅ (sütun eşleştirme fixi sonrası) |
+| Roller | 9 | ✅ |
+| RolYetkileri | 211 | ✅ |
+| Lisanslar | 29 | ✅ |
+| AppAyarlari | 5 | ✅ |
+| Login sayfası | HTTP 200 | ✅ |
+
+### 🏗️ MİMARİ KARAR — Master DB Raw SQL Yaklaşımı
+
+**Karar:** Master DB tabloları EF Core migration ile değil, raw SQL `CREATE TABLE IF NOT EXISTS` ile oluşturuldu.
+
+**Gerekçe:** MasterDbContext'in EF Core entity discovery'si, Firma entity'sine FK ile bağlanan onlarca tenant entity'sini cascade ederek 41+ tablo oluşturmaya çalıştı. Raw SQL yaklaşımı bu sorunu tamamen bypass eder ve sadece istenen 6 tabloyu oluşturur.
+
+### ⚠️ Güncel Riskler
+
+| Risk | Durum |
+|------|:-----:|
+| Kullanici authentication henüz Master DB'den yapılmıyor | 🟡 `KullaniciService` ve auth servisleri hala ApplicationDbContext kullanıyor |
+| Tenant DB oluşturma test edilmedi (UI yok) | 🟡 Servis hazır, admin panel butonu eksik |
+| Veri göçü (shared→tenant) henüz yapılmadı | 🔴 Faz 3'te ele alınacak |
+
+### 📊 Faz 2 Durumu: 🟢 TAMAMLANDI
+
+Master DB fiziksel olarak ayrıldı, veriler kopyalandı, TenantDatabaseService hazır.
+
+---
+
 ## 📅 20.05.2026 — Database-Per-Firma Faz 1 Başlangıç Oturumu
 
 ### Yapılanlar
