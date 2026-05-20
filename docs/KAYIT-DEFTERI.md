@@ -5,26 +5,103 @@
 
 ---
 
-## 📅 20.05.2026 — Temizlik + Guzergah + README Oturumu
+## 📅 20.05.2026 — Gün Sonu Özeti
 
-### Yapılanlar
+### ✅ Bugün Tamamlanan (5 faz + 3 fix)
 
-| # | İş | Detay |
-|---|-----|-------|
-| 1 | Veri göçü FK fix | `session_replication_role = replica` ile FK kısıtlamaları geçici devre dışı |
-| 2 | Veri göçü 2 adımlı | Adım 1: lookup tabloları, Adım 2: FirmaId'li tenant verileri |
-| 3 | GuzergahList colspan fix | `colspan="12"` → `colspan="13"` |
-| 4 | GitHub push | Tüm commit'ler `karamur/KOAFiloServis-MultiDb` reposuna push'landı |
-| 5 | README güncelleme | Database-Per-Firma mimarisi, faz durumu, repo URL'si güncellendi |
-| 6 | Kayıt defteri güncelleme | Bu kayıt |
+| Faz | Commit | İçerik |
+|-----|--------|--------|
+| **Faz 1** | `cba5d90` | Altyapı: `Firma.DatabaseName`, `ITenantConnectionStringProvider`, `MasterDbContext`, `TenantDbContextFactory`, migration |
+| **Faz 2** | `2de0ef4` | Master DB fiziksel ayrım: `EnsureMasterDatabaseAsync` (raw SQL), veri kopyalama (sütun eşleştirmeli) |
+| **Faz 3** | `0261aa6` | Tenant DB UI: `FirmaYonetimi` sayfasında DatabaseName badge + "Tenant DB Oluştur" butonu, `MigrateFirmaDataAsync` |
+| **AutoCreate** | `ba98b03` | Startup'ta otomatik tenant DB oluşturma (`AutoCreateTenantDatabases` görevi) |
+| **İsimlendirme** | `9492616` | DB isimleri `Koa_[FirmaKodu]_[ID]` formatı (Türkçe karakter dönüşümü) |
+| **Fix 1** | `b833fbf` | `EnableLegacyTimestampBehavior` Program.cs başına taşındı + `TenantDbContextFactory` eksik EF konfigürasyonları |
+| **Fix 2** | `8f9b8aa` | Veri göçü FK kısıtlama fix (`session_replication_role=replica`) + 2 adımlı göç (lookup→tenant) |
+| **Fix 3** | `1ac63fb` | GuzergahList colspan fix + README güncelleme + debug log temizliği |
 
-### ⚠️ Bilinen Riskler
+### 🧪 Smoke Test Sonuçları
+
+| Test | Sonuç |
+|------|:-----:|
+| `dotnet build` | ✅ 0 hata |
+| Uygulama başlatma | ✅ `http://localhost:5200` |
+| Master DB oluşturma | ✅ `KOAFiloServis_Master` (6 tablo) |
+| Tenant DB otomatik oluşturma | ✅ 3 firma: `Koa_USTUN_GRUP_001`, `Koa_RECEP_USTUN_003`, `Koa_USTUN_FILO_005` |
+| Veri göçü (Firma 1) | ✅ 47.263 satır (lookup: 44.307 + tenant: 2.956) |
+| Veri göçü (Firma 3) | ✅ 25 Cariler + diğer veriler |
+| Veri göçü (Firma 5) | ✅ 13 Cariler + diğer veriler |
+| Login sayfası | ✅ HTTP 200 |
+
+### 🏗️ Alınan Mimari Kararlar
+
+| Karar | Gerekçe |
+|-------|---------|
+| **Hybrid model** | `Firma.DatabaseName == null` → shared DB, `!= null` → tenant DB. Kademeli geçiş imkanı |
+| **Master DB raw SQL** | EF Core entity discovery cascade sorunu (41+ tablo). Raw SQL ile sadece 6 core tablo |
+| **EnsureCreated** | 80+ migration'da legacy kolon referansları kırılıyor. Tenant DB'ler için daha güvenli |
+| **Koa_[FirmaKodu]_[ID]** | DB isimlendirme: firma kısa adı + ID, Türkçe karakterler dönüştürülür |
+| **AutoCreateTenantDatabases** | Startup'ta tüm aktif firmalar için otomatik tenant DB oluşturma + veri göçü |
+| **FK disable (replica)** | Tenant DB'ye veri kopyalarken FK sıralama sorununu çözmek için |
+
+### 📂 Yeni Eklenen Dosyalar
+
+```
+KOAFiloServis.Web/Data/MasterDbContext.cs
+KOAFiloServis.Web/Data/TenantDbContextFactory.cs
+KOAFiloServis.Web/Services/ITenantConnectionStringProvider.cs
+KOAFiloServis.Web/Services/TenantConnectionStringProvider.cs
+KOAFiloServis.Web/Services/ITenantDatabaseService.cs
+KOAFiloServis.Web/Services/TenantDatabaseService.cs
+KOAFiloServis.Web/Migrations/..._MultiDbFaz1_AddFirmaDatabaseName.cs
+```
+
+### 📂 Silinen Dosyalar
+
+```
+KOAFiloServis.Web/Data/TenantAwareDbContextFactory.cs
+KOAFiloServis.Web/Components/Pages/Ayarlar/AIAsistan.razor
+```
+
+---
+
+## 📅 21.05.2026 — Yapılacak İşler
+
+### 🔴 Öncelikli
+
+| # | İş | Açıklama |
+|---|-----|----------|
+| 1 | Firma geçiş testi | Tenant DB'ye geçince dashboard/sayfalar sadece o firmanın verisini gösteriyor mu? |
+| 2 | Tenant DB UI testi | Admin panelden "Tenant DB Oluştur" butonu çalışıyor mu? |
+| 3 | Debug log temizliği | `SaveWithLogAsync` kaldırılacak veya `LogDebug` seviyesine çekilecek |
+| 4 | Build + son test | Temiz build, eksiksiz smoke test |
+
+### 🟡 Orta Vadeli
+
+| # | İş | Açıklama |
+|---|-----|----------|
+| 5 | `AktiviteLogInterceptor` DI hatası | Singleton interceptor scoped factory'i resolve edemiyor. `IServiceScopeFactory` ile çözülecek |
+| 6 | `KullaniciService` MasterDbContext'e geçiş | Auth servisleri hala ApplicationDbContext kullanıyor |
+| 7 | Tenant DB veri göçü iyileştirme | Sütun uyumsuzluklarını detaylı logla, eksik tabloları tespit et |
+| 8 | `AylikOdemeGerceklesenler` legacy tablo | EnsureCreated'da yok, manuel CREATE TABLE gerekebilir |
+
+### ⚪ Uzun Vadeli (Faz 4-5)
+
+| # | İş | Açıklama |
+|---|-----|----------|
+| 9 | `IFirmaTenant` temizliği | Tenant DB'lerde query filter gereksiz, entity'lerden kaldır |
+| 10 | Holding modülü | Firmalar arası konsolidasyon raporları, holding girişi |
+| 11 | `ApplicationDbContext` master tablo temizliği | Master tabloları tenant context'ten çıkar |
+| 12 | Pooling optimizasyonu | Tenant DB'ler için `ConcurrentDictionary` cache |
+
+### ⚠️ Güncel Riskler
 
 | Risk | Durum |
 |------|:-----:|
-| Tenant DB veri göçü FK fix test edilmedi | 🔴 Manuel test bekliyor |
-| `AylikOdemeGerceklesenler` tablosu tenant DB'de yok (legacy) | 🟡 Atlanıyor |
-| Holding girişi henüz yok | 🔴 Tasarım aşamasında |
+| Tenant DB'de firma geçişi çalışıyor mu? | 🔴 Test edilmedi |
+| Holding girişi tasarımı | 🔴 Başlanmadı |
+| `AktiviteLogInterceptor` scoped factory hatası | 🟡 Pre-existing, her ortamda var |
+| Debug log'lar (EF Core Information) | 🟡 Temizlenecek |
 
 ---
 
