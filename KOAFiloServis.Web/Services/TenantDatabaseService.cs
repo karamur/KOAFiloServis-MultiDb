@@ -28,8 +28,13 @@ public sealed class TenantDatabaseService : ITenantDatabaseService
 
     public async Task CreateTenantDatabaseAsync(int firmaId, bool migrateData = true)
     {
-        var prefix = _configuration.GetValue<string>("TenantDatabase:NamingPrefix") ?? "kofa_firma_";
-        var databaseName = $"{prefix}{firmaId:D3}";
+        // Firma bilgisini Master DB'den al
+        await using var masterCtx = await _masterFactory.CreateDbContextAsync();
+        var firma = await masterCtx.Firmalar.FindAsync(firmaId);
+        if (firma == null)
+            throw new InvalidOperationException($"Firma bulunamadi: {firmaId}");
+
+        var databaseName = BuildTenantDbName(firma);
 
         if (await TenantDatabaseExistsAsync(databaseName))
         {
@@ -50,7 +55,7 @@ public sealed class TenantDatabaseService : ITenantDatabaseService
             _logger.LogInformation("Tenant DB olusturuldu: {DbName}", databaseName);
         }
 
-        // Tenant DB'ye EF Core migration'larini uygula
+        // Tenant DB'ye EF Core semasini olustur
         var tenantConnStr = _connProvider.GetConnectionStringForFirma(firmaId, databaseName);
         if (tenantConnStr == null)
             throw new InvalidOperationException($"Tenant connection string alinamadi: FirmaId={firmaId}");
@@ -59,21 +64,13 @@ public sealed class TenantDatabaseService : ITenantDatabaseService
         optionsBuilder.UseNpgsql(tenantConnStr);
         await using var context = new ApplicationDbContext(optionsBuilder.Options);
 
-        // EnsureCreated: mevcut modelden semayi direkt olusturur.
-        // MigrateAsync yerine kullaniyoruz cunku 80+ migration'in bazilari
-        // legacy kolonlara (orn. KiralayiciCariId) referans verip kiriliyor.
         var created = await context.Database.EnsureCreatedAsync();
         _logger.LogInformation("Tenant DB sema olusturuldu (yeni={IsNew}): {DbName}", created, databaseName);
 
         // Master DB'de Firma.DatabaseName guncelle
-        await using var masterCtx = await _masterFactory.CreateDbContextAsync();
-        var firma = await masterCtx.Firmalar.FindAsync(firmaId);
-        if (firma != null)
-        {
-            firma.DatabaseName = databaseName;
-            await masterCtx.SaveChangesAsync();
-            _logger.LogInformation("Firma {FirmaId} DatabaseName = {DbName}", firmaId, databaseName);
-        }
+        firma.DatabaseName = databaseName;
+        await masterCtx.SaveChangesAsync();
+        _logger.LogInformation("Firma {FirmaId} DatabaseName = {DbName}", firmaId, databaseName);
 
         // Veri gocu: shared DB'den tenant DB'ye
         if (migrateData)
@@ -84,8 +81,11 @@ public sealed class TenantDatabaseService : ITenantDatabaseService
 
     public async Task MigrateFirmaDataAsync(int firmaId)
     {
-        var prefix = _configuration.GetValue<string>("TenantDatabase:NamingPrefix") ?? "kofa_firma_";
-        var databaseName = $"{prefix}{firmaId:D3}";
+        await using var masterCtx = await _masterFactory.CreateDbContextAsync();
+        var firma = await masterCtx.Firmalar.FindAsync(firmaId);
+        if (firma == null) return;
+
+        var databaseName = firma.DatabaseName ?? BuildTenantDbName(firma);
 
         var sharedConnStr = _configuration.GetConnectionString("DefaultConnection");
         var tenantConnStr = _connProvider.GetConnectionStringForFirma(firmaId, databaseName);
@@ -190,5 +190,38 @@ public sealed class TenantDatabaseService : ITenantDatabaseService
             "SELECT 1 FROM pg_database WHERE datname = @name", conn);
         cmd.Parameters.AddWithValue("@name", databaseName);
         return await cmd.ExecuteScalarAsync() != null;
+    }
+
+    public static string BuildTenantDbName(Shared.Entities.Firma firma)
+    {
+        var kod = SanitizeForDbName(firma.FirmaKodu ?? $"F{firma.Id}");
+        return $"Koa_{kod}_{firma.Id:D3}";
+    }
+
+    private static string SanitizeForDbName(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return "FIRMA";
+
+        // Once Turkce karakterleri donustur, sonra upper yap
+        var replaced = input.Trim()
+            .Replace('Ü', 'U').Replace('ü', 'u')
+            .Replace('Ğ', 'G').Replace('ğ', 'g')
+            .Replace('İ', 'I').Replace('ı', 'i')
+            .Replace('Ş', 'S').Replace('ş', 's')
+            .Replace('Ç', 'C').Replace('ç', 'c')
+            .Replace('Ö', 'O').Replace('ö', 'o');
+
+        var sb = new System.Text.StringBuilder();
+        foreach (var c in replaced.ToUpperInvariant())
+        {
+            if (char.IsLetterOrDigit(c))
+                sb.Append(c);
+            else if (c == ' ' || c == '-' || c == '_')
+                sb.Append('_');
+        }
+
+        var result = sb.ToString().Trim('_');
+        if (result.Length > 50) result = result.Substring(0, 50);
+        return string.IsNullOrWhiteSpace(result) ? "FIRMA" : result;
     }
 }
