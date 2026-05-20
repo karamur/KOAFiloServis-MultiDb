@@ -100,80 +100,69 @@ public sealed class TenantDatabaseService : ITenantDatabaseService
         await using var tenantConn = new NpgsqlConnection(tenantConnStr);
         await tenantConn.OpenAsync();
 
-        // FirmaId kolonu iceren tum tenant tablolarini bul
-        var tables = new List<string>();
+        // FK kisitlamalarini gecici olarak devre disi birak
+        await using var disableFkCmd = new NpgsqlCommand("SET session_replication_role = 'replica';", tenantConn);
+        await disableFkCmd.ExecuteNonQueryAsync();
+
+        // Master DB'ye ait tablolar (tenant DB'de olmali ama veri kopyalanmayacak)
+        var masterTables = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "Firmalar", "Kullanicilar", "Lisanslar", "Roller", "RolYetkileri", "AppAyarlari" };
+
+        // Tenant DB'deki TUM tablolari al
+        var allTenantTables = new List<string>();
         await using (var listCmd = new NpgsqlCommand(
-            "SELECT table_name FROM information_schema.columns WHERE column_name = 'FirmaId' AND table_schema = 'public' ORDER BY table_name", sharedConn))
+            "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' ORDER BY table_name", tenantConn))
         {
             await using var reader = await listCmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-                tables.Add(reader.GetString(0));
+            while (await reader.ReadAsync()) allTenantTables.Add(reader.GetString(0));
         }
 
-        _logger.LogInformation("Veri gocu: {TableCount} tablo taranacak, FirmaId={FirmaId}", tables.Count, firmaId);
-
-        var totalRows = 0;
-        foreach (var table in tables)
+        // 1. ADIM: FirmaId'siz lookup tablolarini kopyala (FK kisitlamalari icin gerekli)
+        _logger.LogInformation("Veri gocu Adim 1: Lookup tablolari kopyalaniyor...");
+        var lookupTotal = 0;
+        foreach (var table in allTenantTables)
         {
-            // Tenant DB'de tablo var mi?
-            await using var checkCmd = new NpgsqlCommand(
-                "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = @t)", tenantConn);
-            checkCmd.Parameters.AddWithValue("@t", table);
-            var exists = (bool)(await checkCmd.ExecuteScalarAsync())!;
-            if (!exists) continue;
+            if (masterTables.Contains(table)) continue;
 
-            // Hedef sutun listesi
-            var targetColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            await using (var colCmd = new NpgsqlCommand(
-                "SELECT column_name FROM information_schema.columns WHERE table_name = @t", tenantConn))
-            {
-                colCmd.Parameters.AddWithValue("@t", table);
-                await using var colReader = await colCmd.ExecuteReaderAsync();
-                while (await colReader.ReadAsync())
-                    targetColumns.Add(colReader.GetString(0));
-            }
+            // Bu tabloda FirmaId kolonu var mi?
+            await using var fidCheckCmd = new NpgsqlCommand(
+                "SELECT EXISTS (SELECT FROM information_schema.columns WHERE table_name=@t AND column_name='FirmaId')", tenantConn);
+            fidCheckCmd.Parameters.AddWithValue("@t", table);
+            var hasFirmaId = (bool)(await fidCheckCmd.ExecuteScalarAsync())!;
+            if (hasFirmaId) continue; // FirmaId'li tablolar 2. adimda
 
-            // Shared DB'den FirmaId'ye gore oku
-            await using var readCmd = new NpgsqlCommand(
-                $"SELECT * FROM \"{table}\" WHERE \"FirmaId\" = @fid", sharedConn);
-            readCmd.Parameters.AddWithValue("@fid", firmaId);
-            await using var reader = await readCmd.ExecuteReaderAsync();
+            // Shared DB'de bu tablo var mi?
+            await using var existsCmd = new NpgsqlCommand(
+                "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name=@t)", sharedConn);
+            existsCmd.Parameters.AddWithValue("@t", table);
+            if (!(bool)(await existsCmd.ExecuteScalarAsync())!) continue;
 
-            var sourceColumns = new List<string>();
-            for (var i = 0; i < reader.FieldCount; i++)
-                sourceColumns.Add(reader.GetName(i));
-
-            var commonColumns = sourceColumns.Where(c => targetColumns.Contains(c)).ToList();
-            if (commonColumns.Count == 0) continue;
-
-            var inserted = 0;
-            while (await reader.ReadAsync())
-            {
-                var colIdxMap = commonColumns.Select(c => sourceColumns.IndexOf(c)).ToList();
-                var values = colIdxMap.Select(idx =>
-                    reader.IsDBNull(idx) ? DBNull.Value : reader.GetValue(idx)).ToList();
-
-                var paramNames = string.Join(", ", values.Select((_, idx) => $"@p{idx}"));
-                var colNames = string.Join("\", \"", commonColumns);
-                var insertSql = $"INSERT INTO \"{table}\" (\"{colNames}\") VALUES ({paramNames})";
-
-                await using var insertCmd = new NpgsqlCommand(insertSql, tenantConn);
-                for (var i = 0; i < values.Count; i++)
-                    insertCmd.Parameters.AddWithValue($"@p{i}", values[i]);
-
-                try { await insertCmd.ExecuteNonQueryAsync(); inserted++; }
-                catch (Exception ex) { _logger.LogWarning(ex, "Veri gocu {Table} INSERT hatasi", table); }
-            }
-            await reader.CloseAsync();
-
-            if (inserted > 0)
-            {
-                totalRows += inserted;
-                _logger.LogInformation("Veri gocu: {Table} -> {Rows} satir", table, inserted);
-            }
+            var rows = await CopyTableDataAsync(sharedConn, tenantConn, table, null);
+            if (rows > 0) { lookupTotal += rows; _logger.LogInformation("  Lookup: {Table} -> {Rows} satir", table, rows); }
         }
+        _logger.LogInformation("Veri gocu Adim 1 tamam: {Total} lookup satiri", lookupTotal);
 
-        _logger.LogInformation("Veri gocu tamamlandi: {TotalRows} toplam satir, FirmaId={FirmaId}", totalRows, firmaId);
+        // 2. ADIM: FirmaId'li tenant tablolarini kopyala (sadece bu firmaya ait)
+        _logger.LogInformation("Veri gocu Adim 2: FirmaId={FirmaId} tenant verileri...", firmaId);
+        var tenantTotal = 0;
+        foreach (var table in allTenantTables)
+        {
+            if (masterTables.Contains(table)) continue;
+
+            await using var fidCheckCmd = new NpgsqlCommand(
+                "SELECT EXISTS (SELECT FROM information_schema.columns WHERE table_name=@t AND column_name='FirmaId')", tenantConn);
+            fidCheckCmd.Parameters.AddWithValue("@t", table);
+            if (!(bool)(await fidCheckCmd.ExecuteScalarAsync())!) continue;
+
+            var rows = await CopyTableDataAsync(sharedConn, tenantConn, table, firmaId);
+            if (rows > 0) { tenantTotal += rows; _logger.LogInformation("  Tenant: {Table} -> {Rows} satir", table, rows); }
+        }
+        // FK kisitlamalarini tekrar aktif et
+        await using var enableFkCmd = new NpgsqlCommand("SET session_replication_role = 'origin';", tenantConn);
+        await enableFkCmd.ExecuteNonQueryAsync();
+
+        _logger.LogInformation("Veri gocu tamamlandi: {LookupTotal} lookup + {TenantTotal} tenant = {Total} satir",
+            lookupTotal, tenantTotal, lookupTotal + tenantTotal);
     }
 
     public async Task<bool> TenantDatabaseExistsAsync(string databaseName)
@@ -190,6 +179,77 @@ public sealed class TenantDatabaseService : ITenantDatabaseService
             "SELECT 1 FROM pg_database WHERE datname = @name", conn);
         cmd.Parameters.AddWithValue("@name", databaseName);
         return await cmd.ExecuteScalarAsync() != null;
+    }
+
+    private static async Task<int> CopyTableDataAsync(
+        NpgsqlConnection sourceConn, NpgsqlConnection targetConn,
+        string table, int? firmaId)
+    {
+        try
+        {
+            // Hedef sutun listesi
+            var targetColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            await using (var colCmd = new NpgsqlCommand(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = @t", targetConn))
+            {
+                colCmd.Parameters.AddWithValue("@t", table);
+                await using var colReader = await colCmd.ExecuteReaderAsync();
+                while (await colReader.ReadAsync()) targetColumns.Add(colReader.GetString(0));
+            }
+
+            if (targetColumns.Count == 0) return 0;
+
+            // Kaynaktan oku (FirmaId filtresi opsiyonel)
+            var sql = firmaId.HasValue
+                ? $"SELECT * FROM \"{table}\" WHERE \"FirmaId\" = @fid"
+                : $"SELECT * FROM \"{table}\"";
+            await using var readCmd = new NpgsqlCommand(sql, sourceConn);
+            if (firmaId.HasValue) readCmd.Parameters.AddWithValue("@fid", firmaId.Value);
+
+            await using var reader = await readCmd.ExecuteReaderAsync();
+
+            var sourceColumns = new List<string>();
+            for (var i = 0; i < reader.FieldCount; i++)
+                sourceColumns.Add(reader.GetName(i));
+
+            var commonColumns = sourceColumns.Where(c => targetColumns.Contains(c)).ToList();
+            if (commonColumns.Count == 0) return 0;
+
+            // Hedefte zaten veri var mi?
+            await using var countCmd = new NpgsqlCommand($"SELECT COUNT(*) FROM \"{table}\"", targetConn);
+            var existingCount = (long)(await countCmd.ExecuteScalarAsync())!;
+            if (existingCount > 0 && !firmaId.HasValue) return 0;
+
+            var inserted = 0;
+            while (await reader.ReadAsync())
+            {
+                var colIdxMap = commonColumns.Select(c => sourceColumns.IndexOf(c)).ToList();
+                var values = colIdxMap.Select(idx =>
+                    reader.IsDBNull(idx) ? DBNull.Value : reader.GetValue(idx)).ToList();
+
+                var paramNames = string.Join(", ", values.Select((_, idx) => $"@p{idx}"));
+                var colNames = string.Join("\", \"", commonColumns);
+                var insertSql = $"INSERT INTO \"{table}\" (\"{colNames}\") VALUES ({paramNames}) ON CONFLICT DO NOTHING";
+
+                await using var insertCmd = new NpgsqlCommand(insertSql, targetConn);
+                for (var i = 0; i < values.Count; i++)
+                    insertCmd.Parameters.AddWithValue($"@p{i}", values[i]);
+
+                try { await insertCmd.ExecuteNonQueryAsync(); inserted++; }
+                catch (Exception ex) {
+                    if (inserted == 0) // sadece ilk hatayi logla
+                        Console.WriteLine($"[VeriGocu] {table} INSERT hatasi: {ex.Message}");
+                }
+            }
+            await reader.CloseAsync();
+            return inserted;
+        }
+        catch (PostgresException ex) when (ex.SqlState == "42P01")
+        {
+            // Tablo hedefte yok (EnsureCreated modelde olmayan legacy tablo)
+            Console.WriteLine($"[VeriGocu] {table} hedefte yok, atlaniyor.");
+            return 0;
+        }
     }
 
     public static string BuildTenantDbName(Shared.Entities.Firma firma)
