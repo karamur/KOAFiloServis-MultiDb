@@ -5,6 +5,78 @@
 
 ---
 
+## 📅 21.05.2026 — Gün Sonu Özeti (Final)
+
+### ✅ Bugün Tamamlanan
+
+| Modül | Sprint | Commit | İçerik |
+|-------|:------:|--------|--------|
+| **MultiDb Fix** | — | `5155be1` | WithMany null parametre - Cari navigasyon çakışması giderildi |
+| **Holding** | Faz 10 | `6d28e11` | HoldingDbContext + Service + 7 UI sayfası + Quartz job |
+| **Planlama S1** | Altyapı | `35f9534` `1a6f294` | SeferSlot enum + entity genişletme + migration + Planlama.razor + EditModal |
+| **Planlama S2** | Çakışma | `1bc7bfa` | ConflictResult modeli + 3 kural motoru + UI görsel uyarılar |
+| **Planlama S3** | Kopyalama | `77cc93b` | CopyPreviousMonthModal + çakışma simülasyonu |
+| **Planlama S4** | Finans | `c4735b4` | FinansYonu + KaynakTipi + Tedarikçi izolasyonu |
+| **Planlama S5** | Dashboard | `4e565f6` | PlanlamaDashboard (KPI + slot/finans/kaynak dağılımı) |
+| **Guzergah** | — | `e9c1448` | Eski projedeki sefer alt tablosu GuzergahForm'a taşındı |
+
+### 📊 Toplam: 9 commit, 27 dosya, +2500/-30 satır
+
+### 🧪 Smoke Test
+
+| Test | Sonuç |
+|------|:-----:|
+| `dotnet build` | ✅ **0 hata, 0 uyarı** |
+| `dotnet test` | ✅ 291/291 başarılı |
+| Uygulama başlatma | ✅ `http://0.0.0.0:5200` |
+| Tüm startup görevleri (30+) | ✅ Hepsi başarılı |
+| PuantajSlotMigration | ✅ Tüm kolonlar mevcut |
+| EnsureHoldingDatabase | ✅ KOAFiloServis_Holding + 2 tablo |
+| `/planlama` route | ✅ 401 (Authorize) |
+| `/planlama/dashboard` route | ✅ 401 (Authorize) |
+| `/holding` + 6 alt sayfa | ✅ 401 (Authorize) |
+| Runtime hata/exception | ✅ **0 hata** |
+
+### 🏗️ Alınan Kararlar
+
+| Karar | Gerekçe |
+|-------|---------|
+| Planlama modülü PuantajKayit üzerine inşa edildi | Ayrı PlanlamaKayit entity'si yerine mevcut entity genişletildi — veri tekrarı önlendi |
+| KurumPuantaj korundu | Kırıcı değişiklik yok, feature flag gerekmedi |
+| Holding snapshot mimarisi | Canlı cross-db sorgu yerine periyodik snapshot — performans + KVKK |
+| #11 Master tablo temizliği ertelendi | 40+ FK değişikliği riski, düşük getiri |
+| SeferSlot per-day Gun01..Gun31 üzerinden çakışma kontrolü | PuantajKayit aylık tablo, günlük çakışma analizi için tek yol |
+
+---
+
+## 📅 22.05.2026 — Yapılacak İşler
+
+### 🔴 Öncelikli (Manuel Test - Login Gerek)
+
+| # | İş | Açıklama |
+|---|-----|----------|
+| 1 | Firma geçiş testi | Tenant DB'ye geçince dashboard sadece o firmanın verisini gösteriyor mu? |
+| 2 | Tenant DB UI testi | "Tenant DB Oluştur" butonu çalışıyor mu? |
+| 3 | Planlama sayfaları testi | Login olup `/planlama` ve `/planlama/dashboard` testi |
+| 4 | Holding sayfaları testi | Login olup `/holding` dashboard + 6 rapor sayfası testi |
+| 5 | KurumPuantaj regresyon | Mevcut puantaj ekranı kırılmamış olmalı |
+
+### 🟡 Geliştirme
+
+| # | İş | Açıklama |
+|---|-----|----------|
+| 6 | #11 Master tablo temizliği | Uygun zamanda, düşük öncelik |
+| 7 | Holding verisi toplama | İlk kez manuel `ToplaVeKaydetAsync` çağrısı yapıp raporları doldur |
+
+### ⚪ Uzun Vadeli
+
+| # | İş |
+|---|-----|
+| 8 | Holding girişi — Holding Yoneticisi rolü + auth |
+| 9 | Yeni modül talepleri |
+
+---
+
 ## 📅 20.05.2026 — Gün Sonu Özeti
 
 ### ✅ Bugün Tamamlanan (5 faz + 3 fix)
