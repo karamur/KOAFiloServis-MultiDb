@@ -34,6 +34,34 @@ public static class PuantajSlotMigrationHelper
             logger?.LogInformation("PuantajSlotMigration: IsverenFirmaId kolonu eklendi.");
         }
 
+        if (!cols.Contains("KaynakTipi"))
+        {
+            await context.Database.ExecuteSqlRawAsync(
+                "ALTER TABLE \"PuantajKayitlar\" ADD COLUMN \"KaynakTipi\" integer NOT NULL DEFAULT 1");
+            logger?.LogInformation("PuantajSlotMigration: KaynakTipi kolonu eklendi.");
+        }
+
+        if (!cols.Contains("FinansYonu"))
+        {
+            await context.Database.ExecuteSqlRawAsync(
+                "ALTER TABLE \"PuantajKayitlar\" ADD COLUMN \"FinansYonu\" integer NOT NULL DEFAULT 2");
+            logger?.LogInformation("PuantajSlotMigration: FinansYonu kolonu eklendi.");
+        }
+
+        if (!cols.Contains("BelgeNo"))
+        {
+            await context.Database.ExecuteSqlRawAsync(
+                "ALTER TABLE \"PuantajKayitlar\" ADD COLUMN \"BelgeNo\" varchar(50) NULL");
+            logger?.LogInformation("PuantajSlotMigration: BelgeNo kolonu eklendi.");
+        }
+
+        if (!cols.Contains("TransferDurum"))
+        {
+            await context.Database.ExecuteSqlRawAsync(
+                "ALTER TABLE \"PuantajKayitlar\" ADD COLUMN \"TransferDurum\" varchar(50) NULL");
+            logger?.LogInformation("PuantajSlotMigration: TransferDurum kolonu eklendi.");
+        }
+
         logger?.LogInformation("PuantajSlotMigration: Tum kolonlar mevcut.");
     }
 

@@ -1440,6 +1440,8 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Notlar).HasMaxLength(1000);
             entity.Property(e => e.Bolge).HasMaxLength(100);
             entity.Property(e => e.AitFirmaAdi).HasMaxLength(200);
+            entity.Property(e => e.BelgeNo).HasMaxLength(50);
+            entity.Property(e => e.TransferDurum).HasMaxLength(50);
 
             // Decimal precision
             entity.Property(e => e.Gun).HasPrecision(10, 2);

@@ -150,8 +150,12 @@ public sealed class KurumPuantajService : IKurumPuantajService
             mevcut.Yon          = kayit.Yon;
             mevcut.Gun          = kayit.Gun;
             mevcut.SeferSayisi  = kayit.SeferSayisi;
+            mevcut.KaynakTipi   = kayit.KaynakTipi;
+            mevcut.FinansYonu   = kayit.FinansYonu;
             mevcut.KurumId      = kayit.KurumId;
             mevcut.IsverenFirmaId = kayit.IsverenFirmaId;
+            mevcut.BelgeNo      = kayit.BelgeNo;
+            mevcut.TransferDurum = kayit.TransferDurum;
             mevcut.UpdatedAt    = DateTime.UtcNow;
         }
 
@@ -191,8 +195,12 @@ public sealed class KurumPuantajService : IKurumPuantajService
                 mevcut.Yon          = kayit.Yon;
                 mevcut.Gun          = kayit.Gun;
                 mevcut.SeferSayisi  = kayit.SeferSayisi;
+                mevcut.KaynakTipi   = kayit.KaynakTipi;
+                mevcut.FinansYonu   = kayit.FinansYonu;
                 mevcut.KurumId      = kayit.KurumId;
                 mevcut.IsverenFirmaId = kayit.IsverenFirmaId;
+                mevcut.BelgeNo      = kayit.BelgeNo;
+                mevcut.TransferDurum = kayit.TransferDurum;
                 mevcut.UpdatedAt    = DateTime.UtcNow;
             }
         }
@@ -273,6 +281,19 @@ public sealed class KurumPuantajService : IKurumPuantajService
                         Slot = kayit.Slot,
                         EtkilenenKayitId = cakisan.Id,
                         EtkilenenAciklama = cakisan.Guzergah?.GuzergahAdi ?? cakisan.GuzergahAdi
+                    });
+                }
+
+                // Kural 4: Tedarikçi izolasyonu - kendi araç + tedarikçi şoför (Warning)
+                if (kayit.KaynakTipi == PlanlamaKaynakTipi.Kendi && kayit.SoforOdemeTipi != SoforOdemeTipi.Ozmal)
+                {
+                    result.Conflicts.Add(new ConflictItem
+                    {
+                        Severity = ConflictSeverity.Warning,
+                        Kural = "Izolasyon",
+                        Mesaj = $"Kendi aracla tedarikci sofor ({kayit.SoforOdemeTipi}) eslesmesi onay gerektirir.",
+                        Gun = 0,
+                        Slot = kayit.Slot
                     });
                 }
 

@@ -52,6 +52,12 @@ public class PuantajKayit : BaseEntity
     // Ait yada kiralayan firma adı
     public string? AitFirmaAdi { get; set; }
 
+    // Kaynak ve Finans
+    public PlanlamaKaynakTipi KaynakTipi { get; set; } = PlanlamaKaynakTipi.Kendi;
+    public PlanlamaFinansYonu FinansYonu { get; set; } = PlanlamaFinansYonu.Giden;
+    public string? BelgeNo { get; set; }
+    public string? TransferDurum { get; set; }
+
     // Şoför Tipi (Özel, Kiralık, Komisyoncu)
     public SoforOdemeTipi SoforOdemeTipi { get; set; } = SoforOdemeTipi.Ozmal;
 
@@ -408,6 +414,25 @@ public enum EslestirmeTipi
     Sofor = 3,
     Arac = 4,
     FaturaKesici = 5
+}
+
+/// <summary>
+/// Planlama finans yönü
+/// </summary>
+public enum PlanlamaFinansYonu
+{
+    Gelen = 1,      // Kurumdan bize gelen fatura
+    Giden = 2,      // Bizden tedarikçiye giden fatura
+    IcDagitim = 3   // 3 firma arası iç dağıtım/yansıtma
+}
+
+/// <summary>
+/// Planlama kaynak tipi
+/// </summary>
+public enum PlanlamaKaynakTipi
+{
+    Kendi = 1,      // Özmal araç/şoför
+    Tedarikci = 2   // Dış tedarikçi
 }
 
 #endregion
