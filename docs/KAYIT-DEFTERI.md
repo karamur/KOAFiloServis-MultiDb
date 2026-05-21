@@ -75,6 +75,130 @@ KOAFiloServis.Web/Components/Pages/Ayarlar/AIAsistan.razor
 
 ---
 
+## 📅 21.05.2026 — Holding Modülü (Faz 10)
+
+### ✅ Holding Modülü Tamamlandı
+
+| # | İş | Dosyalar | Açıklama |
+|---|-----|----------|----------|
+| **10a** | Holding entity + DbContext | `HoldingVeri.cs`, `HoldingRapor.cs`, `HoldingDbContext.cs` (3 YENİ) | 2 entity + HoldingDbContext (2 tablo: HoldingVeriler, HoldingRaporlar). `appsettings.json`'a `HoldingConnection` eklendi. `Program.cs`'e DI + `EnsureHoldingDatabase` startup görevi eklendi |
+| **10a** | HoldingService + Quartz | `IHoldingService.cs`, `HoldingService.cs`, `HoldingVeriToplamaJob.cs` (3 YENİ) | `ToplaVeKaydetAsync`: Master DB'den aktif firmaları alır, `Task.WhenAll` ile tüm tenant DB'lere paralel bağlanır, gelir/gider/araç maliyet/personel/hakediş toplamlarını Holding DB'ye upsert eder. Quartz: her ayın 1'inde 02:07'de otomatik |
+| **10c** | Holding UI (7 sayfa) | `Holding/*.razor` (7 YENİ) | Dashboard (`/holding`), FirmaKarsilastirma, ButceKonsolidasyonu, OdemePlani, AracMaliyetOzeti, PersonelGiderOzeti, HakedisOzeti. Tümü `[Authorize]` + `InteractiveServer` |
+| **10c** | NavMenu güncelleme | `NavMenu.razor` | Holding Yonetimi menü grubu eklendi (7 link) |
+
+### 🧪 Smoke Test Sonuçları
+
+| Test | Sonuç |
+|------|:-----:|
+| `dotnet build` | ✅ **0 hata, 0 uyarı** |
+| `dotnet test` | ✅ 291/291 başarılı |
+| Uygulama başlatma | ✅ `http://0.0.0.0:5200` |
+| `EnsureHoldingDatabase` | ✅ `KOAFiloServis_Holding` DB + 2 tablo (HoldingVeriler, HoldingRaporlar) |
+| `/holding` | ✅ 401 (Authorize - beklenen) |
+| `/holding/karsilastirma` | ✅ 401 |
+| `/holding/butce` | ✅ 401 |
+| `/holding/odemeler` | ✅ 401 |
+| `/holding/arac-maliyet` | ✅ 401 |
+| `/holding/personel` | ✅ 401 |
+| `/holding/hakedis` | ✅ 401 |
+| Runtime hata/exception | ✅ **0 hata** |
+
+### 📊 Holding Modülü Dosya Özeti
+
+```
+YENİ (14 dosya):
+  Shared/Entities/HoldingVeri.cs
+  Shared/Entities/HoldingRapor.cs
+  Web/Data/HoldingDbContext.cs
+  Web/Services/IHoldingService.cs
+  Web/Services/HoldingService.cs
+  Web/Jobs/HoldingVeriToplamaJob.cs
+  Web/Components/Pages/Holding/HoldingDashboard.razor
+  Web/Components/Pages/Holding/FirmaKarsilastirma.razor
+  Web/Components/Pages/Holding/ButceKonsolidasyonu.razor
+  Web/Components/Pages/Holding/OdemePlani.razor
+  Web/Components/Pages/Holding/AracMaliyetOzeti.razor
+  Web/Components/Pages/Holding/PersonelGiderOzeti.razor
+  Web/Components/Pages/Holding/HakedisOzeti.razor
+
+DEĞİŞEN (3 dosya):
+  Web/appsettings.json              (+HoldingConnection)
+  Web/Program.cs                    (+DI, +startup, +Quartz job)
+  Web/Components/Layout/NavMenu.razor (+Holding menü grubu)
+```
+
+### 🏗️ MİMARİ KARAR — Snapshot Tabanlı Holding Konsolidasyonu
+
+**Karar:** Holding raporları canlı cross-database sorgu yerine periyodik snapshot ile çalışır.
+
+**Gerekçe:**
+- Performans: N+1 DB sorgusu yerine tek snapshot DB okuması
+- KVKK/Gizlilik: Ham veri tenant DB'lerde kalır, sadece agregasyon holding DB'ye girer
+- Tutarlılık: Tüm raporlar aynı snapshot'tan okur
+
+### ⚠️ Güncel Riskler
+
+| Risk | Durum |
+|------|:-----:|
+| Holding verisi henüz toplanmadı (Quartz job bekliyor) | 🟡 İlk veri toplama sonrası raporlar dolu gelecek |
+| Master tablo temizliği (#11) ertelendi | 🟡 Holding sonrası tekrar değerlendirilecek |
+| Firma geçiş testi + Tenant DB UI testi (manuel) | 🔴 Login gerek, test edilmedi |
+
+---
+
+## 📅 21.05.2026 — Sprint Planı: Puantaj Modülü (Kurum/Firma Bazlı)
+
+> Kaynak: `Kurum_Firma_Bazli_Puantaj_Planlama_Raporu.docx`
+
+### 🎯 Amaç
+Mevcut puantaj sistemini bozmadan (KurumPuantaj yaklaşımı korunarak):
+- Güzergah bazlı çoklu sefer slotu (Sabah/Akşam/Mesai)
+- Sefer CRUD (ekle/düzenle/sil)
+- Çakışma kuralları ve engelleyici validasyon
+- Önceki aydan kopyalama
+- Gelir/gider ve fatura yönü takibi
+
+### 📋 5 Sprint Planı
+
+| Sprint | Tema | Kapsam | Tahmini Süre |
+|:------:|------|--------|:-----------:|
+| **S1** | Temel Uyum + Sefer CRUD | KurumPuantaj UX referansa yaklaştır, sefer ekle/düzenle/sil modal, slot bazlı sefer yönetimi, KurumId/IsverenFirmaId ayrımı | 3-4 gün |
+| **S2** | Çakışma Motoru | (Tarih+Güzergah+Slot)→tek araç, (Tarih+Araç+Slot)→tek güzergah kuralları, kaydet öncesi validasyon, FaturaYonu enum + PlanlamaFaturaTakip tablosu, DB indexleri | 2-3 gün |
+| **S3** | Çakışma UX + Kopyalama | Çakışmalı satır renklendirme + hover tooltip, önceki aydan kopyalama + kopya sonrası çakışma tarama, Basit/İleri mod, tek hesaplama servisi | 3-4 gün |
+| **S4** | Fatura/Transfer Takibi | Gelir/gider/marj satır bazlı görünüm, giden/gelen/firma içi yansıtma durum takibi, iç transfer alanları, araç/şoför evrak durum badge'leri | 2-3 gün |
+| **S5** | UAT ve Canlıya Geçiş | Senaryo testleri (CRUD, çakışma, kopyalama, faturalaşma), performans iyileştirme, release checklist, dokümantasyon | 2-3 gün |
+
+**Toplam tahmini süre: 12-17 gün**
+
+### 🔴 Kritik Kurallar
+
+| Kural | Açıklama |
+|-------|----------|
+| Tek araç kuralı | Aynı gün + aynı güzergah + aynı slotta birden fazla araç olamaz |
+| Tek güzergah kuralı | Aynı gün + aynı slotta aynı araç birden fazla güzergaha yazılamaz |
+| Görsel çakışma | Çakışmalar renk + hover tooltip/liste ile gösterilir |
+
+### 🛡️ Risk Yönetimi
+
+| Risk | Aksiyon | Sprint |
+|------|---------|:------:|
+| İşveren Firma / Kurum ayrımı karışıyor | KurumId ve IsverenFirmaId alanlarını zorunlu ayır; formda ayrı seçim | S1 |
+| Eski veriler slot kurallarına uymuyor | Dry-run migration raporu + varsayılan slot map + manuel düzeltme listesi | S2 |
+| Çakışma kontrolü yavaşlar | (Tarih,Guzergah,Slot) ve (Tarih,Arac,Slot) indexleri; sadece etkilenen kayıtta kontrol | S2 |
+| Mevcut puantajın bozulması | Feature flag + paralel ekran + geri dönüş planı; mevcut servis kontratına dokunmama | S1-S3 |
+| 3 firma arası yansıtma izlenemiyor | İç transfer alanları (kaynak/hedef firma/durum/belge no) ekle | S4 |
+
+### 🏁 Kabul Kriterleri (Go/No-Go)
+
+1. Puantaj mevcut akışları kırılmadan çalışmalı
+2. Çoklu slot + sefer CRUD sorunsuz çalışmalı
+3. Çakışmalar teknik olarak engellenmeli ve görsel olarak anlaşılır olmalı
+4. Önceki ay kopyalama güvenli ve izlenebilir olmalı
+5. 3 firma + kurum + işveren senaryosu finansal olarak takip edilebilmeli
+6. Build başarılı olmalı; kritik hata bulunmamalı
+
+---
+
 ## 📅 21.05.2026 — Gün Sonu Özeti
 
 ### ✅ Bugün Tamamlanan (7 fix + temizlik + optimizasyon)
@@ -136,29 +260,37 @@ KOAFiloServis.Web/appsettings.Development.json         (EF log seviyeleri)
 
 ---
 
-## 📅 21.05.2026 — Yapılacak İşler (Plan)
+## 📅 21.05.2026 — Yapılacak İşler (Plan) — GÜNCEL
 
-### 🔴 Öncelikli
+### 🔴 Manuel Test (Kullanıcı Girişi Gerek)
 
 | # | İş | Açıklama |
 |---|-----|----------|
 | 1 | Firma geçiş testi | Tenant DB'ye geçince dashboard/sayfalar sadece o firmanın verisini gösteriyor mu? |
 | 2 | Tenant DB UI testi | Admin panelden "Tenant DB Oluştur" butonu çalışıyor mu? |
+| 3 | Holding raporları testi | Login olup `/holding` sayfalarına girince veriler geliyor mu? |
 
-### 🟡 Orta Vadeli
+### 🟢 Multi-DB Geçişi — TAMAMLANDI
 
-| # | İş | Açıklama |
-|---|-----|----------|
-| — | ✅ Tüm orta vadeli işler tamamlandı | — |
+| # | İş | Durum |
+|---|-----|:-----:|
+| 1-6 | Faz 1-6 (Altyapı, Master DB, Tenant DB, DI fix, veri göçü, query filter) | ✅ |
+| 7 | Fix 1-8 (NuGet, Debug log, DI, Auth, Veri göçü, Filter, Pooling, WithMany) | ✅ |
+| 10 | Holding modülü (DbContext + Service + 7 UI sayfası + Quartz) | ✅ |
+| 11 | ApplicationDbContext master tablo temizliği | 🔵 ERTELENDİ |
+| 12 | Pooling optimizasyonu | ✅ |
 
-### ⚪ Uzun Vadeli (Faz 4-5)
+### 🟡 Sonraki Sprint: Puantaj Modülü (Kurum/Firma Bazlı)
 
-| # | İş | Açıklama |
-|---|-----|----------|
-| ~~9~~ | ✅ ~~IFirmaTenant temizliği~~ | `FirmaTenantDisabled` tenant DB kontrolü eklendi |
-| 10 | Holding modülü | Firmalar arası konsolidasyon raporları, holding girişi |
-| 11 | `ApplicationDbContext` master tablo temizliği | Master tabloları tenant context'ten çıkar |
-| ~~12~~ | ✅ ~~Pooling optimizasyonu~~ | `ConcurrentDictionary` cache eklendi |
+| Sprint | Tema | Süre |
+|:------:|------|:---:|
+| S1 | Temel Uyum + Sefer CRUD | 3-4 gün |
+| S2 | Çakışma Motoru + Validasyon | 2-3 gün |
+| S3 | Çakışma UX + Önceki Ay Kopyalama | 3-4 gün |
+| S4 | Fatura/Transfer Takibi | 2-3 gün |
+| S5 | UAT ve Canlıya Geçiş | 2-3 gün |
+
+> Detaylar için yukarıdaki "Sprint Planı: Puantaj Modülü" bölümüne bakın.
 
 ---
 

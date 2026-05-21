@@ -194,6 +194,36 @@ builder.Services.AddScoped<MasterDbContext>(sp =>
     return factory.CreateDbContext();
 });
 
+// HoldingDbContext - konsolidasyon verileri (holding-level özet snapshot)
+builder.Services.AddPooledDbContextFactory<HoldingDbContext>((sp, options) =>
+{
+    var holdingConnStr = builder.Configuration.GetConnectionString("HoldingConnection")
+        ?? builder.Configuration.GetConnectionString("MasterConnection");
+
+    if (dbProvider == "PostgreSQL")
+    {
+        options.UseNpgsql(holdingConnStr, npgsqlOptions =>
+        {
+            npgsqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 3,
+                maxRetryDelay: TimeSpan.FromSeconds(5),
+                errorCodesToAdd: null);
+            npgsqlOptions.CommandTimeout(30);
+        });
+    }
+    else
+    {
+        options.UseSqlite(holdingConnStr);
+    }
+    options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+});
+
+builder.Services.AddScoped<HoldingDbContext>(sp =>
+{
+    var factory = sp.GetRequiredService<IDbContextFactory<HoldingDbContext>>();
+    return factory.CreateDbContext();
+});
+
 // Authentication - Her circuit (tarayici baglantisi) icin bagimsiz oturum yonetimi
 // Scoped: Her Blazor circuit kendi oturumunu yonetir - farkli PC/tarayicilar birbirini etkilemez
 builder.Services.AddScoped<AppAuthenticationStateProvider>();
@@ -374,6 +404,7 @@ builder.Services.AddScoped<GunlukOzetService>(); // Quartz job tarafından tetik
 builder.Services.AddScoped<IBakimPeriyotService, BakimPeriyotService>();
 builder.Services.AddScoped<ILastikService, LastikService>();
 builder.Services.AddScoped<ZamanliRaporService>(); // Zamanlanmış e-posta rapor servisi
+builder.Services.AddScoped<IHoldingService, HoldingService>(); // Holding konsolidasyon servisi
 
 // Object Storage (Local veya S3-uyumlu)
 var storageProvider = builder.Configuration.GetValue<string>("Storage:Provider") ?? "Local";
@@ -460,6 +491,13 @@ builder.Services.AddQuartz(q =>
             .WithIdentity("bakim-periyot-trigger")
             .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(bakimSaat, 30)));
     }
+
+    // Holding veri toplama - her ayın 1'inde saat 02:00'de çalışır
+    q.AddJob<HoldingVeriToplamaJob>(opts => opts.WithIdentity("holding-veri-toplama-job"));
+    q.AddTrigger(opts => opts
+        .ForJob("holding-veri-toplama-job")
+        .WithIdentity("holding-veri-toplama-trigger")
+        .WithSchedule(CronScheduleBuilder.MonthlyOnDayAndHourAndMinute(1, 2, 7)));
 });
 builder.Services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 
@@ -820,6 +858,14 @@ await RunScopedSafeAsync(app, "AutoCreateTenantDatabases", async services =>
             logger.LogWarning(ex, "Firma {FirmaId} ({FirmaAdi}) tenant DB olusturulamadi.", firma.Id, firma.FirmaAdi);
         }
     }
+});
+
+// Holding DB: olustur ve tablolari hazirla
+await RunScopedSafeAsync(app, "EnsureHoldingDatabase", async services =>
+{
+    var holdingFactory = services.GetRequiredService<IDbContextFactory<HoldingDbContext>>();
+    using var ctx = await holdingFactory.CreateDbContextAsync();
+    await ctx.Database.EnsureCreatedAsync();
 });
 
 // Configure the HTTP request pipeline.
