@@ -124,13 +124,34 @@ else
                         <tbody>
                             @foreach (var k in slotGrubu.OrderBy(k => k.Guzergah?.GuzergahAdi).ThenBy(k => k.Plaka))
                             {
-                                <tr class="@(degisenSatirlar.Contains(k) ? "table-warning" : "")">
+                                var catisanGunler = catismaHaritasi.GetValueOrDefault(k, new());
+                                var rowClass = degisenSatirlar.Contains(k) ? "table-warning" : "";
+                                if (catisanGunler.Any(c => c.Severity == ConflictSeverity.Blocking))
+                                    rowClass = "table-danger";
+                                else if (catisanGunler.Any())
+                                    rowClass = "table-warning";
+                                <tr class="@rowClass">
                                     <td>@(k.Guzergah?.GuzergahAdi ?? k.GuzergahAdi)</td>
                                     <td>@(k.Arac?.AktifPlaka ?? k.Plaka)</td>
-                                    <td>@(k.Sofor != null ? $"{k.Sofor.Ad} {k.Sofor.Soyad}" : k.SoforAdi)</td>
+                                    <td>
+                                        @(k.Sofor != null ? $"{k.Sofor.Ad} {k.Sofor.Soyad}" : k.SoforAdi)
+                                        @if (catisanGunler.Any(c => c.Kural == "Tek Sofor"))
+                                        {
+                                            <span class="badge bg-warning text-dark ms-1" title="Sofor cakismasi">!</span>
+                                        }
+                                    </td>
                                     <td>@k.Yon</td>
                                     <td class="text-center">@k.SeferSayisi</td>
-                                    <td class="text-center">@k.Gun</td>
+                                    <td class="text-center">
+                                        @k.Gun
+                                        @if (catisanGunler.Any())
+                                        {
+                                            <span class="badge @(catisanGunler.Any(c => c.Severity == ConflictSeverity.Blocking) ? "bg-danger" : "bg-warning text-dark") ms-1"
+                                                  title="@string.Join("; ", catisanGunler.Select(c => $"Gun {c.Gun}: {c.Kural} - {c.Mesaj}"))">
+                                                @catisanGunler.Count
+                                            </span>
+                                        }
+                                    </td>
                                     <td class="text-end">@k.BirimGelir.ToString("N2")</td>
                                     <td class="text-end">@k.BirimGider.ToString("N2")</td>
                                     <td>
@@ -152,13 +173,71 @@ else
                 </div>
             }
 
+            @* Cakisma Paneli *@
+            @if (sonConflict != null && !sonConflict.IsClean)
+            {
+                <div class="mt-3">
+                    @if (sonConflict.HasBlocking)
+                    {
+                        <div class="alert alert-danger">
+                            <i class="bi bi-x-octagon-fill me-2"></i>
+                            <strong>Engelleyici cakisma!</strong> Asagidaki sorunlari duzeltmeden kaydedemezsiniz:
+                            <ul class="mb-0 mt-2">
+                                @foreach (var c in sonConflict.Conflicts.Where(c => c.Severity == ConflictSeverity.Blocking).Take(5))
+                                {
+                                    <li>@c.Mesaj</li>
+                                }
+                                @if (sonConflict.Conflicts.Count(c => c.Severity == ConflictSeverity.Blocking) > 5)
+                                {
+                                    <li>... ve @(sonConflict.Conflicts.Count(c => c.Severity == ConflictSeverity.Blocking) - 5) tane daha</li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                    else if (sonConflict.HasWarning)
+                    {
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            <strong>Uyari:</strong> @sonConflict.Conflicts.Count(c => c.Severity == ConflictSeverity.Warning) adet cakisma bulundu.
+                            <ul class="mb-0 mt-2">
+                                @foreach (var c in sonConflict.Conflicts.Where(c => c.Severity == ConflictSeverity.Warning).Take(3))
+                                {
+                                    <li>@c.Mesaj</li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                </div>
+            }
+
             @if (degisenSatirlar.Any())
             {
                 <div class="sticky-bottom bg-light p-3 border-top mt-3 text-end">
                     <span class="text-warning me-3">@degisenSatirlar.Count degisiklik</span>
-                    <button class="btn btn-success" @onclick="TopluKaydet" disabled="@kaydediliyor">
-                        <i class="bi bi-save me-1"></i> Tumunu Kaydet
-                    </button>
+                    @if (sonConflict?.HasBlocking == true)
+                    {
+                        <button class="btn btn-secondary me-2" @onclick="CakismalariTemizle">
+                            <i class="bi bi-eraser me-1"></i> Cakismalari Temizle
+                        </button>
+                        <button class="btn btn-danger" title="Engelleyici cakismalar var, kaydedilemez" disabled>
+                            <i class="bi bi-x-octagon me-1"></i> Kaydedilemez
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-outline-warning me-2" @onclick="CakismaKontrolEt"
+                                disabled="@kontrolEdiliyor">
+                            <i class="bi bi-shield-check me-1"></i>
+                            @(kontrolEdiliyor ? "Kontrol ediliyor..." : "Cakisma Kontrol")
+                        </button>
+                        <button class="btn btn-success" @onclick="TopluKaydet" disabled="@kaydediliyor">
+                            <i class="bi bi-save me-1"></i> Tumunu Kaydet
+                            @if (sonConflict?.HasWarning == true)
+                            {
+                                <span class="badge bg-dark ms-1">Uyari Var</span>
+                            }
+                        </button>
+                    }
                 </div>
             }
         }
@@ -187,6 +266,9 @@ else
     private string seciliSlot = "";
 
     private PuantajKayit? duzenleKayit;
+    private ConflictResult? sonConflict;
+    private Dictionary<PuantajKayit, List<ConflictItem>> catismaHaritasi = new();
+    private bool kontrolEdiliyor;
 
     protected override async Task OnInitializedAsync()
     {
@@ -241,13 +323,61 @@ else
         degisenSatirlar.Remove(k);
     }
 
+    private async Task CakismaKontrolEt()
+    {
+        kontrolEdiliyor = true;
+        sonConflict = null;
+        catismaHaritasi.Clear();
+        try
+        {
+            var kontrolListesi = degisenSatirlar.Any() ? degisenSatirlar.ToList() : kayitlar;
+            sonConflict = await KurumPuantajService.CheckConflictsAsync(kontrolListesi);
+
+            // Harita olustur: her kayit -> cakisan ConflictItem listesi
+            foreach (var c in sonConflict.Conflicts)
+            {
+                var hedefKayit = kontrolListesi.FirstOrDefault(k => k.Id == c.EtkilenenKayitId);
+                if (hedefKayit != null)
+                {
+                    if (!catismaHaritasi.ContainsKey(hedefKayit))
+                        catismaHaritasi[hedefKayit] = new();
+                    catismaHaritasi[hedefKayit].Add(c);
+                }
+            }
+
+            if (sonConflict.IsClean)
+                ToastService.ShowSuccess("Cakisma bulunamadi - kaydedebilirsiniz.");
+        }
+        finally { kontrolEdiliyor = false; }
+    }
+
+    private void CakismalariTemizle()
+    {
+        sonConflict = null;
+        catismaHaritasi.Clear();
+    }
+
     private async Task TopluKaydet()
     {
+        // Kaydetmeden once cakisma kontrolu
+        if (sonConflict == null || !sonConflict.IsClean)
+        {
+            await CakismaKontrolEt();
+        }
+
+        if (sonConflict?.HasBlocking == true)
+        {
+            ToastService.ShowError("Engelleyici cakismalar var! Once duzeltin.");
+            return;
+        }
+
         kaydediliyor = true;
         try
         {
             await KurumPuantajService.TopluSavePuantajAsync(degisenSatirlar);
             degisenSatirlar.Clear();
+            sonConflict = null;
+            catismaHaritasi.Clear();
             await VeriYukle();
             ToastService.ShowSuccess("Tum degisiklikler kaydedildi.");
         }

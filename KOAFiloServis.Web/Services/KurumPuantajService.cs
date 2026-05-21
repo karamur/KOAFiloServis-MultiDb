@@ -201,6 +201,114 @@ public sealed class KurumPuantajService : IKurumPuantajService
         await tx.CommitAsync();
     }
 
+    // ── Çakışma Kontrolü ─────────────────────────────────────────────────────
+
+    public async Task<ConflictResult> CheckKayitConflictsAsync(PuantajKayit kayit)
+        => await CheckConflictsAsync(new List<PuantajKayit> { kayit });
+
+    public async Task<ConflictResult> CheckConflictsAsync(List<PuantajKayit> kayitlar)
+    {
+        var result = new ConflictResult();
+        if (kayitlar.Count == 0) return result;
+
+        var yil = kayitlar[0].Yil;
+        var ay = kayitlar[0].Ay;
+
+        await using var db = await _dbFactory.CreateDbContextAsync();
+
+        // Aynı dönemdeki tüm kayıtları al (çakışma karşılaştırması için)
+        var mevcutTumKayitlar = await db.PuantajKayitlar
+            .Where(p => !p.IsDeleted && p.Yil == yil && p.Ay == ay)
+            .ToListAsync();
+
+        foreach (var kayit in kayitlar)
+        {
+            if (kayit.GuzergahId == null || kayit.AracId == null) continue;
+
+            for (int gun = 1; gun <= 31; gun++)
+            {
+                var gunDeger = kayit.GetGunDeger(gun);
+                if (gunDeger == 0) continue;
+
+                // Kural 1: Aynı gün + aynı güzergah + aynı slot → tek araç
+                var ayniGuzergahSlot = mevcutTumKayitlar
+                    .Where(p => p.Id != kayit.Id
+                        && p.GuzergahId == kayit.GuzergahId
+                        && p.Slot == kayit.Slot
+                        && p.AracId != kayit.AracId
+                        && p.GetGunDeger(gun) > 0)
+                    .ToList();
+
+                foreach (var cakisan in ayniGuzergahSlot)
+                {
+                    result.Conflicts.Add(new ConflictItem
+                    {
+                        Severity = ConflictSeverity.Blocking,
+                        Kural = "Tek Arac",
+                        Mesaj = $"Gun {gun}: {kayit.Slot} slotunda '{cakisan.Guzergah?.GuzergahAdi ?? cakisan.GuzergahAdi}' guzergahinda zaten {cakisan.Plaka ?? cakisan.Arac?.Plaka} araci atanmis.",
+                        Gun = gun,
+                        Slot = kayit.Slot,
+                        EtkilenenKayitId = cakisan.Id,
+                        EtkilenenAciklama = $"{cakisan.Plaka} / {cakisan.SoforAdi}"
+                    });
+                }
+
+                // Kural 2: Aynı gün + aynı slot → aynı araç tek güzergah
+                var ayniAracSlot = mevcutTumKayitlar
+                    .Where(p => p.Id != kayit.Id
+                        && p.AracId == kayit.AracId
+                        && p.Slot == kayit.Slot
+                        && p.GuzergahId != kayit.GuzergahId
+                        && p.GetGunDeger(gun) > 0)
+                    .ToList();
+
+                foreach (var cakisan in ayniAracSlot)
+                {
+                    result.Conflicts.Add(new ConflictItem
+                    {
+                        Severity = ConflictSeverity.Blocking,
+                        Kural = "Tek Guzergah",
+                        Mesaj = $"Gun {gun}: {kayit.Slot} slotunda '{cakisan.Plaka}' araci zaten '{cakisan.Guzergah?.GuzergahAdi ?? cakisan.GuzergahAdi}' guzergahinda gorevli.",
+                        Gun = gun,
+                        Slot = kayit.Slot,
+                        EtkilenenKayitId = cakisan.Id,
+                        EtkilenenAciklama = cakisan.Guzergah?.GuzergahAdi ?? cakisan.GuzergahAdi
+                    });
+                }
+
+                // Kural 3: Aynı gün + aynı slot → aynı şoför farklı görev (Warning)
+                if (kayit.SoforId.HasValue)
+                {
+                    var ayniSofor = mevcutTumKayitlar
+                        .Where(p => p.Id != kayit.Id
+                            && p.SoforId == kayit.SoforId
+                            && p.Slot == kayit.Slot
+                            && p.GetGunDeger(gun) > 0)
+                        .ToList();
+
+                    foreach (var cakisan in ayniSofor)
+                    {
+                        if (!result.Conflicts.Any(c => c.EtkilenenKayitId == cakisan.Id && c.Kural == "Tek Sofor"))
+                        {
+                            result.Conflicts.Add(new ConflictItem
+                            {
+                                Severity = ConflictSeverity.Warning,
+                                Kural = "Tek Sofor",
+                                Mesaj = $"Gun {gun}: {kayit.Slot} slotunda '{cakisan.SoforAdi}' soforu birden fazla gorevde.",
+                                Gun = gun,
+                                Slot = kayit.Slot,
+                                EtkilenenKayitId = cakisan.Id,
+                                EtkilenenAciklama = $"{cakisan.Guzergah?.GuzergahAdi ?? cakisan.GuzergahAdi} / {cakisan.Plaka}"
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        return result;
+    }
+
     public async Task DeletePuantajAsync(int id)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();

@@ -35,6 +35,13 @@ public interface IKurumPuantajService
 
     Task DeletePuantajAsync(int id);
 
+    // ── Çakışma Kontrolü ─────────────────────────────────────────────────────
+    /// <summary>Tek kayıt için çakışma kontrolü yapar (kaydetme öncesi).</summary>
+    Task<ConflictResult> CheckKayitConflictsAsync(PuantajKayit kayit);
+
+    /// <summary>Toplu kayıt listesi için çakışma kontrolü yapar.</summary>
+    Task<ConflictResult> CheckConflictsAsync(List<PuantajKayit> kayitlar);
+
     // ── Yardımcı ──────────────────────────────────────────────────────────────
     /// <summary>
     /// Kurum + dönem için varsayılan satır şablonlarını oluşturur:
