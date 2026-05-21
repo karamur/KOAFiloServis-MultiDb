@@ -1,0 +1,126 @@
+@using KOAFiloServis.Shared.Entities
+@using KOAFiloServis.Web.Services
+
+<div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi @(Kayit.Id > 0 ? "bi-pencil" : "bi-plus-circle") me-2"></i>
+                    @(Kayit.Id > 0 ? "Sefer Duzenle" : "Yeni Sefer")
+                </h5>
+                <button type="button" class="btn-close" @onclick="OnKapat"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Kurum</label>
+                        <select class="form-select" @bind="Kayit.KurumId">
+                            <option value="">Seciniz...</option>
+                            @foreach (var k in Kurumlar)
+                            {
+                                <option value="@k.Id">@k.KurumAdi</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Isveren Firma</label>
+                        <select class="form-select" @bind="Kayit.IsverenFirmaId">
+                            <option value="">Seciniz...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Guzergah</label>
+                        <select class="form-select" @bind="Kayit.GuzergahId">
+                            <option value="">Seciniz...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Slot</label>
+                        <select class="form-select" @bind="Kayit.Slot">
+                            @foreach (SeferSlot s in Enum.GetValues<SeferSlot>())
+                            {
+                                <option value="@s">@s</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Yon</label>
+                        <select class="form-select" @bind="Kayit.Yon">
+                            @foreach (PuantajYon y in Enum.GetValues<PuantajYon>())
+                            {
+                                <option value="@y">@y</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Arac</label>
+                        <select class="form-select" @bind="Kayit.AracId">
+                            <option value="">Seciniz...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Sofor</label>
+                        <select class="form-select" @bind="Kayit.SoforId">
+                            <option value="">Seciniz...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Sefer Sayisi</label>
+                        <input type="number" class="form-control" @bind="Kayit.SeferSayisi" min="1" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Gun (Carpan)</label>
+                        <input type="number" class="form-control" @bind="Kayit.Gun" step="0.5" min="0" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Sofor Odeme Tipi</label>
+                        <select class="form-select" @bind="Kayit.SoforOdemeTipi">
+                            @foreach (SoforOdemeTipi t in Enum.GetValues<SoforOdemeTipi>())
+                            {
+                                <option value="@t">@t</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Birim Gelir</label>
+                        <input type="number" class="form-control" @bind="Kayit.BirimGelir" step="0.01" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Birim Gider</label>
+                        <input type="number" class="form-control" @bind="Kayit.BirimGider" step="0.01" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Notlar</label>
+                        <textarea class="form-control" rows="2" @bind="Kayit.Notlar"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="OnKapat">Iptal</button>
+                <button type="button" class="btn btn-primary" @onclick="Kaydet" disabled="@kaydediliyor">
+                    <i class="bi bi-save me-1"></i> Kaydet
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public PuantajKayit Kayit { get; set; } = null!;
+    [Parameter, EditorRequired] public List<Kurum> Kurumlar { get; set; } = null!;
+    [Parameter, EditorRequired] public EventCallback<PuantajKayit> OnKaydet { get; set; }
+    [Parameter, EditorRequired] public EventCallback OnKapat { get; set; }
+
+    private bool kaydediliyor;
+
+    private async Task Kaydet()
+    {
+        kaydediliyor = true;
+        try
+        {
+            await OnKaydet.InvokeAsync(Kayit);
+        }
+        finally { kaydediliyor = false; }
+    }
+}
