@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using KOAFiloServis.Web.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -10,6 +11,7 @@ public sealed class TenantDbContextFactory : IDbContextFactory<ApplicationDbCont
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IServiceProvider _rootServiceProvider;
     private readonly AktiviteLogInterceptor _interceptor;
+    private readonly ConcurrentDictionary<string, DbContextOptions<ApplicationDbContext>> _optionsCache = new();
 
     public TenantDbContextFactory(
         ITenantConnectionStringProvider connectionStringProvider,
@@ -28,7 +30,7 @@ public sealed class TenantDbContextFactory : IDbContextFactory<ApplicationDbCont
         var connStr = _connectionStringProvider.GetTenantConnectionString()
             ?? _connectionStringProvider.GetMasterConnectionString();
 
-        var options = BuildOptions(connStr);
+        var options = _optionsCache.GetOrAdd(connStr, BuildOptions);
         var ctx = new ApplicationDbContext(options);
         ctx.SetServiceProvider(ResolveScope());
         return ctx;
@@ -39,7 +41,7 @@ public sealed class TenantDbContextFactory : IDbContextFactory<ApplicationDbCont
         var connStr = _connectionStringProvider.GetTenantConnectionString()
             ?? _connectionStringProvider.GetMasterConnectionString();
 
-        var options = BuildOptions(connStr);
+        var options = _optionsCache.GetOrAdd(connStr, BuildOptions);
         var ctx = new ApplicationDbContext(options);
         ctx.SetServiceProvider(ResolveScope());
         return ctx;

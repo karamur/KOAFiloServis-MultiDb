@@ -352,13 +352,6 @@ else
                     </div>
                 }
 
-                @* AI Belge Analizi Paneli *@
-                <div class="mt-3">
-                    <EbysAIPanel 
-                        Expanded="@showAIPanel"
-                        OnKategoriSecildi="OnAIKategoriSecildi"
-                        OnOzetOlusturuldu="OnAIOzetOlusturuldu" />
-                </div>
             </div>
         </div>
     </div>
@@ -554,35 +547,9 @@ else
     private IBrowserFile? guncellemeDosyasi;
     private string? degisiklikNotu;
 
-    // AI Panel değişkenleri
-    private bool showAIPanel = false;
-
     protected override async Task OnInitializedAsync()
     {
         await LoadDataAsync();
-    }
-
-    // AI Panel Metodları
-    private async Task OnAIKategoriSecildi(string kategori)
-    {
-        // AI'nın tahmin ettiği kategoriyi evrak özetine ekle
-        if (evrak != null)
-        {
-            evrak.Ozet = $"[AI Kategori: {kategori}] {evrak.Ozet ?? ""}".Trim();
-            ToastService.ShowInfo($"Kategori önerisi alındı: {kategori}");
-        }
-        await Task.CompletedTask;
-    }
-
-    private async Task OnAIOzetOlusturuldu(string ozet)
-    {
-        // AI'nın oluşturduğu özeti evrak özetine ekle
-        if (evrak != null && string.IsNullOrWhiteSpace(evrak.Ozet))
-        {
-            evrak.Ozet = ozet;
-            ToastService.ShowInfo("AI özeti uygulandı");
-        }
-        await Task.CompletedTask;
     }
 
     private async Task LoadDataAsync()

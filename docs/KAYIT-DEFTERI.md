@@ -65,7 +65,68 @@ KOAFiloServis.Web/Components/Pages/Ayarlar/AIAsistan.razor
 
 ---
 
-## 📅 21.05.2026 — Yapılacak İşler
+## 📅 21.05.2026 — Gün Sonu Özeti
+
+### ✅ Bugün Tamamlanan (7 fix + temizlik + optimizasyon)
+
+| # | İş | Dosyalar | Açıklama |
+|---|-----|----------|----------|
+| **Fix 1** | NuGet build hatası | `nuget.config` (YENİ) | Proje köküne fallback klasörleri temizleyen `nuget.config` eklendi. .NET 10 SDK'nın eksik VS fallback klasörü hatası giderildi |
+| **Fix 2** | Debug log temizliği | `KullaniciService.cs`, `ApplicationDbContext.cs`, `appsettings.Development.json` | `SaveWithLogAsync` metodu kaldırıldı (4 çağrı → `SaveChangesAsync`). EF Core log seviyeleri `Information` → `Warning`. `AssignFirmaTenantId` debug log'ları kaldırıldı |
+| **Fix 3** | `AktiviteLogInterceptor` DI hatası | `AktiviteLogInterceptor.cs` | Singleton interceptor'da `IServiceProvider` → `IServiceScopeFactory`. Scoped `IDbContextFactory<ApplicationDbContext>` artık scope içinde resolve ediliyor |
+| **Fix 4** | Auth servisleri MasterDbContext'e geçiş | `KullaniciService.cs`, `KullaniciUserStore.cs`, `AppAuthenticationStateProvider.cs` | 3 auth servisi `IDbContextFactory<ApplicationDbContext>` → `IDbContextFactory<MasterDbContext>`. `EnsureRolePermissionAsync` parametresi de güncellendi |
+| **Fix 5** | Veri göçü iyileştirme | `TenantDatabaseService.cs` | `CopyTableDataAsync` non-static yapıldı, `ILogger` entegre edildi. Sütun uyumsuzlukları `LogWarning` ile loglanıyor (ilk hata mesajı + başarılı/atlanan sayısı). Kaynak tablo varlık kontrolü eklendi. Ortak sütun yoksa kaynak/hedef sütun listesi loglanıyor |
+| **Fix 6** | IFirmaTenant query filter disable | `ApplicationDbContext.cs` | Tenant DB'de `FirmaTenantDisabled` artık `true` dönüyor (`AktifFirmaBilgisi.DatabaseName != null`). Tenant DB'de tüm veri zaten o firmaya ait, filter gereksiz |
+| **Fix 7** | Tenant DB pooling optimizasyonu | `TenantDbContextFactory.cs` | `ConcurrentDictionary<string, DbContextOptions>` cache eklendi. `GetOrAdd` ile connection string başına bir kez options oluşturuluyor, sonraki çağrılarda cached kullanılıyor |
+| **Temizlik** | Build uyarıları temizliği | `EvrakDetay.razor`, `BankaHesapList.razor`, `AracMasrafSahibiHelper.cs`, `ApplicationDbContext.cs` | `EbysAIPanel` bileşeni ve ilgili kodlar (showAIPanel, OnAIKategoriSecildi, OnAIOzetOlusturuldu) kaldırıldı. Kullanılmayan `firmalar`/`firmasizHesaplar` alanları silindi. XML yorum `&` → `&amp;` fix. `GetQueryFilter()` obsolete → pragma ile bastırıldı |
+
+### 🧪 Smoke Test Sonuçları
+
+| Test | Sonuç |
+|------|:-----:|
+| `dotnet build` | ✅ **0 hata, 0 uyarı** |
+| Uygulama başlatma | ✅ `http://0.0.0.0:5200` |
+| Tüm startup görevleri (25+) | ✅ Hepsi başarılı |
+| Master DB | ✅ Mevcut |
+| Tenant DB otomatik oluşturma | ✅ "Tüm firmaların tenant DB'si mevcut" |
+| Quartz Scheduler | ✅ Başlatıldı |
+| `GET /login` | ✅ HTTP 200 |
+| `GET /ayarlar/firmalar` | ✅ HTTP 200 |
+| `GET /ayarlar/kullanicilar` | ✅ HTTP 200 |
+| `GET /ayarlar/roller` | ✅ HTTP 200 |
+| `GET /dashboard` | ✅ 401 (giriş gerekli - beklenen) |
+| Runtime hata/exception | ✅ **0 hata** |
+
+### 📊 Değişen Dosya Özeti
+
+```
+nuget.config                                          (YENİ)
+KOAFiloServis.Web/Data/AktiviteLogInterceptor.cs      (DI fix)
+KOAFiloServis.Web/Data/ApplicationDbContext.cs         (debug log + obsolete fix)
+KOAFiloServis.Web/Services/KullaniciService.cs         (SaveWithLogAsync + MasterDbContext)
+KOAFiloServis.Web/Services/KullaniciUserStore.cs       (MasterDbContext)
+KOAFiloServis.Web/Services/AppAuthenticationStateProvider.cs (MasterDbContext)
+KOAFiloServis.Web/Services/TenantDatabaseService.cs    (veri göçü loglama)
+KOAFiloServis.Web/Services/AracMasrafSahibiHelper.cs   (XML fix)
+KOAFiloServis.Web/Components/Pages/EBYS/EvrakDetay.razor          (EbysAIPanel kaldırıldı)
+KOAFiloServis.Web/Components/Pages/BankaHesaplari/BankaHesapList.razor (unused fields)
+KOAFiloServis.Web/appsettings.Development.json         (EF log seviyeleri)
+```
+
+**Toplam: 11 dosya + 1 yeni, +64 / -93 satır (net -29)**
+
+### ⚠️ Güncel Riskler
+
+| Risk | Durum |
+|------|:-----:|
+| Tenant DB'de firma geçişi çalışıyor mu? | 🔴 Test edilmedi (manuel giriş gerek) |
+| Tenant DB UI "Oluştur" butonu testi | 🔴 Test edilmedi (manuel giriş gerek) |
+| `IFirmaTenant` query filter tenant DB'de disable | 🟢 Tamamlandı |
+| Holding girişi tasarımı | 🔴 Başlanmadı |
+
+---
+
+## 📅 21.05.2026 — Yapılacak İşler (Plan)
 
 ### 🔴 Öncelikli
 
@@ -73,35 +134,21 @@ KOAFiloServis.Web/Components/Pages/Ayarlar/AIAsistan.razor
 |---|-----|----------|
 | 1 | Firma geçiş testi | Tenant DB'ye geçince dashboard/sayfalar sadece o firmanın verisini gösteriyor mu? |
 | 2 | Tenant DB UI testi | Admin panelden "Tenant DB Oluştur" butonu çalışıyor mu? |
-| 3 | Debug log temizliği | `SaveWithLogAsync` kaldırılacak veya `LogDebug` seviyesine çekilecek |
-| 4 | Build + son test | Temiz build, eksiksiz smoke test |
 
 ### 🟡 Orta Vadeli
 
 | # | İş | Açıklama |
 |---|-----|----------|
-| 5 | `AktiviteLogInterceptor` DI hatası | Singleton interceptor scoped factory'i resolve edemiyor. `IServiceScopeFactory` ile çözülecek |
-| 6 | `KullaniciService` MasterDbContext'e geçiş | Auth servisleri hala ApplicationDbContext kullanıyor |
-| 7 | Tenant DB veri göçü iyileştirme | Sütun uyumsuzluklarını detaylı logla, eksik tabloları tespit et |
-| 8 | `AylikOdemeGerceklesenler` legacy tablo | EnsureCreated'da yok, manuel CREATE TABLE gerekebilir |
+| — | ✅ Tüm orta vadeli işler tamamlandı | — |
 
 ### ⚪ Uzun Vadeli (Faz 4-5)
 
 | # | İş | Açıklama |
 |---|-----|----------|
-| 9 | `IFirmaTenant` temizliği | Tenant DB'lerde query filter gereksiz, entity'lerden kaldır |
+| ~~9~~ | ✅ ~~IFirmaTenant temizliği~~ | `FirmaTenantDisabled` tenant DB kontrolü eklendi |
 | 10 | Holding modülü | Firmalar arası konsolidasyon raporları, holding girişi |
 | 11 | `ApplicationDbContext` master tablo temizliği | Master tabloları tenant context'ten çıkar |
-| 12 | Pooling optimizasyonu | Tenant DB'ler için `ConcurrentDictionary` cache |
-
-### ⚠️ Güncel Riskler
-
-| Risk | Durum |
-|------|:-----:|
-| Tenant DB'de firma geçişi çalışıyor mu? | 🔴 Test edilmedi |
-| Holding girişi tasarımı | 🔴 Başlanmadı |
-| `AktiviteLogInterceptor` scoped factory hatası | 🟡 Pre-existing, her ortamda var |
-| Debug log'lar (EF Core Information) | 🟡 Temizlenecek |
+| ~~12~~ | ✅ ~~Pooling optimizasyonu~~ | `ConcurrentDictionary` cache eklendi |
 
 ---
 

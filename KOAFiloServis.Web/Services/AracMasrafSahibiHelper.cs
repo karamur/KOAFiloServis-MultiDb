@@ -47,7 +47,7 @@ public static class AracMasrafSahibiHelper
 
     /// <summary>
     /// Şoför / personel masrafının (maaş, taksi, ulaşım fişleri) sahibi.
-    /// Özmal & Kiralık → firma. Tedarikçi → tedarikçi.
+    /// Özmal &amp; Kiralık → firma. Tedarikçi → tedarikçi.
     /// </summary>
     public static MasrafSahibi GetSoforMasrafSahibi(Arac arac)
     {

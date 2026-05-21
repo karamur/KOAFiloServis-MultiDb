@@ -181,12 +181,19 @@ public sealed class TenantDatabaseService : ITenantDatabaseService
         return await cmd.ExecuteScalarAsync() != null;
     }
 
-    private static async Task<int> CopyTableDataAsync(
+    private async Task<int> CopyTableDataAsync(
         NpgsqlConnection sourceConn, NpgsqlConnection targetConn,
         string table, int? firmaId)
     {
         try
         {
+            // Kaynakta tablo var mi?
+            await using var srcCheckCmd = new NpgsqlCommand(
+                "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name=@t)", sourceConn);
+            srcCheckCmd.Parameters.AddWithValue("@t", table);
+            if (!(bool)(await srcCheckCmd.ExecuteScalarAsync())!)
+                return 0; // Kaynakta yok, sessiz gec
+
             // Hedef sutun listesi
             var targetColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             await using (var colCmd = new NpgsqlCommand(
@@ -213,7 +220,14 @@ public sealed class TenantDatabaseService : ITenantDatabaseService
                 sourceColumns.Add(reader.GetName(i));
 
             var commonColumns = sourceColumns.Where(c => targetColumns.Contains(c)).ToList();
-            if (commonColumns.Count == 0) return 0;
+            if (commonColumns.Count == 0)
+            {
+                _logger.LogWarning("[VeriGocu] {Table}: ortak sutun yok. Kaynak={SrcCols}, Hedef={TgtCols}",
+                    table,
+                    string.Join(",", sourceColumns.Take(10)),
+                    string.Join(",", targetColumns.Take(10)));
+                return 0;
+            }
 
             // Hedefte zaten veri var mi?
             await using var countCmd = new NpgsqlCommand($"SELECT COUNT(*) FROM \"{table}\"", targetConn);
@@ -221,6 +235,8 @@ public sealed class TenantDatabaseService : ITenantDatabaseService
             if (existingCount > 0 && !firmaId.HasValue) return 0;
 
             var inserted = 0;
+            var skipped = 0;
+            var firstError = (string?)null;
             while (await reader.ReadAsync())
             {
                 var colIdxMap = commonColumns.Select(c => sourceColumns.IndexOf(c)).ToList();
@@ -236,18 +252,23 @@ public sealed class TenantDatabaseService : ITenantDatabaseService
                     insertCmd.Parameters.AddWithValue($"@p{i}", values[i]);
 
                 try { await insertCmd.ExecuteNonQueryAsync(); inserted++; }
-                catch (Exception ex) {
-                    if (inserted == 0) // sadece ilk hatayi logla
-                        Console.WriteLine($"[VeriGocu] {table} INSERT hatasi: {ex.Message}");
+                catch (Exception ex)
+                {
+                    skipped++;
+                    firstError ??= ex.Message;
                 }
             }
             await reader.CloseAsync();
+
+            if (skipped > 0)
+                _logger.LogWarning("[VeriGocu] {Table}: {Inserted} basarili, {Skipped} atlandi. Ilk hata: {Error}",
+                    table, inserted, skipped, firstError);
+
             return inserted;
         }
         catch (PostgresException ex) when (ex.SqlState == "42P01")
         {
-            // Tablo hedefte yok (EnsureCreated modelde olmayan legacy tablo)
-            Console.WriteLine($"[VeriGocu] {table} hedefte yok, atlaniyor.");
+            _logger.LogDebug("[VeriGocu] {Table} hedefte yok (legacy), atlaniyor", table);
             return 0;
         }
     }

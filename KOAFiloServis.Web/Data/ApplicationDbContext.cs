@@ -19,7 +19,7 @@ public class ApplicationDbContext : DbContext
 
     /// <summary>
     /// True ise IFirmaTenant entity'leri üzerindeki firma filter'ı devre dışı bırakılır
-    /// (SuperAdmin / TumFirmalar modu / provider yok).
+    /// (SuperAdmin / TumFirmalar modu / provider yok / tenant DB).
     /// </summary>
     private bool FirmaTenantDisabled
     {
@@ -28,7 +28,10 @@ public class ApplicationDbContext : DbContext
             var p = ResolveAktifFirmaProvider();
             if (p == null) return true;
             if (p.TumFirmalar) return true;
-            return p.AktifFirmaId is null or 0;
+            if (p.AktifFirmaId is null or 0) return true;
+            // Tenant DB'de tum veriler zaten o firmaya ait, filter gereksiz
+            if (!string.IsNullOrEmpty(p.Mevcut.DatabaseName)) return true;
+            return false;
         }
     }
 
@@ -2843,7 +2846,9 @@ public class ApplicationDbContext : DbContext
             // IFirmaTenant entity'leri için OnModelCreating içinde önceden tanımlanmış
             // anonymous filter (örn. !IsDeleted) varsa onu "SoftDelete" adıyla taşı, sonra
             // "Tenant" named filter ekle.
+#pragma warning disable CS0618
             var existingAnonymous = entityType.GetQueryFilter();
+#pragma warning restore CS0618
             if (existingAnonymous != null)
             {
                 // Metadata seviyesinde anonymous filter'ı temizle, sonra "SoftDelete" adıyla geri ekle.
@@ -2904,12 +2909,8 @@ public class ApplicationDbContext : DbContext
 
             if (firmaId == 0)
             {
-                var entryType = entry.Entity.GetType().Name;
-                var stackTrace = Environment.StackTrace;
-                Console.WriteLine($"[AssignFirmaTenantId] HATA: '{entryType}' Added ama aktif firma yok.");
-                Console.WriteLine($"[AssignFirmaTenantId] Stack (ilk 5): {string.Join(" <- ", stackTrace.Split('\n').Take(5))}");
                 throw new InvalidOperationException(
-                    $"Aktif firma seçili olmadan '{entryType}' kaydı eklenemez. " +
+                    $"Aktif firma seçili olmadan '{entry.Entity.GetType().Name}' kaydı eklenemez. " +
                     "Lütfen IAktifFirmaProvider üzerinden aktif firmayı set edin veya entity.FirmaId değerini elle atayın.");
             }
 

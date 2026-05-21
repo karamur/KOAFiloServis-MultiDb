@@ -14,14 +14,14 @@ public sealed class AktiviteLogInterceptor : SaveChangesInterceptor
     private static readonly ConcurrentDictionary<Guid, List<PendingAktiviteLog>> PendingLogs = new();
     private static readonly AsyncLocal<bool> IsWritingLog = new();
 
-    private readonly IServiceProvider _serviceProvider;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<AktiviteLogInterceptor> _logger;
 
     public AktiviteLogInterceptor(
-        IServiceProvider serviceProvider,
+        IServiceScopeFactory scopeFactory,
         ILogger<AktiviteLogInterceptor> logger)
     {
-        _serviceProvider = serviceProvider;
+        _scopeFactory = scopeFactory;
         _logger = logger;
     }
 
@@ -157,11 +157,12 @@ public sealed class AktiviteLogInterceptor : SaveChangesInterceptor
         {
             IsWritingLog.Value = true;
 
-            // Lazy olarak DbContextFactory'ye eriş
+            // Scoped factory'yi scope içinde resolve et
+            using var scope = _scopeFactory.CreateScope();
             IDbContextFactory<ApplicationDbContext> contextFactory;
             try
             {
-                contextFactory = _serviceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
+                contextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
             }
             catch (ObjectDisposedException)
             {
@@ -170,7 +171,7 @@ public sealed class AktiviteLogInterceptor : SaveChangesInterceptor
             }
             await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
 
-            var httpContextAccessor = _serviceProvider.GetService<IHttpContextAccessor>();
+            var httpContextAccessor = scope.ServiceProvider.GetService<IHttpContextAccessor>();
             var httpContext = httpContextAccessor?.HttpContext;
             var now = DateTime.Now;
 
@@ -227,7 +228,7 @@ public sealed class AktiviteLogInterceptor : SaveChangesInterceptor
         // 1. Önce CurrentUserAccessor'dan dene (Blazor circuit kullanıcısı)
         try
         {
-            using var scope = _serviceProvider.CreateScope();
+            using var scope = _scopeFactory.CreateScope();
             var userAccessor = scope.ServiceProvider.GetService<KOAFiloServis.Web.Services.ICurrentUserAccessor>();
             var blazorUser = userAccessor?.GetCurrentUserName();
             if (!string.IsNullOrWhiteSpace(blazorUser))
