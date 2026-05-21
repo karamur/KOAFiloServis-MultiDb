@@ -1,0 +1,196 @@
+@page "/planlama/dashboard"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using KOAFiloServis.Shared.Entities
+@using KOAFiloServis.Web.Services
+@using Microsoft.AspNetCore.Authorization
+@inject IKurumPuantajService PuantajService
+@inject ILogger<PlanlamaDashboard> Logger
+
+<PageTitle>Planlama Dashboard</PageTitle>
+
+@if (yukleniyor)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height: 50vh;">
+        <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Yukleniyor...</span></div>
+    </div>
+}
+else
+{
+    <div class="container-fluid">
+        <h4 class="mb-3"><i class="bi bi-speedometer2 me-2"></i>Planlama Dashboard</h4>
+        <p class="text-muted">@seciliAyAdi @seciliYil — Operasyon KPI Ozeti</p>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card border-primary">
+                    <div class="card-body text-center py-3">
+                        <h6 class="text-muted">Toplam Sefer</h6>
+                        <h2 class="text-primary">@toplamSefer</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card @(cakisanSayisi > 0 ? "border-danger" : "border-success")">
+                    <div class="card-body text-center py-3">
+                        <h6 class="text-muted">Cakisan Kayit</h6>
+                        <h2 class="@(cakisanSayisi > 0 ? "text-danger" : "text-success")">@cakisanSayisi</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-warning">
+                    <div class="card-body text-center py-3">
+                        <h6 class="text-muted">Fatura Bekleyen</h6>
+                        <h2 class="text-warning">@faturaBekleyen</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-info">
+                    <div class="card-body text-center py-3">
+                        <h6 class="text-muted">Tedarikci Kayit</h6>
+                        <h2 class="text-info">@tedarikciSayisi</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header"><i class="bi bi-clock me-2"></i>Slot Dagilimi</div>
+                    <div class="card-body">
+                        @foreach (var s in slotDagilimi)
+                        {
+                            var pct = toplamSefer > 0 ? (int)(s.Value * 100.0 / toplamSefer) : 0;
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between small mb-1">
+                                    <span>@s.Key</span><span>@s.Value (@pct%)</span>
+                                </div>
+                                <div class="progress" style="height:8px">
+                                    <div class="progress-bar @SlotBarClass(s.Key)" style="width:@pct%"></div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header"><i class="bi bi-cash-stack me-2"></i>Finans Yonu</div>
+                    <div class="card-body">
+                        @foreach (var f in finansDagilimi)
+                        {
+                            var pct = toplamSefer > 0 ? (int)(f.Value * 100.0 / toplamSefer) : 0;
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between small mb-1">
+                                    <span>@f.Key</span><span>@f.Value (@pct%)</span>
+                                </div>
+                                <div class="progress" style="height:8px">
+                                    <div class="progress-bar @FinansBarClass(f.Key)" style="width:@pct%"></div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header"><i class="bi bi-truck me-2"></i>Kaynak Tipi</div>
+                    <div class="card-body">
+                        @foreach (var k in kaynakDagilimi)
+                        {
+                            var pct = toplamSefer > 0 ? (int)(k.Value * 100.0 / toplamSefer) : 0;
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between small mb-1">
+                                    <span>@k.Key</span><span>@k.Value (@pct%)</span>
+                                </div>
+                                <div class="progress" style="height:8px">
+                                    <div class="progress-bar @(k.Key == "Kendi" ? "bg-primary" : "bg-secondary")" style="width:@pct%"></div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (cakisanDetay.Any())
+        {
+            <div class="card mt-3 border-danger">
+                <div class="card-header bg-danger text-white"><i class="bi bi-exclamation-triangle me-2"></i>Cakisma Detaylari</div>
+                <div class="card-body">
+                    <table class="table table-sm mb-0">
+                        <thead><tr><th>Gun</th><th>Slot</th><th>Kural</th><th>Mesaj</th></tr></thead>
+                        <tbody>
+                            @foreach (var c in cakisanDetay.Take(20))
+                            {
+                                <tr><td>@c.Gun</td><td>@c.Slot</td><td>@c.Kural</td><td>@c.Mesaj</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private bool yukleniyor = true;
+    private int seciliYil = DateTime.Now.Year;
+    private int seciliAy = DateTime.Now.Month;
+    private string seciliAyAdi => new DateTime(2024, seciliAy, 1).ToString("MMMM");
+
+    private int toplamSefer;
+    private int cakisanSayisi;
+    private int faturaBekleyen;
+    private int tedarikciSayisi;
+    private Dictionary<string, int> slotDagilimi = new();
+    private Dictionary<string, int> finansDagilimi = new();
+    private Dictionary<string, int> kaynakDagilimi = new();
+    private List<ConflictItem> cakisanDetay = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var kayitlar = await PuantajService.GetPuantajlarAsync(seciliYil, seciliAy, 0);
+            toplamSefer = kayitlar.Count;
+
+            slotDagilimi = kayitlar.GroupBy(k => k.Slot.ToString())
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            finansDagilimi = kayitlar.GroupBy(k => k.FinansYonu.ToString())
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            kaynakDagilimi = kayitlar.GroupBy(k => k.KaynakTipi.ToString())
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            tedarikciSayisi = kayitlar.Count(k => k.KaynakTipi == PlanlamaKaynakTipi.Tedarikci);
+            faturaBekleyen = kayitlar.Count(k => !k.GelirFaturaKesildi && k.BirimGelir > 0 && k.Gun > 0);
+
+            var conflicts = await PuantajService.CheckConflictsAsync(kayitlar);
+            cakisanSayisi = conflicts.Conflicts.Count;
+            cakisanDetay = conflicts.Conflicts.Take(50).ToList();
+        }
+        catch (Exception ex) { Logger.LogWarning(ex, "Dashboard verisi yuklenemedi"); }
+        finally { yukleniyor = false; }
+    }
+
+    private string SlotBarClass(string slot) => slot switch
+    {
+        "Sabah" => "bg-warning",
+        "Aksam" => "bg-info",
+        "Mesai" => "bg-secondary",
+        _ => "bg-light"
+    };
+
+    private string FinansBarClass(string yon) => yon switch
+    {
+        "Gelen" => "bg-success",
+        "Giden" => "bg-danger",
+        "IcDagitim" => "bg-info",
+        _ => "bg-light"
+    };
+}
