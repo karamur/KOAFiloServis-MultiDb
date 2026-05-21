@@ -352,9 +352,9 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.VergiNo).HasMaxLength(11);
             entity.HasIndex(e => e.CariId);
             // Firma.CariId -> Cari (kurum rolündeki firmanın muhasebe Cari kaydı)
-            // Mevcut Cari.FirmaId ilişkisini bozmamak için explicit, navigationsuz tanım.
+            // Cari uzerinde navigation yok - Cari.FirmaId ile cakismamasi icin
             entity.HasOne<Cari>()
-                .WithMany()
+                .WithMany((string?)null)
                 .HasForeignKey(e => e.CariId)
                 .OnDelete(DeleteBehavior.SetNull)
                 .IsRequired(false);

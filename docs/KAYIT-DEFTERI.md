@@ -65,6 +65,16 @@ KOAFiloServis.Web/Components/Pages/Ayarlar/AIAsistan.razor
 
 ---
 
+## 📅 21.05.2026 — Gün Sonu Özeti (2. Kısım)
+
+### ✅ Ek Fix
+
+| # | İş | Dosyalar | Açıklama |
+|---|-----|----------|----------|
+| **Fix 8** | `WithMany()` → `WithMany((string?)null)` | `ApplicationDbContext.cs` | Firma entity'sinde `CariId` FK ilişkisi: `WithMany()` çağrısı Cari entity'sindeki `FirmaId` navigasyonuyla çakışıyordu. Explicit `(string?)null` ile navigasyonsuz ilişki tanımlandı. Build: 0 hata, 0 uyarı, 291 test başarılı |
+
+---
+
 ## 📅 21.05.2026 — Gün Sonu Özeti
 
 ### ✅ Bugün Tamamlanan (7 fix + temizlik + optimizasyon)
