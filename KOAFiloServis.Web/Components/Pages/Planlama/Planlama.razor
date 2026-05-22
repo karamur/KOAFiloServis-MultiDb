@@ -213,10 +213,12 @@ else
                                                 var gunNo = gun;
                                                 var kayitRef = k;
                                                 var deger = kayitRef.GetGunDeger(gunNo);
-                                                var color = deger == 2 ? "#0d6efd" : deger == 1 ? "#198754" : "#e9ecef";
-                                                <div style="width:4px; height:12px; background:@color; border-radius:1px; cursor:pointer;"
+                                                var tarih = new DateTime(k.Yil, k.Ay, Math.Min(gunNo, DateTime.DaysInMonth(k.Yil, k.Ay)));
+                                                var haftaSonu = tarih.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
+                                                var color = deger == 2 ? "#0d6efd" : deger == 1 ? "#198754" : (haftaSonu ? "#dee2e6" : "#e9ecef");
+                                                <div style="width:4px; height:12px; background:@color; border-radius:1px; cursor:pointer;@(haftaSonu ? " border-bottom:2px solid #adb5bd;" : "")"
                                                      @onclick="() => GunInlineToggle(kayitRef, gunNo)"
-                                                     title="Gun @gunNo: @(deger == 2 ? "S+A" : deger == 1 ? "Tek Sefer" : "Gitmedi") - Tikla degistir"></div>
+                                                     title="Gun @gunNo (@tarih.ToString("ddd", new System.Globalization.CultureInfo("tr-TR"))): @(deger == 2 ? "S+A" : deger == 1 ? "Tek Sefer" : "Gitmedi") - Tikla degistir"></div>
                                             }
                                         </div>
                                     </td>
@@ -269,20 +271,24 @@ else
                 <div class="card mt-3 border-2 @(genelKar >= 0 ? "border-success" : "border-danger")">
                     <div class="card-body py-2">
                         <div class="row text-center">
-                            <div class="col-3">
+                            <div class="col">
                                 <small class="text-muted">Toplam Sefer</small>
                                 <h5 class="mb-0">@kayitlar.Sum(k => k.SeferSayisi)</h5>
                             </div>
-                            <div class="col-3">
+                            <div class="col">
                                 <small class="text-muted">Toplam Gun</small>
                                 <h5 class="mb-0">@kayitlar.Sum(k => (decimal)k.Gun)</h5>
                             </div>
-                            <div class="col-3">
-                                <small class="text-muted">Toplam Gelir</small>
+                            <div class="col">
+                                <small class="text-muted text-success">Toplam Gelir</small>
                                 <h5 class="mb-0 text-success">@genelGelir.ToString("N2") TL</h5>
                             </div>
-                            <div class="col-3">
-                                <small class="text-muted">Net Kar</small>
+                            <div class="col">
+                                <small class="text-muted text-danger">Toplam Gider</small>
+                                <h5 class="mb-0 text-danger">@genelGider.ToString("N2") TL</h5>
+                            </div>
+                            <div class="col">
+                                <small class="text-muted">Net Kar/Zarar</small>
                                 <h5 class="mb-0 @(genelKar >= 0 ? "text-primary" : "text-danger")">@genelKar.ToString("N2") TL</h5>
                             </div>
                         </div>
