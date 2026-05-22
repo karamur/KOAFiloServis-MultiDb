@@ -23,6 +23,14 @@
                                 <option value="@k.Id">@k.KurumAdi</option>
                             }
                         </select>
+                        @if (Kayit.KurumId.HasValue)
+                        {
+                            var seciliKurum = Kurumlar.FirstOrDefault(k => k.Id == Kayit.KurumId.Value);
+                            if (seciliKurum != null)
+                            {
+                                <small class="text-primary"><i class="bi bi-building me-1"></i>@seciliKurum.KurumAdi</small>
+                            }
+                        }
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Isveren Firma</label>

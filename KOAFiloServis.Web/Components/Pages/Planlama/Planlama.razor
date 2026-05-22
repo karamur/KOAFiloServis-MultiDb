@@ -157,7 +157,14 @@ else
                                     rowClass = "table-danger";
                                 else if (catisanGunler.Any())
                                     rowClass = "table-warning";
-                                <tr class="@rowClass">
+                                var finansRenk = k.FinansYonu switch
+                                {
+                                    PlanlamaFinansYonu.Gelen => "border-left: 4px solid #198754;",
+                                    PlanlamaFinansYonu.Giden => "border-left: 4px solid #dc3545;",
+                                    PlanlamaFinansYonu.IcDagitim => "border-left: 4px solid #0d6efd;",
+                                    _ => ""
+                                };
+                                <tr class="@rowClass" style="@finansRenk">
                                     <td>@(k.Guzergah?.GuzergahAdi ?? k.GuzergahAdi)</td>
                                     <td>@(k.Arac?.AktifPlaka ?? k.Plaka)</td>
                                     <td>
