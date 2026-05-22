@@ -154,6 +154,15 @@
                         <label class="form-label">Birim Gider</label>
                         <input type="number" class="form-control" @bind="Kayit.BirimGider" step="0.01" />
                     </div>
+                    @if (Kayit.GuzergahId.HasValue)
+                    {
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" @bind="fiyatiDigerSlotlaraUygula" id="cbFiyatUygula" />
+                                <label class="form-check-label small" for="cbFiyatUygula">Birim fiyatı aynı güzergahın diğer slotlarına da uygula</label>
+                            </div>
+                        </div>
+                    }
                     <div class="col-md-4">
                         <label class="form-label">Belge No</label>
                         <input type="text" class="form-control" @bind="Kayit.BelgeNo" />
@@ -286,6 +295,7 @@
 
     private bool kaydediliyor;
     private bool gunGridAcik = true;
+    private bool fiyatiDigerSlotlaraUygula;
     private List<Arac> filtrelenmisAraclar = new();
 
     private void GunToggle(int gun)
@@ -402,6 +412,17 @@
         kaydediliyor = true;
         try
         {
+            // Fiyati diger slotlara da uygula
+            if (fiyatiDigerSlotlaraUygula && Kayit.GuzergahId.HasValue)
+            {
+                var digerleri = MevcutKayitlar
+                    .Where(k => k.GuzergahId == Kayit.GuzergahId.Value && k.Slot != Kayit.Slot);
+                foreach (var d in digerleri)
+                {
+                    d.BirimGelir = Kayit.BirimGelir;
+                    d.BirimGider = Kayit.BirimGider;
+                }
+            }
             await OnKaydet.InvokeAsync(Kayit);
         }
         finally { kaydediliyor = false; }
