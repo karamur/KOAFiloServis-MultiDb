@@ -390,6 +390,7 @@ public sealed class KurumPuantajService : IKurumPuantajService
         // GuzergahSefer satırlarını yükle (öncelikli araç/şoför kaynağı)
         var seferler = await db.GuzergahSeferleri
             .Where(s => guzergahIds.Contains(s.GuzergahId) && s.AracId.HasValue)
+            .Include(s => s.Arac)
             .OrderBy(s => s.GuzergahId).ThenBy(s => s.Sira)
             .ToListAsync();
         var seferMap = seferler.GroupBy(s => s.GuzergahId).ToDictionary(g => g.Key, g => g.ToList());
@@ -413,7 +414,7 @@ public sealed class KurumPuantajService : IKurumPuantajService
                     foreach (var slot in slotlar)
                     {
                         EkleEksikSatir(sonuc, mevcutlar, guzergah, sefer.AracId!.Value,
-                            null, null, sefer.SoforAd, yil, ay, slot);
+                            sefer.Arac?.AktifPlaka ?? sefer.Arac?.Plaka, null, sefer.SoforAd, yil, ay, slot);
                     }
                 }
                 continue;
