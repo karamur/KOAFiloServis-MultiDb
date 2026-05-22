@@ -160,23 +160,26 @@ else
                                                 </span>
                                             }
                                         </div>
-                                        @if (k.SeferGunuToplami > 0)
-                                        {
+                                        @{
                                             var gunTooltipLines = new List<string>();
                                             for (int g = 1; g <= 31; g++)
                                             {
                                                 var d = k.GetGunDeger(g);
                                                 if (d > 0) gunTooltipLines.Add($"Gun {g}: {(d == 2 ? "S+A" : "Tek Sefer")}");
                                             }
-                                            <div class="d-flex mt-1 justify-content-center" style="gap:1px;" title="@string.Join(", ", gunTooltipLines)">
-                                                @for (int gun = 1; gun <= 31; gun++)
-                                                {
-                                                    var deger = k.GetGunDeger(gun);
-                                                    var color = deger == 2 ? "#0d6efd" : deger == 1 ? "#198754" : "#e9ecef";
-                                                    <div style="width:4px; height:12px; background:@color; border-radius:1px;"></div>
-                                                }
-                                            </div>
                                         }
+                                        <div class="d-flex mt-1 justify-content-center" style="gap:1px;" title="@string.Join(", ", gunTooltipLines)">
+                                            @for (int gun = 1; gun <= 31; gun++)
+                                            {
+                                                var gunNo = gun;
+                                                var kayitRef = k;
+                                                var deger = kayitRef.GetGunDeger(gunNo);
+                                                var color = deger == 2 ? "#0d6efd" : deger == 1 ? "#198754" : "#e9ecef";
+                                                <div style="width:4px; height:12px; background:@color; border-radius:1px; cursor:pointer;"
+                                                     @onclick="() => GunInlineToggle(kayitRef, gunNo)"
+                                                     title="Gun @gunNo: @(deger == 2 ? "S+A" : deger == 1 ? "Tek Sefer" : "Gitmedi") - Tikla degistir"></div>
+                                            }
+                                        </div>
                                     </td>
                                     <td class="text-end">@k.BirimGelir.ToString("N2")</td>
                                     <td class="text-end">@k.BirimGider.ToString("N2")</td>
@@ -440,6 +443,15 @@ else
             ToastService.ShowError($"Kayit hatasi: {ex.Message}");
         }
         finally { kaydediliyor = false; }
+    }
+
+    private void GunInlineToggle(PuantajKayit kayit, int gun)
+    {
+        var mevcut = kayit.GetGunDeger(gun);
+        var yeni = mevcut >= 2 ? 0 : mevcut + 1;
+        kayit.SetGunDeger(gun, yeni);
+        kayit.HesaplaPuantajToplam();
+        degisenSatirlar.Add(kayit);
     }
 
     private async Task SablonOlustur()

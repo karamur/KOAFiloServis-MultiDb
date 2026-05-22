@@ -876,6 +876,23 @@ await RunScopedSafeAsync(app, "EnsureHoldingDatabase", async services =>
     await ctx.Database.EnsureCreatedAsync();
 });
 
+// Holding verisi: ilk kez calisiyorsa (bos tablo) otomatik doldur
+await RunScopedSafeAsync(app, "EnsureHoldingInitialData", async services =>
+{
+    var holdingFactory = services.GetRequiredService<IDbContextFactory<HoldingDbContext>>();
+    using var ctx = await holdingFactory.CreateDbContextAsync();
+    var hasData = await ctx.HoldingVeriler.AnyAsync();
+    if (!hasData)
+    {
+        var holdingService = services.GetRequiredService<IHoldingService>();
+        var logger = services.GetRequiredService<ILogger<HoldingService>>();
+        var now = DateTime.UtcNow;
+        logger.LogInformation("Holding verisi bos, ilk veri toplama baslatiliyor: {Yil}-{Ay}", now.Year, now.Month);
+        await holdingService.ToplaVeKaydetAsync(now.Year, now.Month);
+        logger.LogInformation("Ilk holding veri toplama tamamlandi");
+    }
+});
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
