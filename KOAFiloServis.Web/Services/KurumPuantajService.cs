@@ -444,7 +444,11 @@ public sealed class KurumPuantajService : IKurumPuantajService
             {
                 foreach (var sefer in gSeferler)
                 {
-                    var slotlar = SeferTipindenSlotlara(sefer.SeferTipi);
+                    // GuzergahSefer'de belirtilen spesifik slot varsa onu kullan,
+                    // yoksa SeferTipi'nden turet
+                    var slotlar = sefer.Slot != SeferSlot.Sabah || sefer.SeferTipi == SeferTipi.Sabah
+                        ? new[] { sefer.Slot }
+                        : SeferTipindenSlotlara(sefer.SeferTipi);
                     foreach (var slot in slotlar)
                     {
                         EkleEksikSatir(sonuc, mevcutlar, guzergah, sefer.AracId!.Value,

@@ -21,6 +21,9 @@ public class GuzergahSefer : BaseEntity, IFirmaTenant
 
     public SeferTipi SeferTipi { get; set; } = SeferTipi.SabahAksam;
 
+    /// <summary>Operasyonel slot (Sabah, Aksam, Mesai, Diger1-5)</summary>
+    public SeferSlot Slot { get; set; } = SeferSlot.Sabah;
+
     /// <summary>Kapasite tablosundan gelen ad ("16+1" gibi)</summary>
     public string? KapasiteAdi { get; set; }
 

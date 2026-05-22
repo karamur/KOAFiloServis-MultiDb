@@ -400,6 +400,13 @@
                                             </select>
                                         </td>
                                         <td>
+                                            <select class="form-select form-select-sm" value="@kalem.Slot.ToString()"
+                                                    @onchange="e => kalem.Slot = Enum.Parse<SeferSlot>(e.Value!.ToString()!)">
+                                                @foreach (var s in Enum.GetValues<SeferSlot>())
+                                                { <option value="@s">@s</option> }
+                                            </select>
+                                        </td>
+                                        <td>
                                             <select class="form-select form-select-sm" value="@(kalem.KapasiteAdi ?? "")"
                                                     @onchange="e => kalem.KapasiteAdi = string.IsNullOrWhiteSpace(e.Value?.ToString()) ? null : e.Value.ToString()">
                                                 <option value="">-- Seciniz --</option>
@@ -612,6 +619,7 @@
                 seferKalemleri = mevcutSeferler.Select(s => new SeferKalem
                 {
                     SeferTipi = s.SeferTipi,
+                    Slot = s.Slot,
                     KapasiteAdi = s.KapasiteAdi,
                     AracId = s.AracId,
                     SoforAd = s.SoforAd,
@@ -972,6 +980,7 @@
                     GuzergahId = guzergah.Id,
                     FirmaId = guzergah.FirmaId,
                     SeferTipi = k.SeferTipi,
+                    Slot = k.Slot,
                     KapasiteAdi = k.KapasiteAdi,
                     AracId = k.AracId,
                     SoforAd = k.SoforAd,
@@ -1117,6 +1126,7 @@
     private SeferKalem YeniSeferKalem() => new()
     {
         SeferTipi = guzergah.SeferTipi,
+        Slot = SeferSlot.Sabah,
         KapasiteAdi = kapasiteSecenekleri.FirstOrDefault(k => k.Value == guzergah.PersonelSayisi).Label,
         AracId = guzergah.VarsayilanAracId,
         SoforAd = guzergah.VarsayilanSofor?.TamAd,
@@ -1193,6 +1203,7 @@
     private class SeferKalem
     {
         public SeferTipi SeferTipi { get; set; } = SeferTipi.SabahAksam;
+        public SeferSlot Slot { get; set; } = SeferSlot.Sabah;
         public string? KapasiteAdi { get; set; }
         public int? AracId { get; set; }
         public string? SoforAd { get; set; }
