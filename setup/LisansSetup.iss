@@ -1,23 +1,19 @@
-﻿; ============================================================
-; KOAFiloServis — Lisans Yonetim Araci (Bagimsiz Installer)
 ; ============================================================
-; Bu paket SADECE KOAFiloServisLisans.exe'yi kurar.
-; Ana uygulama (IIS, Web) kurulmaz.
-; Kullanim amaci: Yetkili bayi/yonetici pc'ye lisans uretme araci dagitmak.
+; KOAFiloServis - Lisans Yonetim Araci (Bagimsiz Installer)
 ; ============================================================
 
 #define LisansAppName   "KOA Lisans Yonetimi"
 #define LisansPublisher "KOA Yazilim"
-#define LisansURL       "https://karamur.github.io/KOAFiloServis"
+#define LisansURL       "https://github.com/karamur/KOAFiloServis-MultiDb"
 #define LisansExe       "KOAFiloServisLisans.exe"
 #define LisansInstallDir "C:\KOALisans"
 
 #ifndef LisansAppVersion
-#define LisansAppVersion "1.0.0"
+#define LisansAppVersion "1.0.22"
 #endif
 
 [Setup]
-AppId={{2F7A1C33-8E4D-4A9B-BC5E-D3F8E9876543}
+AppId={{B2C3D4E5-F6A7-8901-BCDE-F12345678901}
 AppName={#LisansAppName}
 AppVersion={#LisansAppVersion}
 AppVerName={#LisansAppName} {#LisansAppVersion}
@@ -57,27 +53,21 @@ Name: "{app}\data"
 
 [Icons]
 Name: "{group}\{#LisansAppName}"; Filename: "{app}\{#LisansExe}"; WorkingDir: "{app}"
-Name: "{group}\Kaldır"; Filename: "{uninstallexe}"
+Name: "{group}\Kaldir"; Filename: "{uninstallexe}"
 Name: "{commondesktop}\{#LisansAppName}"; Filename: "{app}\{#LisansExe}"; WorkingDir: "{app}"
 
 [Run]
-Filename: "{app}\{#LisansExe}"; \
-    Description: "Lisans aracini hemen ac"; \
-    Flags: postinstall nowait skipifsilent shellexec
+Filename: "{app}\{#LisansExe}"; Description: "Lisans aracini hemen ac"; Flags: postinstall nowait skipifsilent shellexec
 
 [Code]
 function IsUpgrade(): Boolean;
 var sPrevPath: String;
 begin
-  Result := RegQueryStringValue(HKCU,
-        'Software\Microsoft\Windows\CurrentVersion\Uninstall\{#SetupSetting("AppId")}_is1',
-        'InstallLocation', sPrevPath) and (sPrevPath <> '');
+  Result := RegQueryStringValue(HKCU,'Software\Microsoft\Windows\CurrentVersion\Uninstall\{#SetupSetting("AppId")}_is1','InstallLocation', sPrevPath) and (sPrevPath <> '');
 end;
 
 procedure InitializeWizard();
 begin
-  if IsUpgrade() then
-    WizardForm.Caption := '{#LisansAppName} Guncelleme'
-  else
-    WizardForm.Caption := '{#LisansAppName} Kurulum';
+  if IsUpgrade() then WizardForm.Caption := '{#LisansAppName} Guncelleme'
+  else WizardForm.Caption := '{#LisansAppName} Kurulum';
 end;

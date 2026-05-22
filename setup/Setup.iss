@@ -1,6 +1,6 @@
-﻿#define MyAppName "KOAFiloServis"
+#define MyAppName "KOAFiloServis"
 #define MyAppPublisher "KOA Yazilim"
-#define MyAppURL "https://karamur.github.io/KOAFiloServis"
+#define MyAppURL "https://github.com/karamur/KOAFiloServis-MultiDb"
 #define MyAppExeName "KOAFiloServis.Web.exe"
 #define MyInstallDir "C:\KOAFiloServis"
 #define MyDataDir "C:\KOAFiloServis\data"
@@ -8,11 +8,11 @@
 #define MyDataSyncExe "KOAFiloServis.DataSync.exe"
 
 #ifndef MyAppVersion
-#define MyAppVersion "1.0.5"
+#define MyAppVersion "1.0.22"
 #endif
 
 [Setup]
-AppId={{8C5A9F12-4E2B-4B8A-9C2D-A7E6F1234567}
+AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppVerName={#MyAppName} {#MyAppVersion}
@@ -48,32 +48,33 @@ Name: "turkish"; MessagesFile: "compiler:Languages\Turkish.isl"
 
 [Types]
 Name: "full"; Description: "Tam Kurulum"
+Name: "compact"; Description: "Sadece Web (IIS)"
 
 [Components]
-Name: "web"; Description: "KOAFiloServis Web (IIS)"; Types: full; Flags: fixed
-Name: "lisans"; Description: "Lisans Yonetim Aracı"; Types: full
+Name: "web"; Description: "KOAFiloServis Web (IIS)"; Types: full compact; Flags: fixed
+Name: "lisans"; Description: "Lisans Yonetim Araci"; Types: full
 Name: "datasync"; Description: "Veri Aktarim Araci (PostgreSQL - SQLite)"; Types: full
 
 [Tasks]
-Name: "iisfeatures"; Description: "IIS rolu/Hosting Bundle eksikse otomatik kur (Internet gerekir)"; GroupDescription: "On Hazirlik:"; Flags: unchecked
-Name: "iisconfigure"; Description: "IIS Site ve AppPool'u otomatik yapılandır"; GroupDescription: "IIS:"; Flags: checkedonce
-Name: "firewall"; Description: "Windows Guvenlik Duvarinda port aç (HTTP 5190)"; GroupDescription: "Firewall:"; Flags: checkedonce
-Name: "browser"; Description: "Kurulum sonrası tarayicida aç"; GroupDescription: "Son adım:"; Flags: unchecked
+Name: "iisfeatures"; Description: "IIS rolu / .NET Hosting Bundle eksikse otomatik kur (Internet gerekir)"; GroupDescription: "On Hazirlik:"; Flags: unchecked
+Name: "iisconfigure"; Description: "IIS Site ve AppPool'u otomatik yapilandir"; GroupDescription: "IIS:"; Flags: checkedonce
+Name: "firewall"; Description: "Windows Guvenlik Duvarinda port ac (HTTP 5200)"; GroupDescription: "Firewall:"; Flags: checkedonce
+Name: "browser"; Description: "Kurulum sonrasi tarayicida ac"; GroupDescription: "Son adim:"; Flags: unchecked
 
 [Files]
-; Web uygulaması
+; Web uygulamasi
 Source: "payload\Web\*"; DestDir: "{app}"; Excludes: "dbsettings.json,appsettings.Production.json,*.db,logs\*,uploads\*"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: web
 
-; İlk kurulumda dbsettings.json örneği (güncellemede UZANTISI dokunulmaz)
+; Ilk kurulumda dbsettings.json ornegi (guncellemede DOKUNULMAZ)
 Source: "payload\Web\dbsettings.json"; DestDir: "{app}"; DestName: "dbsettings.json"; Flags: onlyifdoesntexist; Components: web
 
-; Lisans aracı
+; Lisans araci
 Source: "payload\LisansDesktop\*"; DestDir: "{app}\Lisans"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: lisans
 
 ; DataSync
 Source: "payload\DataSync\*"; DestDir: "{app}\DataSync"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: datasync
 
-; IIS yapılandırma script'leri
+; IIS yapilandirma scriptleri
 Source: "scripts\iis-configure.ps1"; DestDir: "{app}\scripts"; Flags: ignoreversion
 Source: "scripts\iis-remove.ps1"; DestDir: "{app}\scripts"; Flags: ignoreversion
 Source: "scripts\iis-install-features.ps1"; DestDir: "{app}\scripts"; Flags: ignoreversion
@@ -84,46 +85,46 @@ Source: "scripts\backup-db.ps1"; DestDir: "{app}\scripts"; Flags: ignoreversion
 Name: "{app}\data"; Permissions: users-modify
 Name: "{app}\uploads"; Permissions: users-modify
 Name: "{app}\logs"; Permissions: users-modify
+Name: "{app}\database"; Permissions: users-modify
 Name: "{app}\Backups"; Permissions: users-modify
 
 [Icons]
-Name: "{group}\{#MyAppName} Web'i Ac"; Filename: "http://localhost:5190"; IconFilename: "{app}\{#MyAppExeName}"
+Name: "{group}\{#MyAppName} Web'i Ac"; Filename: "http://localhost:5200"; IconFilename: "{app}\{#MyAppExeName}"
 Name: "{group}\Lisans Yonetimi"; Filename: "{app}\Lisans\{#MyLisansExe}"; WorkingDir: "{app}\Lisans"; Components: lisans
 Name: "{group}\Veri Aktarim (PG - SQLite)"; Filename: "{app}\DataSync\{#MyDataSyncExe}"; WorkingDir: "{app}\DataSync"; Components: datasync
 Name: "{group}\Kurulum Klasorunu Ac"; Filename: "{app}"
-Name: "{group}\Kaldır"; Filename: "{uninstallexe}"
-Name: "{commondesktop}\{#MyAppName} Web"; Filename: "http://localhost:5190"; IconFilename: "{app}\{#MyAppExeName}"; Tasks: ; Flags: createonlyiffileexists
+Name: "{group}\Kaldir"; Filename: "{uninstallexe}"
+Name: "{commondesktop}\{#MyAppName} Web"; Filename: "http://localhost:5200"; IconFilename: "{app}\{#MyAppExeName}"; Tasks: ; Flags: createonlyiffileexists
 
 [Run]
-; IIS rolu/Hosting Bundle otomatik kurulum (secildiyse)
+; IIS rolu / Hosting Bundle otomatik kurulum (secildiyse)
 Filename: "powershell.exe"; \
     Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\scripts\iis-install-features.ps1"""; \
     StatusMsg: "IIS rolu / .NET Hosting Bundle yukleniyor (Internet gerekir)..."; \
     Flags: waituntilterminated; \
     Tasks: iisfeatures
 
-; IIS yapılandırma (seçildiyse)
+; IIS yapilandirma
 Filename: "powershell.exe"; \
-    Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\scripts\iis-configure.ps1"" -InstallPath ""{app}"" -SiteName ""KOAFiloServis"" -Port 5190"; \
+    Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\scripts\iis-configure.ps1"" -InstallPath ""{app}"" -SiteName ""KOAFiloServis"" -Port 5200"; \
     StatusMsg: "IIS yapilandiriliyor..."; \
     Flags: runhidden waituntilterminated; \
     Tasks: iisconfigure
 
-; Firewall kuralı
+; Firewall kurali
 Filename: "netsh.exe"; \
-    Parameters: "advfirewall firewall add rule name=""KOAFiloServis HTTP"" dir=in action=allow protocol=TCP localport=5190"; \
+    Parameters: "advfirewall firewall add rule name=""KOAFiloServis HTTP"" dir=in action=allow protocol=TCP localport=5200"; \
     StatusMsg: "Firewall kurali ekleniyor..."; \
     Flags: runhidden waituntilterminated; \
     Tasks: firewall
 
-; Tarayıcıda aç
-Filename: "http://localhost:5190"; \
+; Tarayicida ac
+Filename: "http://localhost:5200"; \
     Flags: shellexec nowait postinstall; \
     Tasks: browser; \
     Description: "Uygulamayi tarayicida ac"
 
 [UninstallRun]
-; IIS site + app pool kaldırma
 Filename: "powershell.exe"; \
     Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\scripts\iis-remove.ps1"" -SiteName ""KOAFiloServis"""; \
     Flags: runhidden waituntilterminated; \
@@ -135,15 +136,10 @@ Filename: "netsh.exe"; \
     RunOnceId: "RemoveFirewall"
 
 [UninstallDelete]
-; Bu dosyalar kaldırma sonrası otomatik silinir (ama kullanıcı verisi SİLİNMEZ)
 Type: filesandordirs; Name: "{app}\wwwroot\_framework"
 Type: dirifempty; Name: "{app}\scripts"
 
 [Code]
-{ ============================================================
-  Yardimci fonksiyonlar
-  ============================================================ }
-
 function GetInstallPath(): String;
 var sPrevPath: String;
 begin
@@ -160,15 +156,11 @@ begin
   Result := (GetInstallPath() <> '');
 end;
 
-{ Zaman damgasi: YYYYMMDD-HHMMSS }
 function GetTimestamp(): String;
 begin
   Result := GetDateTimeString('yyyymmdd-hhnnss', #0, #0);
 end;
 
-{ ============================================================
-  Upgrade oncesi SQLite veritabani yedekleme
-  ============================================================ }
 procedure BackupDatabase(InstallPath: String);
 var
   DbFile, ShmFile, WalFile: String;
@@ -178,58 +170,31 @@ begin
   DbFile  := InstallPath + '\KOAFiloServis';
   ShmFile := InstallPath + '\KOAFiloServis-shm';
   WalFile := InstallPath + '\KOAFiloServis-wal';
-
-  { Veritabani dosyasi yoksa yedekleme gerekmez }
   if not FileExists(DbFile) then Exit;
-
   BackupDir := InstallPath + '\Backups\db-' + GetTimestamp();
-
-  { xcopy ile backup dizinini olustur ve kopyala (mkdir + copy) }
-  Exec('cmd.exe',
-       '/c mkdir "' + BackupDir + '"',
-       '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-
-  Exec('cmd.exe',
-       '/c copy /Y "' + DbFile + '" "' + BackupDir + '\KOAFiloServis"',
-       '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-
+  Exec('cmd.exe', '/c mkdir "' + BackupDir + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('cmd.exe', '/c copy /Y "' + DbFile + '" "' + BackupDir + '\KOAFiloServis"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   if FileExists(ShmFile) then
-    Exec('cmd.exe',
-         '/c copy /Y "' + ShmFile + '" "' + BackupDir + '\KOAFiloServis-shm"',
-         '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-
+    Exec('cmd.exe', '/c copy /Y "' + ShmFile + '" "' + BackupDir + '\KOAFiloServis-shm"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   if FileExists(WalFile) then
-    Exec('cmd.exe',
-         '/c copy /Y "' + WalFile + '" "' + BackupDir + '\KOAFiloServis-wal"',
-         '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-
+    Exec('cmd.exe', '/c copy /Y "' + WalFile + '" "' + BackupDir + '\KOAFiloServis-wal"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Log('DB yedegi alindi: ' + BackupDir);
 end;
 
-{ ============================================================
-  IIS site'i durdur / baslat (guncelleme sirasinda kilitlenme onleme)
-  ============================================================ }
 procedure StopIISSite();
 var ResultCode: Integer;
 begin
-  Exec('cmd.exe',
-       '/c "%windir%\system32\inetsrv\appcmd.exe" stop site /site.name:"KOAFiloServis"',
-       '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  Log('IIS site durduruldu (ResultCode=' + IntToStr(ResultCode) + ')');
+  Exec('cmd.exe', '/c "%windir%\system32\inetsrv\appcmd.exe" stop site /site.name:"KOAFiloServis"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Log('IIS site durduruldu');
 end;
 
 procedure StartIISSite();
 var ResultCode: Integer;
 begin
-  Exec('cmd.exe',
-       '/c "%windir%\system32\inetsrv\appcmd.exe" start site /site.name:"KOAFiloServis"',
-       '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  Log('IIS site baslatildi (ResultCode=' + IntToStr(ResultCode) + ')');
+  Exec('cmd.exe', '/c "%windir%\system32\inetsrv\appcmd.exe" start site /site.name:"KOAFiloServis"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Log('IIS site baslatildi');
 end;
 
-{ ============================================================
-  Sihirbaz olay isleme
-  ============================================================ }
 procedure InitializeWizard();
 begin
   if IsUpgrade() then
@@ -238,36 +203,26 @@ begin
     WizardForm.Caption := '{#MyAppName} Kurulum Sihirbazi';
 end;
 
-function InitializeSetup(): Boolean;
+function InitializeSetup(): Boolean();
 var
-  PrevPath: String;
-  Msg: String;
+  PrevPath, Msg: String;
   ResultCode: Integer;
   ScriptPath: String;
 begin
   Result := True;
-
-  { --- Gereksinim on-kontrolu (IIS + Hosting Bundle) --- }
   ScriptPath := ExpandConstant('{src}\scripts\preinstall-check.ps1');
   if FileExists(ScriptPath) then
   begin
-    Exec('powershell.exe',
-         '-NoProfile -ExecutionPolicy Bypass -File "' + ScriptPath + '" -AllowMissingHostingBundle',
-         '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Exec('powershell.exe', '-NoProfile -ExecutionPolicy Bypass -File "' + ScriptPath + '" -AllowMissingHostingBundle', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
     if ResultCode <> 0 then
     begin
       Msg := 'Sistem gereksinimleri eksik gorunuyor (IIS / .NET 10 Hosting Bundle).' + #13#10#13#10 +
-             'Sihirbaz devam ettiginde "On Hazirlik" adiminda "IIS rolu/Hosting Bundle eksikse otomatik kur" secenegini isaretleyebilirsiniz.' + #13#10#13#10 +
+             'Sihirbaz devam ettiginde "IIS rolu/Hosting Bundle eksikse otomatik kur" secenegini isaretleyebilirsiniz.' + #13#10#13#10 +
              'Devam etmek istiyor musunuz?';
       if MsgBox(Msg, mbConfirmation, MB_YESNO) = IDNO then
-      begin
-        Result := False;
-        Exit;
-      end;
+      begin Result := False; Exit; end;
     end;
   end;
-
-  { --- Onceki kurulum tespiti --- }
   PrevPath := GetInstallPath();
   if PrevPath <> '' then
   begin
@@ -277,10 +232,7 @@ begin
            '* Konfigurasyonunuz (dbsettings.json, appsettings.json) KORUNUR.' + #13#10#13#10 +
            'Devam etmek istiyor musunuz?';
     if MsgBox(Msg, mbConfirmation, MB_YESNO) = IDNO then
-    begin
-      Result := False;
-      Exit;
-    end;
+    begin Result := False; Exit; end;
   end;
 end;
 
@@ -288,24 +240,17 @@ procedure CurStepChanged(CurStep: TSetupStep);
 var PrevPath: String;
 begin
   PrevPath := GetInstallPath();
-
   if CurStep = ssInstall then
   begin
     if PrevPath <> '' then
     begin
-      { Guncelleme: once yedek al, sonra IIS'i durdur }
       WizardForm.StatusLabel.Caption := 'Veritabani yedekleniyor...';
       BackupDatabase(PrevPath);
       StopIISSite();
     end;
   end;
-
   if CurStep = ssPostInstall then
   begin
-    if PrevPath <> '' then
-    begin
-      { IIS site'ini yeniden baslat }
-      StartIISSite();
-    end;
+    if PrevPath <> '' then StartIISSite();
   end;
 end;
