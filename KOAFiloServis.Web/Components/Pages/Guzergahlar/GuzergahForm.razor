@@ -6,6 +6,7 @@
 @using KOAFiloServis.Web.Data
 @using Microsoft.EntityFrameworkCore
 @inject IGuzergahService GuzergahService
+@inject IGuzergahSeferService GuzergahSeferService
 @inject ICariService CariService
 @inject IKurumService KurumService
 @inject IAracService AracService
@@ -565,7 +566,32 @@
         oncekiSeferTipiCarpani = GetSeferTipiCarpani(guzergah.SeferTipi);
         await AracSecimiDegistiAsync();
         await SoforDegistiAsync();
-        SeferleriniVarsayilanOlustur();
+
+        // Mevcut sefer verisini yükle (edit modunda)
+        if (IsEdit)
+        {
+            var mevcutSeferler = await GuzergahSeferService.GetByGuzergahIdAsync(Id!.Value);
+            if (mevcutSeferler.Any())
+            {
+                seferKalemleri = mevcutSeferler.Select(s => new SeferKalem
+                {
+                    SeferTipi = s.SeferTipi,
+                    KapasiteAdi = s.KapasiteAdi,
+                    AracId = s.AracId,
+                    SoforAd = s.SoforAd,
+                    SoforTelefon = s.SoforTelefon,
+                    Firma = s.FirmaAdiSerbest
+                }).ToList();
+            }
+            else
+            {
+                SeferleriniVarsayilanOlustur();
+            }
+        }
+        else
+        {
+            SeferleriniVarsayilanOlustur();
+        }
 
         // Mevcut güzergahın KurumId/CariId'sinden kurumu/cariyi UI'da göster (edit modunda)
         if (IsEdit)
@@ -879,6 +905,20 @@
             {
                 await GuzergahService.CreateAsync(guzergah);
             }
+
+            // Sefer verisini kaydet
+            var seferEntities = seferKalemleri.Select(k => new GuzergahSefer
+            {
+                GuzergahId = guzergah.Id,
+                SeferTipi = k.SeferTipi,
+                KapasiteAdi = k.KapasiteAdi,
+                AracId = k.AracId,
+                SoforAd = k.SoforAd,
+                SoforTelefon = k.SoforTelefon,
+                FirmaAdiSerbest = k.Firma
+            }).ToList();
+            await GuzergahSeferService.ReplaceAllAsync(guzergah.Id, seferEntities);
+
             Navigation.NavigateTo("/guzergahlar");
         }
         catch (Exception ex)

@@ -229,6 +229,20 @@ public sealed class KurumPuantajService : IKurumPuantajService
             .Where(p => !p.IsDeleted && p.Yil == yil && p.Ay == ay)
             .ToListAsync();
 
+        // Tüm kayıtların (mevcut + yeni) birleşik listesi
+        var tumKayitlar = mevcutTumKayitlar
+            .Where(m => !kayitlar.Any(k => k.Id == m.Id))
+            .Concat(kayitlar)
+            .ToList();
+
+        // Guzergah kapasite haritası (Kapasite kuralı için)
+        var guzergahIds = tumKayitlar
+            .Select(k => k.GuzergahId).Where(id => id.HasValue).Select(id => id!.Value)
+            .Distinct().ToList();
+        var kapasiteMap = await db.Guzergahlar
+            .Where(g => guzergahIds.Contains(g.Id) && g.PersonelSayisi > 0)
+            .ToDictionaryAsync(g => g.Id, g => g.PersonelSayisi);
+
         foreach (var kayit in kayitlar)
         {
             if (kayit.GuzergahId == null || kayit.AracId == null) continue;
@@ -282,6 +296,25 @@ public sealed class KurumPuantajService : IKurumPuantajService
                         EtkilenenKayitId = cakisan.Id,
                         EtkilenenAciklama = cakisan.Guzergah?.GuzergahAdi ?? cakisan.GuzergahAdi
                     });
+                }
+
+                // Kural 5: Kapasite — güzergah başına slot başına araç sayısı PersonelSayisi'ni aşamaz
+                if (kayit.GuzergahId.HasValue && kapasiteMap.TryGetValue(kayit.GuzergahId.Value, out var kapasite) && kapasite > 0)
+                {
+                    var ayniGuzergahSlotAracSayisi = tumKayitlar
+                        .Count(x => x.Id != kayit.Id && x.GuzergahId == kayit.GuzergahId
+                                    && x.Slot == kayit.Slot && x.GetGunDeger(gun) > 0);
+                    if (ayniGuzergahSlotAracSayisi >= kapasite)
+                    {
+                        result.Conflicts.Add(new ConflictItem
+                        {
+                            Severity = ConflictSeverity.Blocking,
+                            Kural = "Kapasite",
+                            Mesaj = $"Bu guzergahin kapasitesi ({kapasite} arac) dolu. Gun {gun}, Slot {kayit.Slot}.",
+                            Gun = gun,
+                            Slot = kayit.Slot
+                        });
+                    }
                 }
 
                 // Kural 4: Tedarikçi izolasyonu - kendi araç + tedarikçi şoför (Warning)
@@ -354,6 +387,13 @@ public sealed class KurumPuantajService : IKurumPuantajService
 
         var guzergahIds = guzergahlar.Select(g => g.Id).ToList();
 
+        // GuzergahSefer satırlarını yükle (öncelikli araç/şoför kaynağı)
+        var seferler = await db.GuzergahSeferleri
+            .Where(s => guzergahIds.Contains(s.GuzergahId) && s.AracId.HasValue)
+            .OrderBy(s => s.GuzergahId).ThenBy(s => s.Sira)
+            .ToListAsync();
+        var seferMap = seferler.GroupBy(s => s.GuzergahId).ToDictionary(g => g.Key, g => g.ToList());
+
         // Mevcut kayıtları al
         var mevcutlar = await db.PuantajKayitlar
             .Where(p => !p.IsDeleted && p.Yil == yil && p.Ay == ay
@@ -364,7 +404,22 @@ public sealed class KurumPuantajService : IKurumPuantajService
 
         foreach (var guzergah in guzergahlar)
         {
-            // FiloGuzergahEslestirme'den araçlar
+            // Öncelik 1: GuzergahSefer satırlarından araç/şoför ata
+            if (seferMap.TryGetValue(guzergah.Id, out var gSeferler) && gSeferler.Any())
+            {
+                foreach (var sefer in gSeferler)
+                {
+                    var slotlar = SeferTipindenSlotlara(sefer.SeferTipi);
+                    foreach (var slot in slotlar)
+                    {
+                        EkleEksikSatir(sonuc, mevcutlar, guzergah, sefer.AracId!.Value,
+                            null, null, sefer.SoforAd, yil, ay, slot);
+                    }
+                }
+                continue;
+            }
+
+            // Öncelik 2: FiloGuzergahEslestirme'den araçlar
             var eslestirmeler = await db.FiloGuzergahEslestirmeleri
                 .Include(e => e.Arac)
                 .Include(e => e.Sofor)
@@ -400,6 +455,15 @@ public sealed class KurumPuantajService : IKurumPuantajService
 
         return sonuc.OrderBy(p => p.GuzergahId).ThenBy(p => p.Plaka).ThenBy(p => p.Slot).ToList();
     }
+
+    private static SeferSlot[] SeferTipindenSlotlara(SeferTipi tip) => tip switch
+    {
+        SeferTipi.Sabah => new[] { SeferSlot.Sabah },
+        SeferTipi.Aksam => new[] { SeferSlot.Aksam },
+        SeferTipi.SabahAksam => new[] { SeferSlot.Sabah, SeferSlot.Aksam },
+        SeferTipi.Saatlik => new[] { SeferSlot.Sabah, SeferSlot.Aksam, SeferSlot.Mesai },
+        _ => new[] { SeferSlot.Sabah }
+    };
 
     private static void EkleEksikSatir(
         List<PuantajKayit> sonuc,

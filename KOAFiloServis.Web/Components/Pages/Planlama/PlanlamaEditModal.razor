@@ -1,5 +1,11 @@
 @using KOAFiloServis.Shared.Entities
 @using KOAFiloServis.Web.Services
+@inject IAracService AracService
+@inject ISoforService SoforService
+@inject IGuzergahService GuzergahService
+@inject IFirmaService FirmaService
+@inject IGuzergahSeferService GuzergahSeferService
+@inject IKurumPuantajService KurumPuantajService
 
 <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -27,12 +33,20 @@
                         <label class="form-label">Isveren Firma</label>
                         <select class="form-select" @bind="Kayit.IsverenFirmaId">
                             <option value="">Seciniz...</option>
+                            @foreach (var f in firmalar)
+                            {
+                                <option value="@f.Id">@f.FirmaAdi</option>
+                            }
                         </select>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Guzergah</label>
-                        <select class="form-select" @bind="Kayit.GuzergahId">
+                        <select class="form-select" @bind="Kayit.GuzergahId" @bind:after="GuzergahDegisti">
                             <option value="">Seciniz...</option>
+                            @foreach (var g in guzergahListesi)
+                            {
+                                <option value="@g.Id">@g.GuzergahAdi</option>
+                            }
                         </select>
                     </div>
                     <div class="col-md-3">
@@ -57,12 +71,20 @@
                         <label class="form-label">Arac</label>
                         <select class="form-select" @bind="Kayit.AracId">
                             <option value="">Seciniz...</option>
+                            @foreach (var a in aracListesi)
+                            {
+                                <option value="@a.Id">@a.AktifPlaka</option>
+                            }
                         </select>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Sofor</label>
                         <select class="form-select" @bind="Kayit.SoforId">
                             <option value="">Seciniz...</option>
+                            @foreach (var s in soforListesi)
+                            {
+                                <option value="@s.Id">@s.TamAd</option>
+                            }
                         </select>
                     </div>
                     <div class="col-md-4">
@@ -144,6 +166,35 @@
     [Parameter, EditorRequired] public EventCallback OnKapat { get; set; }
 
     private bool kaydediliyor;
+    private List<Firma> firmalar = new();
+    private List<Guzergah> guzergahListesi = new();
+    private List<Arac> aracListesi = new();
+    private List<Sofor> soforListesi = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        firmalar = await FirmaService.GetAktifFirmalarAsync();
+        guzergahListesi = await GuzergahService.GetActiveAsync();
+        aracListesi = await AracService.GetActiveAsync();
+        soforListesi = await SoforService.GetActiveAsync();
+    }
+
+    private async Task GuzergahDegisti()
+    {
+        if (!Kayit.GuzergahId.HasValue)
+        {
+            aracListesi = await AracService.GetActiveAsync();
+            return;
+        }
+
+        var seferler = await GuzergahSeferService.GetByGuzergahIdAsync(Kayit.GuzergahId.Value);
+        var seferAracIds = seferler.Where(s => s.AracId.HasValue).Select(s => s.AracId!.Value).Distinct().ToList();
+
+        if (seferAracIds.Any())
+            aracListesi = (await AracService.GetActiveAsync()).Where(a => seferAracIds.Contains(a.Id)).ToList();
+        else
+            aracListesi = await AracService.GetActiveAsync();
+    }
 
     private async Task Kaydet()
     {
