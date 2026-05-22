@@ -103,6 +103,16 @@ else
                             <i class="bi bi-lightning me-1"></i> Sablon Olustur
                         </button>
                     </div>
+                    @if (kayitlar.Any())
+                    {
+                        var hepsiDaraltildi = daraltilanSlotlar.Count >= kayitlar.Select(k => k.Slot).Distinct().Count();
+                        <div class="col-auto">
+                            <button class="btn btn-outline-secondary btn-sm" @onclick="TumSlotlariToggle">
+                                <i class="bi @(hepsiDaraltildi ? "bi-chevron-down" : "bi-chevron-up") me-1"></i>
+                                @(hepsiDaraltildi ? "Tumunu Genislet" : "Tumunu Daralt")
+                            </button>
+                        </div>
+                    }
                 </div>
             </div>
         </div>
@@ -441,6 +451,16 @@ else
             daraltilanSlotlar.Remove(slot);
         else
             daraltilanSlotlar.Add(slot);
+    }
+
+    private void TumSlotlariToggle()
+    {
+        var tumSlotlar = kayitlar.Select(k => k.Slot).Distinct().ToList();
+        var hepsiDaraltildi = daraltilanSlotlar.Count >= tumSlotlar.Count;
+        if (hepsiDaraltildi)
+            daraltilanSlotlar.Clear();
+        else
+            foreach (var s in tumSlotlar) daraltilanSlotlar.Add(s);
     }
 
     private int? seciliKurumId;
