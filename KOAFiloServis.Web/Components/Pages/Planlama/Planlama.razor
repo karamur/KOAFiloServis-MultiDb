@@ -85,6 +85,16 @@ else
                         </select>
                     </div>
                     <div class="col-auto">
+                        <label class="form-label small mb-1">Onay</label>
+                        <select class="form-select form-select-sm" @bind="seciliOnay" @bind:after="FiltreDegisti">
+                            <option value="">Tum Durumlar</option>
+                            <option value="Taslak">Taslak</option>
+                            <option value="OnayBekliyor">Onay Bekliyor</option>
+                            <option value="Onaylandi">Onaylandi</option>
+                            <option value="Reddedildi">Reddedildi</option>
+                        </select>
+                    </div>
+                    <div class="col-auto">
                         <button class="btn btn-outline-secondary btn-sm" @onclick="SablonOlustur">
                             <i class="bi bi-lightning me-1"></i> Sablon Olustur
                         </button>
@@ -329,6 +339,7 @@ else
     private int seciliYil = DateTime.Now.Year;
     private int seciliAy = DateTime.Now.Month;
     private string seciliSlot = "";
+    private string seciliOnay = "";
 
     private PuantajKayit? duzenleKayit;
     private bool kopyalamaModaliAcik;
@@ -361,6 +372,15 @@ else
     private async Task VeriYukle()
     {
         kayitlar = await KurumPuantajService.GetPuantajlarAsync(seciliYil, seciliAy, seciliKurumId);
+
+        // OnayDurum filtresi (client-side)
+        if (!string.IsNullOrEmpty(seciliOnay) && Enum.TryParse<PuantajOnayDurum>(seciliOnay, out var onayDurum))
+            kayitlar = kayitlar.Where(k => k.OnayDurum == onayDurum).ToList();
+
+        // Slot filtresi (client-side)
+        if (!string.IsNullOrEmpty(seciliSlot))
+            kayitlar = kayitlar.Where(k => k.Slot == (SeferSlot)int.Parse(seciliSlot)).ToList();
+
         degisenSatirlar.Clear();
     }
 
