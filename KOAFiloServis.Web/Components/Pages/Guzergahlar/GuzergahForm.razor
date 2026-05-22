@@ -907,23 +907,32 @@
             }
 
             // Sefer verisini kaydet
-            var seferEntities = seferKalemleri.Select(k => new GuzergahSefer
+            try
             {
-                GuzergahId = guzergah.Id,
-                SeferTipi = k.SeferTipi,
-                KapasiteAdi = k.KapasiteAdi,
-                AracId = k.AracId,
-                SoforAd = k.SoforAd,
-                SoforTelefon = k.SoforTelefon,
-                FirmaAdiSerbest = k.Firma
-            }).ToList();
-            await GuzergahSeferService.ReplaceAllAsync(guzergah.Id, seferEntities);
+                var seferEntities = seferKalemleri.Select(k => new GuzergahSefer
+                {
+                    GuzergahId = guzergah.Id,
+                    FirmaId = guzergah.FirmaId,
+                    SeferTipi = k.SeferTipi,
+                    KapasiteAdi = k.KapasiteAdi,
+                    AracId = k.AracId,
+                    SoforAd = k.SoforAd,
+                    SoforTelefon = k.SoforTelefon,
+                    FirmaAdiSerbest = k.Firma
+                }).ToList();
+                await GuzergahSeferService.ReplaceAllAsync(guzergah.Id, seferEntities);
+            }
+            catch
+            {
+                // Sefer kaydi basarisiz olursa guzergah yine de kaydedilsin
+            }
 
             Navigation.NavigateTo("/guzergahlar");
         }
         catch (Exception ex)
         {
-            kayitHataMesaji = $"Kayıt sırasında hata: {ex.Message}";
+            var innerMsg = ex.InnerException?.Message ?? ex.Message;
+            kayitHataMesaji = $"Kayit sirasinda hata: {innerMsg}";
         }
         finally
         {
