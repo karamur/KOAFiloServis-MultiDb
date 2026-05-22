@@ -530,6 +530,24 @@
             if (harita != null)
             {
                 await harita.InvalidateSizeAsync();
+                // Tüm koordinatlı güzergahları haritaya ekle
+                var guzergahlarKoor = guzergahlarWithCoords.ToList();
+                if (guzergahlarKoor.Any())
+                {
+                    await harita.ClearMapAsync();
+                    await harita.AddMultipleGuzergahlarAsync(guzergahlarKoor.Select(g => new HaritaGosterici.GuzergahHaritaDto
+                    {
+                        BaslangicLatitude = g.BaslangicLatitude,
+                        BaslangicLongitude = g.BaslangicLongitude,
+                        BitisLatitude = g.BitisLatitude,
+                        BitisLongitude = g.BitisLongitude,
+                        GuzergahAdi = g.GuzergahAdi,
+                        BaslangicNoktasi = g.BaslangicNoktasi,
+                        BitisNoktasi = g.BitisNoktasi,
+                        RotaRengi = g.RotaRengi
+                    }));
+                    await harita.FitBoundsAsync();
+                }
             }
         }
     }
