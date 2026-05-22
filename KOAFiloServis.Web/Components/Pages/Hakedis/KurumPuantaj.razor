@@ -263,7 +263,13 @@
                         @foreach (var kayit in kayitlar)
                         {
                             <tr class="@(degisikSatirlar.Contains(kayit) ? "satir-degisik" : "")">
-                                <td>@kayit.Guzergah?.GuzergahAdi</td>
+                                <td>
+                                @kayit.Guzergah?.GuzergahAdi
+                                @if (!string.IsNullOrWhiteSpace(kayit.SlotAdi))
+                                { <br /><small class="text-muted">@kayit.SlotAdi</small> }
+                                else if (kayit.Slot >= SeferSlot.Diger1)
+                                { <br /><small class="text-muted">@kayit.Slot</small> }
+                            </td>
                                 <td class="fw-semibold">@kayit.Plaka</td>
                                 <td>@kayit.SoforAdi</td>
                                 <td>
