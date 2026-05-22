@@ -51,6 +51,19 @@
                                 <option value="@g.Id">@g.GuzergahAdi</option>
                             }
                         </select>
+                        @if (Kayit.GuzergahId.HasValue)
+                        {
+                            var kullanilanSlotlar = MevcutKayitlar
+                                .Where(k => k.GuzergahId == Kayit.GuzergahId.Value && k.Id != Kayit.Id)
+                                .Select(k => k.Slot).Distinct().ToList();
+                            if (kullanilanSlotlar.Any())
+                            {
+                                <small class="text-muted">Kullanılan slotlar:
+                                    @foreach (var s in kullanilanSlotlar)
+                                    { <span class="badge bg-secondary me-1">@s</span> }
+                                </small>
+                            }
+                        }
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Slot</label>
@@ -264,6 +277,7 @@
     [Parameter, EditorRequired] public List<Guzergah> GuzergahListesi { get; set; } = null!;
     [Parameter, EditorRequired] public List<Arac> AracListesi { get; set; } = null!;
     [Parameter, EditorRequired] public List<Sofor> SoforListesi { get; set; } = null!;
+    [Parameter] public List<PuantajKayit> MevcutKayitlar { get; set; } = new();
     [Parameter, EditorRequired] public EventCallback<PuantajKayit> OnKaydet { get; set; }
     [Parameter, EditorRequired] public EventCallback OnKapat { get; set; }
 
