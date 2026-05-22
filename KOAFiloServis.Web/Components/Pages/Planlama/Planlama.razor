@@ -192,6 +192,10 @@ else
                                 };
                                 <tr class="@rowClass" style="@finansRenk">
                                     <td>
+                                        <button class="btn btn-xs btn-outline-success p-0 me-1" style="width:18px;height:18px;line-height:14px;font-size:14px;"
+                                                @onclick="() => AyniGuzergahaSeferEkle(k)" title="Bu guzergaha yeni slot ekle">
+                                            <i class="bi bi-plus-lg"></i>
+                                        </button>
                                         @(k.Guzergah?.GuzergahAdi ?? k.GuzergahAdi)
                                         @{
                                             var kurumAdi = k.Kurum?.KurumAdi ?? k.KurumAdi ?? k.Guzergah?.Kurum?.KurumAdi;
@@ -529,6 +533,34 @@ else
     }
 
     private void KayitDuzenle(PuantajKayit k) => duzenleKayit = k;
+
+    private void AyniGuzergahaSeferEkle(PuantajKayit kaynak)
+    {
+        // Bu guzergah icin kullanilan slotlari bul
+        var kullanilanSlotlar = kayitlar
+            .Where(k => k.GuzergahId == kaynak.GuzergahId)
+            .Select(k => k.Slot).ToHashSet();
+
+        // Ilk bos slotu bul
+        var yeniSlot = SeferSlot.Sabah;
+        foreach (SeferSlot s in Enum.GetValues<SeferSlot>())
+        {
+            if (!kullanilanSlotlar.Contains(s)) { yeniSlot = s; break; }
+        }
+
+        var yeni = new PuantajKayit
+        {
+            GuzergahId = kaynak.GuzergahId, Guzergah = kaynak.Guzergah, GuzergahAdi = kaynak.GuzergahAdi,
+            KurumId = kaynak.KurumId, IsverenFirmaId = kaynak.IsverenFirmaId,
+            Slot = yeniSlot, Yil = kaynak.Yil, Ay = kaynak.Ay,
+            BirimGelir = kaynak.BirimGelir, BirimGider = kaynak.BirimGider,
+            KaynakTipi = kaynak.KaynakTipi, FinansYonu = kaynak.FinansYonu,
+            OnayDurum = PuantajOnayDurum.Taslak
+        };
+        kayitlar.Add(yeni);
+        degisenSatirlar.Add(yeni);
+        ToastService.ShowSuccess($"Yeni sefer eklendi: Slot = {SlotDisplayName(yeniSlot, null)}");
+    }
 
     private void KayitKopyala(PuantajKayit k)
     {
