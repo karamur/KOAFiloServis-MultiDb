@@ -121,6 +121,11 @@ public sealed class KurumPuantajService : IKurumPuantajService
 
     public async Task<PuantajKayit> SavePuantajAsync(PuantajKayit kayit)
     {
+        // Finansal alanlari gun bazli puantajdan hesapla
+        kayit.HesaplaPuantajToplam();
+        kayit.HesaplaGelir();
+        kayit.HesaplaGider();
+
         await using var db = await _dbFactory.CreateDbContextAsync();
 
         // Upsert: Güzergah + Araç + Yıl + Ay + Slot kombinasyonu unique
@@ -150,6 +155,14 @@ public sealed class KurumPuantajService : IKurumPuantajService
             mevcut.Yon          = kayit.Yon;
             mevcut.Gun          = kayit.Gun;
             mevcut.SeferSayisi  = kayit.SeferSayisi;
+            mevcut.BirimGelir   = kayit.BirimGelir;
+            mevcut.BirimGider   = kayit.BirimGider;
+            mevcut.ToplamGelir  = kayit.ToplamGelir;
+            mevcut.ToplamGider  = kayit.ToplamGider;
+            mevcut.Alinacak     = kayit.Alinacak;
+            mevcut.Odenecek     = kayit.Odenecek;
+            mevcut.GelirKdvTutari = kayit.GelirKdvTutari;
+            mevcut.GelirToplam  = kayit.GelirToplam;
             mevcut.KaynakTipi   = kayit.KaynakTipi;
             mevcut.FinansYonu   = kayit.FinansYonu;
             mevcut.KurumId      = kayit.KurumId;
@@ -180,6 +193,11 @@ public sealed class KurumPuantajService : IKurumPuantajService
 
         foreach (var kayit in kayitList)
         {
+            // Finansal alanlari gun bazli puantajdan hesapla
+            kayit.HesaplaPuantajToplam();
+            kayit.HesaplaGelir();
+            kayit.HesaplaGider();
+
             var mevcut = mevcutKayitlar.FirstOrDefault(m =>
                 m.GuzergahId == kayit.GuzergahId &&
                 m.AracId     == kayit.AracId &&
@@ -201,6 +219,14 @@ public sealed class KurumPuantajService : IKurumPuantajService
                 mevcut.Yon          = kayit.Yon;
                 mevcut.Gun          = kayit.Gun;
                 mevcut.SeferSayisi  = kayit.SeferSayisi;
+                mevcut.BirimGelir   = kayit.BirimGelir;
+                mevcut.BirimGider   = kayit.BirimGider;
+                mevcut.ToplamGelir  = kayit.ToplamGelir;
+                mevcut.ToplamGider  = kayit.ToplamGider;
+                mevcut.Alinacak     = kayit.Alinacak;
+                mevcut.Odenecek     = kayit.Odenecek;
+                mevcut.GelirKdvTutari = kayit.GelirKdvTutari;
+                mevcut.GelirToplam  = kayit.GelirToplam;
                 mevcut.KaynakTipi   = kayit.KaynakTipi;
                 mevcut.FinansYonu   = kayit.FinansYonu;
                 mevcut.KurumId      = kayit.KurumId;

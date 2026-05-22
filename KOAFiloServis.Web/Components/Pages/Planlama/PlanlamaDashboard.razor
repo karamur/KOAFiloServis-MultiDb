@@ -155,24 +155,27 @@ else
     {
         try
         {
-            var kayitlar = await PuantajService.GetPuantajlarAsync(seciliYil, seciliAy, 0);
+            var kayitlar = await PuantajService.GetPuantajlarAsync(seciliYil, seciliAy);
             toplamSefer = kayitlar.Count;
 
-            slotDagilimi = kayitlar.GroupBy(k => k.Slot.ToString())
-                .ToDictionary(g => g.Key, g => g.Count());
+            if (kayitlar.Any())
+            {
+                slotDagilimi = kayitlar.GroupBy(k => k.Slot.ToString())
+                    .ToDictionary(g => g.Key, g => g.Count());
 
-            finansDagilimi = kayitlar.GroupBy(k => k.FinansYonu.ToString())
-                .ToDictionary(g => g.Key, g => g.Count());
+                finansDagilimi = kayitlar.GroupBy(k => k.FinansYonu.ToString())
+                    .ToDictionary(g => g.Key, g => g.Count());
 
-            kaynakDagilimi = kayitlar.GroupBy(k => k.KaynakTipi.ToString())
-                .ToDictionary(g => g.Key, g => g.Count());
+                kaynakDagilimi = kayitlar.GroupBy(k => k.KaynakTipi.ToString())
+                    .ToDictionary(g => g.Key, g => g.Count());
 
-            tedarikciSayisi = kayitlar.Count(k => k.KaynakTipi == PlanlamaKaynakTipi.Tedarikci);
-            faturaBekleyen = kayitlar.Count(k => !k.GelirFaturaKesildi && k.BirimGelir > 0 && k.Gun > 0);
+                tedarikciSayisi = kayitlar.Count(k => k.KaynakTipi == PlanlamaKaynakTipi.Tedarikci);
+                faturaBekleyen = kayitlar.Count(k => !k.GelirFaturaKesildi && k.BirimGelir > 0 && k.Gun > 0);
 
-            var conflicts = await PuantajService.CheckConflictsAsync(kayitlar);
-            cakisanSayisi = conflicts.Conflicts.Count;
-            cakisanDetay = conflicts.Conflicts.Take(50).ToList();
+                var conflicts = await PuantajService.CheckConflictsAsync(kayitlar);
+                cakisanSayisi = conflicts.Conflicts.Count;
+                cakisanDetay = conflicts.Conflicts.Take(50).ToList();
+            }
         }
         catch (Exception ex) { Logger.LogWarning(ex, "Dashboard verisi yuklenemedi"); }
         finally { yukleniyor = false; }

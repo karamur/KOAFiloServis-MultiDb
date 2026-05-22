@@ -216,20 +216,17 @@ public class GuzergahService : IGuzergahService
     public async Task<bool> BenzersizGuzergahMiAsync(int firmaId, string guzergahAdi, int? haricId = null)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        var normalizedAdi = guzergahAdi.Trim().ToLowerInvariant();
+        var normalized = guzergahAdi.Trim();
 
         var query = context.Guzergahlar
             .AsNoTracking()
-            .Where(g => g.FirmaId == firmaId && !g.IsDeleted);
+            .Where(g => g.FirmaId == firmaId && !g.IsDeleted
+                        && g.GuzergahAdi.Trim().ToLower() == normalized.ToLowerInvariant());
 
         if (haricId.HasValue)
             query = query.Where(g => g.Id != haricId.Value);
 
-        var mevcutlar = await query
-            .Select(g => g.GuzergahAdi.ToLower().Trim())
-            .ToListAsync();
-
-        return !mevcutlar.Contains(normalizedAdi);
+        return !await query.AnyAsync();
     }
 
     #endregion
