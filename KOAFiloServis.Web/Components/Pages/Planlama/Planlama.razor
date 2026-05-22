@@ -241,7 +241,16 @@ else
                                                 @onclick="() => AyniGuzergahaSeferEkle(k)" title="Bu guzergaha yeni slot ekle">
                                             <i class="bi bi-plus-lg"></i>
                                         </button>
-                                        @(k.Guzergah?.GuzergahAdi ?? k.GuzergahAdi)
+                                        @if (k.GuzergahId.HasValue && k.GuzergahId > 0)
+                                        {
+                                            <a href="/guzergahlar/@k.GuzergahId" target="_blank" class="text-decoration-none" title="Guzergahı düzenle">
+                                                @(k.Guzergah?.GuzergahAdi ?? k.GuzergahAdi) <i class="bi bi-box-arrow-up-right small text-muted"></i>
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            @(k.Guzergah?.GuzergahAdi ?? k.GuzergahAdi)
+                                        }
                                         @{
                                             var kurumAdi = k.Kurum?.KurumAdi ?? k.KurumAdi ?? k.Guzergah?.Kurum?.KurumAdi;
                                         }
