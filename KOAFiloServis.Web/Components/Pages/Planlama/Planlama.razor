@@ -606,10 +606,23 @@ else
             if (!kullanilanSlotlar.Contains(s)) { yeniSlot = s; break; }
         }
 
+        // Guzergah'in varsayilan arac/sofor bilgilerini al
+        var guzergah = guzergahListesi.FirstOrDefault(g => g.Id == kaynak.GuzergahId);
+        var varsayilanAracId = guzergah?.VarsayilanAracId ?? kaynak.AracId;
+        var varsayilanSoforId = guzergah?.VarsayilanSoforId ?? kaynak.SoforId;
+        Arac? varsayilanArac = null;
+        Sofor? varsayilanSofor = null;
+        if (varsayilanAracId.HasValue) varsayilanArac = aracListesi.FirstOrDefault(a => a.Id == varsayilanAracId.Value);
+        if (varsayilanSoforId.HasValue) varsayilanSofor = soforListesi.FirstOrDefault(s => s.Id == varsayilanSoforId.Value);
+
         var yeni = new PuantajKayit
         {
             GuzergahId = kaynak.GuzergahId, Guzergah = kaynak.Guzergah, GuzergahAdi = kaynak.GuzergahAdi,
             KurumId = kaynak.KurumId, IsverenFirmaId = kaynak.IsverenFirmaId,
+            AracId = varsayilanAracId, Arac = varsayilanArac,
+            Plaka = varsayilanArac?.AktifPlaka ?? varsayilanArac?.Plaka,
+            SoforId = varsayilanSoforId, Sofor = varsayilanSofor,
+            SoforAdi = varsayilanSofor != null ? $"{varsayilanSofor.Ad} {varsayilanSofor.Soyad}" : null,
             Slot = yeniSlot, Yil = kaynak.Yil, Ay = kaynak.Ay,
             BirimGelir = kaynak.BirimGelir, BirimGider = kaynak.BirimGider,
             KaynakTipi = kaynak.KaynakTipi, FinansYonu = kaynak.FinansYonu,
