@@ -5,7 +5,7 @@
 
 ---
 
-## 📅 22.05.2026 — Gün Sonu Özeti
+## 📅 22.05.2026 — Gün Sonu Özeti (Final)
 
 ### ✅ Bugün Tamamlanan
 
@@ -13,13 +13,17 @@
 |---|-----|----------|----------|
 | **Item 1** | Güzergah listesi temizliği | `GuzergahList.razor` | VarsayılanAraç, Şoför, Sefer Durumu sütunları + inline sefer paneli + ~480 satır code-behind kaldırıldı |
 | **Item 2** | Güzergah form sefer persist | `GuzergahForm.razor` | Sefer alt tablosu `IGuzergahSeferService` ile persist ediliyor, edit'te geri yükleniyor |
-| **Item 3** | Puantaj-GuzergahSefer entegrasyonu | `KurumPuantajService.cs` | `SablonOlusturAsync` öncelikle GuzergahSefer'den araç/şoför atıyor, `SeferTipindenSlotlara` helper eklendi |
-| **Item 4** | Dashboard aktif firma gösterimi | `Home.razor` | Dashboard'da firma adı, kodu, dönem bilgisi gösteren kart eklendi |
-| **Item 5** | Kapasite çakışma kuralı | `KurumPuantajService.cs` | `CheckConflictsAsync`'e 5. kural: Kapasite (Blocking) — slot başına araç sayısı ≤ PersonelSayisi |
-| **Item 6** | PlanlamaEditModal dropdown | `PlanlamaEditModal.razor` | Boş dropdown'lar dolduruldu (Firma, Güzergah, Araç, Şoför), GuzergahSefer'den araç filtresi |
+| **Item 3** | Puantaj-GuzergahSefer entegrasyonu | `KurumPuantajService.cs` | `SablonOlusturAsync` önce GuzergahSefer'den araç/şoför atıyor, `SeferTipindenSlotlara` helper |
+| **Item 4** | Dashboard aktif firma gösterimi | `Home.razor` | Dashboard'da firma adı, kodu, dönem bilgisi gösteren kart |
+| **Item 5** | Kapasite çakışma kuralı | `KurumPuantajService.cs` | `CheckConflictsAsync`'e 5. kural: Kapasite (Blocking) |
+| **Item 6** | PlanlamaEditModal dropdown | `PlanlamaEditModal.razor` | Boş dropdown'lar dolduruldu, GuzergahSefer'den araç filtresi |
 | **Yedek** | Tüm firma DB'leri yedekleme | `BackupService.cs` | PostgreSQL'de Master + Holding + tüm tenant DB'ler pg_dump ile ayrı ayrı yedekleniyor |
+| **Fix 9** | Sefer kayıt hatası | `GuzergahForm.razor` | `FirmaId` eksikliği giderildi, inner exception gösterimi eklendi, sefer hatası guzergah kaydını bozmuyor |
+| **Fix 10** | Duplicate key sequence | DB (manuel) | 3 tenant DB'de 172 sequence `MAX(Id)+1`'e sıfırlandı (veri göçü sonrası senkronizasyon) |
+| **Fix 11** | Tenant DB eksik kolonlar | DB (manuel) | `PuantajKayitlar` tablosuna `Slot`, `KurumId`, `IsverenFirmaId`, `KaynakTipi`, `FinansYonu`, `BelgeNo`, `TransferDurum`, `FirmaId` eklendi |
+| **Fix 12** | SablonOlustur plaka eksik | `KurumPuantajService.cs` | GuzergahSefer sorgusuna `.Include(s => s.Arac)` eklendi, plaka bilgisi dolduruluyor |
 
-### 📊 Toplam: 7 dosya, +287 / -484 satır (net -197)
+### 📊 Toplam: 7 dosya + 3 DB fix, 7 commit
 
 ### 🧪 Smoke Test
 
@@ -27,19 +31,65 @@
 |------|:-----:|
 | `dotnet build` | ✅ **0 hata, 0 uyarı** |
 | `dotnet test` | ✅ 291/291 başarılı |
-| `/guzergahlar` | ✅ 10 sütun, sefer paneli yok |
 | `/swagger` | ✅ HTTP 200 |
+| `/guzergahlar` | ✅ HTTP 200 (10 sütun) |
+| `/login` | ✅ HTTP 200 |
+| `/dashboard` | ✅ 401 (Authorize) |
 | `/planlama` | ✅ 401 (Authorize) |
+| `/api/auth/login` | ✅ JWT token alındı |
+| `/api/guzergahlar` | ✅ 16 güzergah döndü |
 | Runtime hata/exception | ✅ **0 hata** |
 
 ### 🏗️ Alınan Kararlar
 
 | Karar | Gerekçe |
 |-------|---------|
-| Sefer yönetimi GuzergahList'ten GuzergahForm'a taşındı | Tek sorumluluk: listeleme ve düzenleme ayrıldı, inline panel karmaşası giderildi |
-| GuzergahSefer puantaja öncelikli kaynak oldu | Kullanıcı güzergah altında tanımladığı araç/şoför atamalarının puantaja otomatik yansıması için |
-| Kapasite kuralı Blocking seviyesinde | Güzergah kapasite aşımı operasyonel risk taşır, uyarı değil engel olmalı |
-| Tüm tenant DB'ler yedekleniyor | Firma bazlı fiziksel izolasyonda her DB'nin ayrı yedeği alınmalı; Master ve Holding DB'ler de dahil |
+| Sefer yönetimi GuzergahList'ten GuzergahForm'a taşındı | Tek sorumluluk: listeleme ve düzenleme ayrıldı |
+| GuzergahSefer puantaja öncelikli kaynak | Kullanıcının güzergah altında tanımladığı araç/şoför puantaja otomatik yansır |
+| Kapasite kuralı Blocking seviyesinde | Güzergah kapasite aşımı operasyonel risk, engel olmalı |
+| Tüm tenant DB'ler yedekleniyor | Firma bazlı fiziksel izolasyonda her DB ayrı yedeklenmeli |
+| Güzergah formu: VarsayılanAraç/Şoför sabit, puantaj: seferdeki araç/şoför | İki seviyeli atama: varsayılan (default) + operasyonel (sefer bazlı) |
+
+### 📋 Commit Geçmişi
+
+```
+6476b6d fix(puantaj): SablonOlustur - GuzergahSefer'den plaka bilgisi eklendi
+df0516f chore: .gitignore guncellendi
+19c146d fix(guzergah): Sefer kayit hatasi giderildi - FirmaId + inner exception
+1cca984 feat(backup): Tum tenant DB yedekleme + kayit defteri
+644e50c feat(guzergah-planlama): 6 is paketi
+```
+
+---
+
+## 📅 23.05.2026 — Yapılacak İşler
+
+### 🔴 Manuel Test (Login Gerek)
+
+| # | İş | Açıklama |
+|---|-----|----------|
+| 1 | Güzergah sefer persist testi | Yeni güzergah oluştur → sefer ekle → kaydet → tekrar düzenle, seferler gelmeli |
+| 2 | Planlama kurum seçimi testi | Login → Planlama → Kurum seç → sayfa kırılmadan açılmalı |
+| 3 | Planlama Şablon Oluştur testi | Kurum seç → Şablon Oluştur → GuzergahSefer'deki araç/şoför/plaka puantajda görünmeli |
+| 4 | Kapasite çakışma testi | PersonelSayisi=1 olan güzergaha aynı slotta 2 araç → Kapasite çakışması çıkmalı |
+| 5 | Dashboard firma kartı testi | Login → Dashboard → aktif firma adı/kodu/dönemi görünmeli |
+
+### 🟡 Geliştirme
+
+| # | İş | Açıklama |
+|---|-----|----------|
+| 6 | Puantaj gün atama (Gun01-Gun31) | Planlama tablosunda gün bazlı işaretleme UI'ı |
+| 7 | PlanlamaEditModal veri yükleme optimizasyonu | Modal her açıldığında servis çağrıları yapılıyor, cache'lenebilir |
+| 8 | Tenant DB migration otomasyonu | Yeni tenant DB oluşturulurken tüm migration'ların otomatik uygulanması |
+| 9 | Holding verisi manuel toplama | `ToplaVeKaydetAsync` çağrısı yapıp raporları doldur |
+
+### ⚪ Uzun Vadeli
+
+| # | İş |
+|---|-----|
+| 10 | Planlama sayfası gün grid UI (Gun01-Gun31 checkbox/matrix) |
+| 11 | Holding girişi — Holding Yöneticisi rolü + auth |
+| 12 | Firma geçiş testi (tenant DB izolasyonu) |
 
 ---
 
