@@ -221,6 +221,10 @@ else
                                                     @onclick="() => KayitDuzenle(k)">
                                                 <i class="bi bi-pencil"></i>
                                             </button>
+                                            <button class="btn btn-outline-info btn-sm" title="Kopyala"
+                                                    @onclick="() => KayitKopyala(k)">
+                                                <i class="bi bi-copy"></i>
+                                            </button>
                                             <button class="btn btn-outline-danger btn-sm" title="Sil"
                                                     @onclick="() => KayitSil(k)">
                                                 <i class="bi bi-trash"></i>
@@ -230,7 +234,52 @@ else
                                 </tr>
                             }
                         </tbody>
+                        @{
+                            var slotKayitlar = slotGrubu.ToList();
+                            var slotToplamGelir = slotKayitlar.Sum(k => k.BirimGelir * k.Gun);
+                            var slotToplamGider = slotKayitlar.Sum(k => k.BirimGider * k.Gun);
+                            var slotNetKar = slotToplamGelir - slotToplamGider;
+                        }
+                        <tfoot class="table-secondary fw-bold small">
+                            <tr>
+                                <td colspan="11" class="text-end">
+                                    <span class="text-success me-3">Gelir: @slotToplamGelir.ToString("N2") TL</span>
+                                    <span class="text-danger me-3">Gider: @slotToplamGider.ToString("N2") TL</span>
+                                    <span class="@(slotNetKar >= 0 ? "text-primary" : "text-danger")">Net: @slotNetKar.ToString("N2") TL</span>
+                                </td>
+                            </tr>
+                        </tfoot>
                     </table>
+                </div>
+            }
+
+            @* Genel Toplam *@
+            @if (kayitlar.Any())
+            {
+                var genelGelir = kayitlar.Sum(k => k.BirimGelir * k.Gun);
+                var genelGider = kayitlar.Sum(k => k.BirimGider * k.Gun);
+                var genelKar = genelGelir - genelGider;
+                <div class="card mt-3 border-2 @(genelKar >= 0 ? "border-success" : "border-danger")">
+                    <div class="card-body py-2">
+                        <div class="row text-center">
+                            <div class="col-3">
+                                <small class="text-muted">Toplam Sefer</small>
+                                <h5 class="mb-0">@kayitlar.Sum(k => k.SeferSayisi)</h5>
+                            </div>
+                            <div class="col-3">
+                                <small class="text-muted">Toplam Gun</small>
+                                <h5 class="mb-0">@kayitlar.Sum(k => (decimal)k.Gun)</h5>
+                            </div>
+                            <div class="col-3">
+                                <small class="text-muted">Toplam Gelir</small>
+                                <h5 class="mb-0 text-success">@genelGelir.ToString("N2") TL</h5>
+                            </div>
+                            <div class="col-3">
+                                <small class="text-muted">Net Kar</small>
+                                <h5 class="mb-0 @(genelKar >= 0 ? "text-primary" : "text-danger")">@genelKar.ToString("N2") TL</h5>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             }
 
@@ -407,6 +456,30 @@ else
     }
 
     private void KayitDuzenle(PuantajKayit k) => duzenleKayit = k;
+
+    private void KayitKopyala(PuantajKayit k)
+    {
+        var yeni = new PuantajKayit
+        {
+            GuzergahId = k.GuzergahId, Guzergah = k.Guzergah, GuzergahAdi = k.GuzergahAdi,
+            AracId = k.AracId, Arac = k.Arac, Plaka = k.Plaka,
+            SoforId = k.SoforId, Sofor = k.Sofor, SoforAdi = k.SoforAdi,
+            KurumId = k.KurumId, KurumCariId = k.KurumCariId, KurumAdi = k.KurumAdi,
+            IsverenFirmaId = k.IsverenFirmaId,
+            Slot = k.Slot, Yon = k.Yon, Yil = k.Yil, Ay = k.Ay,
+            SeferSayisi = k.SeferSayisi, Gun = k.Gun,
+            BirimGelir = k.BirimGelir, BirimGider = k.BirimGider,
+            SoforOdemeTipi = k.SoforOdemeTipi,
+            KaynakTipi = k.KaynakTipi, FinansYonu = k.FinansYonu,
+            BelgeNo = k.BelgeNo, TransferDurum = k.TransferDurum,
+            OnayDurum = PuantajOnayDurum.Taslak
+        };
+        for (int g = 1; g <= 31; g++) yeni.SetGunDeger(g, k.GetGunDeger(g));
+        yeni.HesaplaPuantajToplam();
+        kayitlar.Add(yeni);
+        degisenSatirlar.Add(yeni);
+        ToastService.ShowSuccess("Satir kopyalandi. Kaydetmek icin Tumunu Kaydet'e basin.");
+    }
 
     private async Task KayitKaydetCallback(PuantajKayit kayit)
     {
