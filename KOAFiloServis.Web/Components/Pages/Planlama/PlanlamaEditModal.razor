@@ -211,10 +211,15 @@
                                                         1 => "bg-primary bg-opacity-25",
                                                         _ => "bg-white"
                                                     };
+                                                    var bugun = DateTime.Today;
+                                                    var isBugun = Kayit.Yil == bugun.Year && Kayit.Ay == bugun.Month && gunNo == bugun.Day;
+                                                    var borderStyle = isBugun ? "border:2px solid #dc3545;" : "border:1px solid #dee2e6;";
+                                                    var gunLabel = deger == 2 ? "S+A" : deger == 1 ? "Tek Sefer" : "Gitmedi";
+                                                    var titleText = $"Gun {gunNo}: {gunLabel}" + (isBugun ? " [BUGUN]" : "");
                                                     <div class="text-center rounded @cellClass"
-                                                         style="width:36px; height:36px; line-height:36px; font-size:12px; cursor:pointer; border:1px solid #dee2e6; user-select:none;"
+                                                         style="width:36px; height:36px; line-height:36px; font-size:12px; cursor:pointer; @borderStyle user-select:none;"
                                                          @onclick="() => GunToggle(gunNo)"
-                                                         title="Gun @gunNo: @(deger == 2 ? "S+A" : deger == 1 ? "Tek Sefer" : "Gitmedi")">
+                                                         title="@titleText">
                                                         @gunNo
                                                     </div>
                                                 }

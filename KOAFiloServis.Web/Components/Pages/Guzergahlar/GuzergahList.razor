@@ -34,6 +34,23 @@
         </div>
     </div>
 
+    @if (guzergahlar != null && guzergahlar.Any())
+    {
+        var aktif = guzergahlar.Count(g => g.Aktif);
+        var pasif = guzergahlar.Count(g => !g.Aktif);
+        <div class="row g-2 mb-3">
+            <div class="col-auto">
+                <div class="card border-primary bg-primary bg-opacity-10"><div class="card-body py-2 px-3 text-center"><small class="text-muted">Toplam</small><h5 class="mb-0">@guzergahlar.Count</h5></div></div>
+            </div>
+            <div class="col-auto">
+                <div class="card border-success bg-success bg-opacity-10"><div class="card-body py-2 px-3 text-center"><small class="text-muted">Aktif</small><h5 class="mb-0 text-success">@aktif</h5></div></div>
+            </div>
+            <div class="col-auto">
+                <div class="card border-secondary bg-secondary bg-opacity-10"><div class="card-body py-2 px-3 text-center"><small class="text-muted">Pasif</small><h5 class="mb-0 text-secondary">@pasif</h5></div></div>
+            </div>
+        </div>
+    }
+
     @if (guzergahlar == null)
     {
         <div class="text-center">
