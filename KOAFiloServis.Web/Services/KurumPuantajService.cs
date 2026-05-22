@@ -152,6 +152,7 @@ public sealed class KurumPuantajService : IKurumPuantajService
             mevcut.SoforAdi     = kayit.SoforAdi;
             mevcut.Plaka        = kayit.Plaka;
             mevcut.Slot         = kayit.Slot;
+            mevcut.SlotAdi      = kayit.SlotAdi;
             mevcut.Yon          = kayit.Yon;
             mevcut.Gun          = kayit.Gun;
             mevcut.SeferSayisi  = kayit.SeferSayisi;
@@ -216,6 +217,7 @@ public sealed class KurumPuantajService : IKurumPuantajService
                 mevcut.SoforAdi     = kayit.SoforAdi;
                 mevcut.Plaka        = kayit.Plaka;
                 mevcut.Slot         = kayit.Slot;
+                mevcut.SlotAdi      = kayit.SlotAdi;
                 mevcut.Yon          = kayit.Yon;
                 mevcut.Gun          = kayit.Gun;
                 mevcut.SeferSayisi  = kayit.SeferSayisi;
@@ -494,7 +496,7 @@ public sealed class KurumPuantajService : IKurumPuantajService
         SeferTipi.Sabah => new[] { SeferSlot.Sabah },
         SeferTipi.Aksam => new[] { SeferSlot.Aksam },
         SeferTipi.SabahAksam => new[] { SeferSlot.Sabah, SeferSlot.Aksam },
-        SeferTipi.Saatlik => new[] { SeferSlot.Sabah, SeferSlot.Aksam, SeferSlot.Mesai },
+        SeferTipi.Saatlik => new[] { SeferSlot.Sabah, SeferSlot.Aksam, SeferSlot.Mesai, SeferSlot.Diger1, SeferSlot.Diger2, SeferSlot.Diger3 },
         _ => new[] { SeferSlot.Sabah }
     };
 

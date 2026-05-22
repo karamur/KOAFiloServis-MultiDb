@@ -35,6 +35,10 @@ public class PuantajKayit : BaseEntity
     // Sefer Slot (günlük zaman dilimi)
     public SeferSlot Slot { get; set; } = SeferSlot.Sabah;
 
+    // Özel slot adı (Slot enum dışı özel isimlendirme: "Gece Vardiyası", "Öğle" vb.)
+    [StringLength(50)]
+    public string? SlotAdi { get; set; }
+
     // Yön (S=Sabah, A=Akşam, S/A=Sabah-Akşam)
     public PuantajYon Yon { get; set; } = PuantajYon.SabahAksam;
 
@@ -335,7 +339,12 @@ public enum SeferSlot
 {
     Sabah = 1,
     Aksam = 2,
-    Mesai = 3
+    Mesai = 3,
+    Diger1 = 4,
+    Diger2 = 5,
+    Diger3 = 6,
+    Diger4 = 7,
+    Diger5 = 8
 }
 
 /// <summary>

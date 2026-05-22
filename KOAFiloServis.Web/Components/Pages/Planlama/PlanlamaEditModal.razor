@@ -57,9 +57,14 @@
                         <select class="form-select" @bind="Kayit.Slot">
                             @foreach (SeferSlot s in Enum.GetValues<SeferSlot>())
                             {
-                                <option value="@s">@s</option>
+                                <option value="@s">@SlotDisplayName(s)</option>
                             }
                         </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Slot Adı (özel)</label>
+                        <input type="text" class="form-control" @bind="Kayit.SlotAdi" placeholder="Gece Vardiyası, Öğle..." maxlength="50" />
+                        <small class="text-muted">Boş bırakılırsa slot adı kullanılır</small>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Yon</label>
@@ -335,6 +340,19 @@
             ? AracListesi.Where(a => seferAracIds.Contains(a.Id)).ToList()
             : AracListesi;
     }
+
+    private static string SlotDisplayName(SeferSlot slot) => slot switch
+    {
+        SeferSlot.Sabah => "Sabah",
+        SeferSlot.Aksam => "Akşam",
+        SeferSlot.Mesai => "Mesai",
+        SeferSlot.Diger1 => "Diğer 1",
+        SeferSlot.Diger2 => "Diğer 2",
+        SeferSlot.Diger3 => "Diğer 3",
+        SeferSlot.Diger4 => "Diğer 4",
+        SeferSlot.Diger5 => "Diğer 5",
+        _ => slot.ToString()
+    };
 
     private void OnayDurumDegisti()
     {

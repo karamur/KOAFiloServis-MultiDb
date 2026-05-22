@@ -142,7 +142,7 @@ else
                 var daraltildi = daraltilanSlotlar.Contains(slotGrubu.Key);
                 <h5 class="mt-3 mb-2" style="cursor:pointer" @onclick="() => SlotToggle(slotGrubu.Key)">
                     <i class="bi @(daraltildi ? "bi-chevron-right" : "bi-chevron-down") me-1"></i>
-                    <span class="badge @SlotBadgeClass(slotGrubu.Key) me-2">@slotGrubu.Key</span>
+                    <span class="badge @SlotBadgeClass(slotGrubu.Key) me-2">@SlotDisplayName(slotGrubu.Key, slotGrubu.FirstOrDefault()?.SlotAdi)</span>
                     <small class="text-muted">@slotGrubu.Count() sefer</small>
                     @if (daraltildi) { <small class="text-muted ms-1">(daraltildi)</small> }
                 </h5>
@@ -538,7 +538,7 @@ else
             SoforId = k.SoforId, Sofor = k.Sofor, SoforAdi = k.SoforAdi,
             KurumId = k.KurumId, KurumCariId = k.KurumCariId, KurumAdi = k.KurumAdi,
             IsverenFirmaId = k.IsverenFirmaId,
-            Slot = k.Slot, Yon = k.Yon, Yil = k.Yil, Ay = k.Ay,
+            Slot = k.Slot, SlotAdi = k.SlotAdi, Yon = k.Yon, Yil = k.Yil, Ay = k.Ay,
             SeferSayisi = k.SeferSayisi, Gun = k.Gun,
             BirimGelir = k.BirimGelir, BirimGider = k.BirimGider,
             SoforOdemeTipi = k.SoforOdemeTipi,
@@ -756,11 +756,27 @@ else
         ToastService.ShowSuccess($"{kopyalananlar.Count} kayit yuklendi. Kaydetmek icin 'Tumunu Kaydet' dugmesine basin.");
     }
 
+    private static string SlotDisplayName(SeferSlot slot, string? slotAdi) =>
+        !string.IsNullOrWhiteSpace(slotAdi) ? slotAdi : slot switch
+        {
+            SeferSlot.Sabah => "Sabah",
+            SeferSlot.Aksam => "Akşam",
+            SeferSlot.Mesai => "Mesai",
+            SeferSlot.Diger1 => "Diğer 1",
+            SeferSlot.Diger2 => "Diğer 2",
+            SeferSlot.Diger3 => "Diğer 3",
+            SeferSlot.Diger4 => "Diğer 4",
+            SeferSlot.Diger5 => "Diğer 5",
+            _ => slot.ToString()
+        };
+
     private string SlotBadgeClass(SeferSlot slot) => slot switch
     {
         SeferSlot.Sabah => "bg-warning text-dark",
         SeferSlot.Aksam => "bg-info text-dark",
         SeferSlot.Mesai => "bg-secondary",
+        SeferSlot.Diger1 or SeferSlot.Diger2 => "bg-primary",
+        SeferSlot.Diger3 or SeferSlot.Diger4 or SeferSlot.Diger5 => "bg-dark",
         _ => "bg-light text-dark"
     };
 
