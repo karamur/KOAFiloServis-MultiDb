@@ -62,34 +62,79 @@ df0516f chore: .gitignore guncellendi
 
 ---
 
+## 📅 22.05.2026 — Gün Sonu Özeti (Ek Oturum)
+
+### ✅ Tamamlanan (10 iş paketi, 4 commit)
+
+| # | İş | Dosyalar | Açıklama |
+|---|-----|----------|----------|
+| **Item 6** | Puantaj gün atama UI | `PlanlamaEditModal.razor` | Gun01-Gun31 grid (0-1-2 döngü, hafta içi seçimi, auto hesapla) |
+| **Item 7** | Modal veri yükleme optimizasyonu | `PlanlamaEditModal.razor`, `Planlama.razor` | 5 servis çağrısı paralel + parent'tan parametre geçişi |
+| **Item 8** | Tenant DB migration otomasyonu | `TenantDatabaseService.cs` | `BaselineMigrationsAsync`: yeni DB'lerde migration history baseline |
+| **Item 9** | Holding verisi manuel toplama | `HoldingDashboard.razor` | Yıl/Ay seçimi + "Veri Topla" butonu |
+| **Item 10** | Planlama mini gün göstergesi | `Planlama.razor` | Ana tabloda 31 günlük renkli çubuk + tooltip |
+| **Item 11** | Holding Yöneticisi rolü + auth | `KullaniciVeLisans.cs`, `NavMenu.razor`, 7 Holding sayfası | Rol, 8 yetki, menü kontrolü, sayfa `[Authorize(Roles)]` |
+| **Bonus 1** | Planlama inline gün toggle | `Planlama.razor` | Mini gün çubukları tıklanabilir, `degisenSatirlar` otomatik takip |
+| **Bonus 2** | Holding ilk veri toplama | `Program.cs` | `EnsureHoldingInitialData`: boş tabloya otomatik ilk veri |
+| **Bonus 3** | Planlama rol bazlı auth | `KullaniciVeLisans.cs`, `NavMenu.razor`, 2 Planlama sayfası | 6 Planlama yetkisi, menü kontrolü, sayfa `[Authorize(Roles)]` |
+| **Fix** | Setup.iss Boolean fix | `setup/Setup.iss` | `Boolean()` → `Boolean` |
+
+### 📊 Toplam: 10 dosya, 4 commit
+
+### 🧪 Smoke Test
+
+| Test | Sonuç |
+|------|:-----:|
+| `dotnet build` | ✅ **0 hata, 0 uyarı** |
+| `dotnet test` | ✅ 291/291 başarılı |
+
+### 🏗️ Alınan Kararlar
+
+| Karar | Gerekçe |
+|-------|---------|
+| Tenant DB migration baseline | `EnsureCreated` sonrası tüm migration'lar `__EFMigrationsHistory`'ye kaydedilir, gelecek `Migrate()` çağrıları sadece yeni migration'ları uygular |
+| Holding ve Planlama sayfaları rol bazlı yetkilendirme | Admin + ilgili rol dışındakiler sayfalara erişemez, menüde göremez |
+| PlanlamaPermission seed | Operasyon (tam yetki), Muhasebeci (okuma), Admin (tümü) |
+
+### 📋 Commit Geçmişi
+
+```
+ad89039 feat(planlama): Planlama modulu rol bazli yetkilendirme
+2a52c1d feat(holding-planlama): Holding ilk veri toplama + Planlama inline gun toggle
+5d5ca6f feat(holding): Holding Yoneticisi rolu + yetkilendirme
+08a4256 feat(puantaj-planlama): Gun bazli puantaj grid + modal optimizasyonu + holding veri toplama + tenant DB migration baseline
+```
+
+---
+
 ## 📅 23.05.2026 — Yapılacak İşler
 
 ### 🔴 Manuel Test (Login Gerek)
 
-| # | İş | Açıklama |
-|---|-----|----------|
-| 1 | Güzergah sefer persist testi | Yeni güzergah oluştur → sefer ekle → kaydet → tekrar düzenle, seferler gelmeli |
-| 2 | Planlama kurum seçimi testi | Login → Planlama → Kurum seç → sayfa kırılmadan açılmalı |
-| 3 | Planlama Şablon Oluştur testi | Kurum seç → Şablon Oluştur → GuzergahSefer'deki araç/şoför/plaka puantajda görünmeli |
-| 4 | Kapasite çakışma testi | PersonelSayisi=1 olan güzergaha aynı slotta 2 araç → Kapasite çakışması çıkmalı |
-| 5 | Dashboard firma kartı testi | Login → Dashboard → aktif firma adı/kodu/dönemi görünmeli |
+| # | İş | Açıklama | Durum |
+|---|-----|----------|:-----:|
+| 1 | Güzergah sefer persist testi | Yeni güzergah oluştur → sefer ekle → kaydet → tekrar düzenle, seferler gelmeli | 🔴 |
+| 2 | Planlama kurum seçimi testi | Login → Planlama → Kurum seç → sayfa kırılmadan açılmalı | 🔴 |
+| 3 | Planlama Şablon Oluştur testi | Kurum seç → Şablon Oluştur → GuzergahSefer'deki araç/şoför/plaka puantajda görünmeli | 🔴 |
+| 4 | Kapasite çakışma testi | PersonelSayisi=1 olan güzergaha aynı slotta 2 araç → Kapasite çakışması çıkmalı | 🔴 |
+| 5 | Dashboard firma kartı testi | Login → Dashboard → aktif firma adı/kodu/dönemi görünmeli | 🔴 |
 
 ### 🟡 Geliştirme
 
-| # | İş | Açıklama |
-|---|-----|----------|
-| 6 | Puantaj gün atama (Gun01-Gun31) | Planlama tablosunda gün bazlı işaretleme UI'ı |
-| 7 | PlanlamaEditModal veri yükleme optimizasyonu | Modal her açıldığında servis çağrıları yapılıyor, cache'lenebilir |
-| 8 | Tenant DB migration otomasyonu | Yeni tenant DB oluşturulurken tüm migration'ların otomatik uygulanması |
-| 9 | Holding verisi manuel toplama | `ToplaVeKaydetAsync` çağrısı yapıp raporları doldur |
+| # | İş | Açıklama | Durum |
+|---|-----|----------|:-----:|
+| 6 | Puantaj gün atama (Gun01-Gun31) | Planlama tablosunda gün bazlı işaretleme UI'ı | ✅ |
+| 7 | PlanlamaEditModal veri yükleme optimizasyonu | Modal her açıldığında servis çağrıları yapılıyor, cache'lenebilir | ✅ |
+| 8 | Tenant DB migration otomasyonu | Yeni tenant DB oluşturulurken tüm migration'ların otomatik uygulanması | ✅ |
+| 9 | Holding verisi manuel toplama | `ToplaVeKaydetAsync` çağrısı yapıp raporları doldur | ✅ |
 
 ### ⚪ Uzun Vadeli
 
-| # | İş |
-|---|-----|
-| 10 | Planlama sayfası gün grid UI (Gun01-Gun31 checkbox/matrix) |
-| 11 | Holding girişi — Holding Yöneticisi rolü + auth |
-| 12 | Firma geçiş testi (tenant DB izolasyonu) |
+| # | İş | Durum |
+|---|-----|:-----:|
+| 10 | Planlama sayfası gün grid UI (Gun01-Gun31 checkbox/matrix) | ✅ |
+| 11 | Holding girişi — Holding Yöneticisi rolü + auth | ✅ |
+| 12 | Firma geçiş testi (tenant DB izolasyonu) | 🔴 |
 
 ---
 
