@@ -88,11 +88,11 @@ else
             </div>
         </div>
 
-        @if (toplamGelir > 0 || toplamGider > 0)
+        @if (toplamGelir > 0 || toplamGider > 0 || toplamGunSayisi > 0)
         {
             var netKar = toplamGelir - toplamGider;
             <div class="row g-3 mb-4">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="card border-success">
                         <div class="card-body text-center py-3">
                             <h6 class="text-muted">Toplam Gelir</h6>
@@ -100,7 +100,7 @@ else
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="card border-danger">
                         <div class="card-body text-center py-3">
                             <h6 class="text-muted">Toplam Gider</h6>
@@ -108,11 +108,19 @@ else
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="card @(netKar >= 0 ? "border-primary" : "border-danger")">
                         <div class="card-body text-center py-3">
                             <h6 class="text-muted">Net Kar/Zarar</h6>
                             <h3 class="@(netKar >= 0 ? "text-primary" : "text-danger")">@netKar.ToString("N2") TL</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-info">
+                        <div class="card-body text-center py-3">
+                            <h6 class="text-muted">Toplam Sefer Günü</h6>
+                            <h3 class="text-info">@toplamGunSayisi</h3>
                         </div>
                     </div>
                 </div>
