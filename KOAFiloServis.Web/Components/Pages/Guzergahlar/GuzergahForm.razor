@@ -466,6 +466,9 @@
     [Parameter]
     public int? Id { get; set; }
 
+    [SupplyParameterFromQuery]
+    public int? Kopyala { get; set; }
+
     private Guzergah guzergah = new();
     private List<Cari> cariler = new();
     private List<Kurum> kurumlar = new();
@@ -560,6 +563,26 @@
                 {
                     haritaAcik = true;
                 }
+            }
+            else
+            {
+                Navigation.NavigateTo("/guzergahlar");
+            }
+        }
+        else if (Kopyala.HasValue && Kopyala.Value > 0)
+        {
+            // Kopyalama: mevcut guzergah verilerini yeni kayda kopyala
+            var kaynak = await GuzergahService.GetByIdAsync(Kopyala.Value);
+            if (kaynak != null)
+            {
+                guzergah = kaynak;
+                guzergah.Id = 0; // Yeni kayit olustur
+                guzergah.CreatedAt = DateTime.UtcNow;
+                guzergah.UpdatedAt = null;
+                var firmaId = AktifFirmaProvider.Mevcut.FirmaId;
+                guzergah.GuzergahKodu = firmaId > 0
+                    ? await GuzergahService.GenerateGuzergahKoduAsync(firmaId)
+                    : await GuzergahService.GenerateNextKodAsync();
             }
             else
             {

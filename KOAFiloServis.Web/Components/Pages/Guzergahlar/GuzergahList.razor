@@ -227,6 +227,9 @@
                                             <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => Duzenle(guzergah.Id)" title="Düzenle">
                                                 <i class="bi bi-pencil"></i>
                                             </button>
+                                            <button class="btn btn-sm btn-outline-info me-1" @onclick="() => Kopyala(guzergah.Id)" title="Kopyala">
+                                                <i class="bi bi-copy"></i>
+                                            </button>
                                             <button class="btn btn-sm btn-outline-danger" @onclick="() => SilOnay(guzergah)" title="Sil">
                                                 <i class="bi bi-trash"></i>
                                             </button>
@@ -492,6 +495,11 @@
     private void Duzenle(int id)
     {
         Navigation.NavigateTo($"/guzergahlar/{id}");
+    }
+
+    private void Kopyala(int id)
+    {
+        Navigation.NavigateTo($"/guzergahlar/yeni?kopyala={id}");
     }
 
     private void SilOnay(Guzergah guzergah)
