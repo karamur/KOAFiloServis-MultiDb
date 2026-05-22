@@ -1,5 +1,5 @@
 @page "/holding/karsilastirma"
-@attribute [Authorize]
+@attribute [Authorize(Roles = "Admin,HoldingYoneticisi")]
 @rendermode InteractiveServer
 @using KOAFiloServis.Shared.Entities
 @using KOAFiloServis.Web.Services

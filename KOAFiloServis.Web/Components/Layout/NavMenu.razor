@@ -1271,46 +1271,70 @@
         }
 
         @* === HOLDING === *@
-        <div class="nav-item px-3 mt-2 pt-2 border-top">
-            <div class="nav-section-header text-white-50 small">
-                <span><i class="bi bi-buildings me-2"></i>Holding Yonetimi</span>
+        @if (HasMenuYetki(Yetkiler.MenuHolding))
+        {
+            <div class="nav-item px-3 mt-2 pt-2 border-top">
+                <div class="nav-section-header text-white-50 small">
+                    <span><i class="bi bi-buildings me-2"></i>Holding Yonetimi</span>
+                </div>
+                @if (HasYetki(Yetkiler.HoldingDashboardOku))
+                {
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="holding">
+                            <i class="bi bi-speedometer2 me-2 text-primary"></i> Dashboard
+                        </NavLink>
+                    </div>
+                }
+                @if (HasYetki(Yetkiler.HoldingKarsilastirmaOku))
+                {
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="holding/karsilastirma">
+                            <i class="bi bi-bar-chart me-2 text-info"></i> Firma Karsilastirma
+                        </NavLink>
+                    </div>
+                }
+                @if (HasYetki(Yetkiler.HoldingButceOku))
+                {
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="holding/butce">
+                            <i class="bi bi-calculator me-2 text-success"></i> Butce Konsolidasyonu
+                        </NavLink>
+                    </div>
+                }
+                @if (HasYetki(Yetkiler.HoldingOdemelerOku))
+                {
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="holding/odemeler">
+                            <i class="bi bi-cash-stack me-2 text-warning"></i> Odeme Plani
+                        </NavLink>
+                    </div>
+                }
+                @if (HasYetki(Yetkiler.HoldingAracMaliyetOku))
+                {
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="holding/arac-maliyet">
+                            <i class="bi bi-truck me-2 text-secondary"></i> Arac Maliyet Ozeti
+                        </NavLink>
+                    </div>
+                }
+                @if (HasYetki(Yetkiler.HoldingPersonelGiderOku))
+                {
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="holding/personel">
+                            <i class="bi bi-people me-2 text-info"></i> Personel Gider Ozeti
+                        </NavLink>
+                    </div>
+                }
+                @if (HasYetki(Yetkiler.HoldingHakedisOku))
+                {
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="holding/hakedis">
+                            <i class="bi bi-clipboard-check me-2 text-success"></i> Hakedis Ozeti
+                        </NavLink>
+                    </div>
+                }
             </div>
-            <div class="nav-item px-3">
-                <NavLink class="nav-link" href="holding">
-                    <i class="bi bi-speedometer2 me-2 text-primary"></i> Dashboard
-                </NavLink>
-            </div>
-            <div class="nav-item px-3">
-                <NavLink class="nav-link" href="holding/karsilastirma">
-                    <i class="bi bi-bar-chart me-2 text-info"></i> Firma Karsilastirma
-                </NavLink>
-            </div>
-            <div class="nav-item px-3">
-                <NavLink class="nav-link" href="holding/butce">
-                    <i class="bi bi-calculator me-2 text-success"></i> Butce Konsolidasyonu
-                </NavLink>
-            </div>
-            <div class="nav-item px-3">
-                <NavLink class="nav-link" href="holding/odemeler">
-                    <i class="bi bi-cash-stack me-2 text-warning"></i> Odeme Plani
-                </NavLink>
-            </div>
-            <div class="nav-item px-3">
-                <NavLink class="nav-link" href="holding/arac-maliyet">
-                    <i class="bi bi-truck me-2 text-secondary"></i> Arac Maliyet Ozeti
-                </NavLink>
-            </div>
-            <div class="nav-item px-3">
-                <NavLink class="nav-link" href="holding/personel">
-                    <i class="bi bi-people me-2 text-info"></i> Personel Gider Ozeti
-                </NavLink>
-            </div>
-            <div class="nav-item px-3">
-                <NavLink class="nav-link" href="holding/hakedis">
-                    <i class="bi bi-clipboard-check me-2 text-success"></i> Hakedis Ozeti
-                </NavLink>
-            </div>
-        </div>
+        }
     </nav>
 
     <!-- Footer - Copyright ve GitHub Linkleri -->
@@ -1513,6 +1537,7 @@
         ["menu.fatura"] = new() { "fatura", "faturalar", "faturahazirlik", "kesilenfatura", "gelenfatura" },
         ["menu.bankakasa"] = new() { "banka", "bankahesap", "bankahareket" },
         ["menu.butce"] = new() { "butce", "odemeyonetim", "tekrarlayanodem" },
+        ["menu.holding"] = new() { "holding" },
         ["menu.checklist"] = new() { "checklist", "checklistmali" },
         ["menu.raporlar"] = new() { "rapor", "raporlar", "raporozmal", "raporkirala", "raporkomisyon", "raporservis", "raporfatura", "rapormasraf", "raporekstre" },
         ["menu.satis"] = new() { "satis", "piyasa", "ilan" },
@@ -1525,6 +1550,7 @@
     {
         ["menu.filoservis"] = new() { "raporlar.oku", "serviscalisma.oku", "tedarikciservis.oku", "tedarikciarac.oku", "tedarikcipersonel.oku", "tedarikciaracevrak.oku" },
         ["menu.satis"] = new() { "satis.oku", "piyasa.oku", "raporlar.oku" },
+        ["menu.holding"] = new() { "holding.dashboard.oku", "holding.karsilastirma.oku", "holding.butce.oku", "holding.odemeler.oku", "holding.aracmaliyet.oku", "holding.personelgider.oku", "holding.hakedis.oku" },
     };
 
     private void ToggleSection(NavSection section)

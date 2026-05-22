@@ -168,6 +168,7 @@ public static class SistemRolleri
     public const string SatisTemsilcisi = "SatisTemsilcisi";
     public const string Sofor = "SoforRol";
     public const string Kullanici = "Kullanici";
+    public const string HoldingYoneticisi = "HoldingYoneticisi";
 
     public static List<RolTanim> GetAllRoles()
     {
@@ -179,6 +180,7 @@ public static class SistemRolleri
             new(SatisTemsilcisi, "Satis Temsilcisi", "Satis modulu ve piyasa arastirma", "#198754", "bi-graph-up-arrow"),
             new(Sofor, "Sofor", "Kendine atanan arac ve guzergah bilgileri", "#fd7e14", "bi-person-badge"),
             new(Kullanici, "Genel Kullanici", "Temel goruntuleme yetkilerine sahip kullanici", "#6c757d", "bi-person"),
+            new(HoldingYoneticisi, "Holding Yoneticisi", "Tum firmalarin konsolide raporlarini ve holding verilerini goruntuleme", "#0dcaf0", "bi-buildings"),
         };
     }
 
@@ -284,6 +286,20 @@ public static class SistemRolleri
                 Yetkiler.RaporlarOku,
             },
 
+            HoldingYoneticisi => new List<string>
+            {
+                Yetkiler.Dashboard,
+                Yetkiler.MenuHolding,
+                Yetkiler.HoldingDashboardOku,
+                Yetkiler.HoldingKarsilastirmaOku,
+                Yetkiler.HoldingButceOku,
+                Yetkiler.HoldingOdemelerOku,
+                Yetkiler.HoldingAracMaliyetOku,
+                Yetkiler.HoldingPersonelGiderOku,
+                Yetkiler.HoldingHakedisOku,
+                Yetkiler.HoldingVeriTopla,
+            },
+
             _ => new List<string> { Yetkiler.Dashboard }
         };
     }
@@ -335,6 +351,7 @@ public static class Yetkiler
     public const string MenuSatisModulu = "menu.satis";
     public const string MenuStokEnvanter = "menu.stok";
     public const string MenuAyarlar = "menu.ayarlar";
+    public const string MenuHolding = "menu.holding";
 
     // === CRM MODULU YETKILERI ===
     
@@ -536,6 +553,16 @@ public static class Yetkiler
     // -- Raporlar (Genel) --
     public const string RaporlarOku = "raporlar.oku";
     public const string RaporlarExport = "raporlar.export";
+
+    // -- Holding Yonetimi --
+    public const string HoldingDashboardOku = "holding.dashboard.oku";
+    public const string HoldingKarsilastirmaOku = "holding.karsilastirma.oku";
+    public const string HoldingButceOku = "holding.butce.oku";
+    public const string HoldingOdemelerOku = "holding.odemeler.oku";
+    public const string HoldingAracMaliyetOku = "holding.aracmaliyet.oku";
+    public const string HoldingPersonelGiderOku = "holding.personelgider.oku";
+    public const string HoldingHakedisOku = "holding.hakedis.oku";
+    public const string HoldingVeriTopla = "holding.veritopla";
 
     // -- Satis Dashboard --
     public const string SatisDashboardOku = "satisdash.oku";
@@ -911,6 +938,42 @@ public static class Yetkiler
                 {
                     new(RaporlarOku, "Goruntuleme", "bi-eye"),
                     new(RaporlarExport, "Export", "bi-download"),
+                }),
+            }),
+
+            new("Holding Yonetimi", "bi-buildings", MenuHolding, new List<AltMenuYetki>
+            {
+                new("Holding Dashboard", "bi-speedometer2", new List<YetkiTanim>
+                {
+                    new(HoldingDashboardOku, "Goruntuleme", "bi-eye"),
+                }),
+                new("Firma Karsilastirma", "bi-bar-chart", new List<YetkiTanim>
+                {
+                    new(HoldingKarsilastirmaOku, "Goruntuleme", "bi-eye"),
+                }),
+                new("Butce Konsolidasyonu", "bi-calculator", new List<YetkiTanim>
+                {
+                    new(HoldingButceOku, "Goruntuleme", "bi-eye"),
+                }),
+                new("Odeme Plani", "bi-cash-stack", new List<YetkiTanim>
+                {
+                    new(HoldingOdemelerOku, "Goruntuleme", "bi-eye"),
+                }),
+                new("Arac Maliyet Ozeti", "bi-truck", new List<YetkiTanim>
+                {
+                    new(HoldingAracMaliyetOku, "Goruntuleme", "bi-eye"),
+                }),
+                new("Personel Gider Ozeti", "bi-people", new List<YetkiTanim>
+                {
+                    new(HoldingPersonelGiderOku, "Goruntuleme", "bi-eye"),
+                }),
+                new("Hakedis Ozeti", "bi-clipboard-check", new List<YetkiTanim>
+                {
+                    new(HoldingHakedisOku, "Goruntuleme", "bi-eye"),
+                }),
+                new("Veri Toplama", "bi-database-down", new List<YetkiTanim>
+                {
+                    new(HoldingVeriTopla, "Veri Toplama", "bi-download"),
                 }),
             }),
 
