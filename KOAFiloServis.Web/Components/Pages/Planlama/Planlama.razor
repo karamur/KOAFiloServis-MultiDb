@@ -129,10 +129,15 @@ else
             var slotGruplari = kayitlar.GroupBy(k => k.Slot).OrderBy(g => g.Key);
             @foreach (var slotGrubu in slotGruplari)
             {
-                <h5 class="mt-3 mb-2">
+                var daraltildi = daraltilanSlotlar.Contains(slotGrubu.Key);
+                <h5 class="mt-3 mb-2" style="cursor:pointer" @onclick="() => SlotToggle(slotGrubu.Key)">
+                    <i class="bi @(daraltildi ? "bi-chevron-right" : "bi-chevron-down") me-1"></i>
                     <span class="badge @SlotBadgeClass(slotGrubu.Key) me-2">@slotGrubu.Key</span>
                     <small class="text-muted">@slotGrubu.Count() sefer</small>
+                    @if (daraltildi) { <small class="text-muted ms-1">(daraltildi)</small> }
                 </h5>
+                @if (!daraltildi)
+                {
                 <div class="table-responsive">
                     <table class="table table-sm table-striped table-hover align-middle">
                         <thead class="table-dark">
@@ -280,6 +285,7 @@ else
                         </tfoot>
                     </table>
                 </div>
+                }
             }
 
             @* Genel Toplam *@
@@ -427,6 +433,15 @@ else
     private List<Arac> aracListesi = new();
     private List<Sofor> soforListesi = new();
     private HashSet<PuantajKayit> degisenSatirlar = new();
+    private HashSet<SeferSlot> daraltilanSlotlar = new();
+
+    private void SlotToggle(SeferSlot slot)
+    {
+        if (daraltilanSlotlar.Contains(slot))
+            daraltilanSlotlar.Remove(slot);
+        else
+            daraltilanSlotlar.Add(slot);
+    }
 
     private int? seciliKurumId;
     private int seciliYil = DateTime.Now.Year;
