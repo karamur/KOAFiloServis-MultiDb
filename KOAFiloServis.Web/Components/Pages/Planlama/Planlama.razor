@@ -165,7 +165,16 @@ else
                                     _ => ""
                                 };
                                 <tr class="@rowClass" style="@finansRenk">
-                                    <td>@(k.Guzergah?.GuzergahAdi ?? k.GuzergahAdi)</td>
+                                    <td>
+                                        @(k.Guzergah?.GuzergahAdi ?? k.GuzergahAdi)
+                                        @{
+                                            var kurumAdi = k.Kurum?.KurumAdi ?? k.KurumAdi ?? k.Guzergah?.Kurum?.KurumAdi;
+                                        }
+                                        @if (!string.IsNullOrEmpty(kurumAdi) && !seciliKurumId.HasValue)
+                                        {
+                                            <br /><small class="text-muted">@kurumAdi</small>
+                                        }
+                                    </td>
                                     <td>@(k.Arac?.AktifPlaka ?? k.Plaka)</td>
                                     <td>
                                         @(k.Sofor != null ? $"{k.Sofor.Ad} {k.Sofor.Soyad}" : k.SoforAdi)

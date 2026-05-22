@@ -275,6 +275,14 @@
                                            @onchange="e => SeferSayisiDegisti(kayit, e)" />
                                 </td>
                                 <td class="col-toplam">@kayit.SeferGunuToplami</td>
+                                <td class="text-center">
+                                    @if (kayit.OnayDurum == PuantajOnayDurum.Onaylandi)
+                                    { <span class="badge bg-success small">Onayli</span> }
+                                    else if (kayit.OnayDurum == PuantajOnayDurum.OnayBekliyor)
+                                    { <span class="badge bg-warning text-dark small">Bekliyor</span> }
+                                    else if (kayit.OnayDurum == PuantajOnayDurum.Reddedildi)
+                                    { <span class="badge bg-danger small">Red</span> }
+                                </td>
                                 <td>
                                     <div class="d-flex gap-1">
                                         <button class="btn btn-xs btn-outline-primary p-1" title="Günlük Düzenle"
