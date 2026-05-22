@@ -44,10 +44,11 @@ else
                     <div class="card-body text-center py-3">
                         <h6 class="text-muted">Toplam Sefer</h6>
                         <h2 class="text-primary">@toplamSefer</h2>
+                        <small class="text-muted">@toplamGunSayisi gun</small>
                         @if (oncekiToplamSefer > 0)
                         {
                             var degisim = toplamSefer - oncekiToplamSefer;
-                            <small class="@(degisim >= 0 ? "text-success" : "text-danger")">
+                            <small class="@(degisim >= 0 ? "text-success" : "text-danger") d-block">
                                 <i class="bi @(degisim >= 0 ? "bi-arrow-up" : "bi-arrow-down")"></i> @Math.Abs(degisim)
                             </small>
                         }
@@ -212,6 +213,7 @@ else
     private int oncekiCakisanSayisi;
     private decimal toplamGelir;
     private decimal toplamGider;
+    private decimal toplamGunSayisi;
     private Dictionary<string, int> slotDagilimi = new();
     private Dictionary<string, int> finansDagilimi = new();
     private Dictionary<string, int> kaynakDagilimi = new();
@@ -232,7 +234,7 @@ else
             cakisanDetay.Clear();
             toplamSefer = cakisanSayisi = faturaBekleyen = tedarikciSayisi = 0;
             oncekiToplamSefer = oncekiCakisanSayisi = 0;
-            toplamGelir = toplamGider = 0;
+            toplamGelir = toplamGider = toplamGunSayisi = 0;
 
             var kayitlar = await PuantajService.GetPuantajlarAsync(seciliYil, seciliAy);
             toplamSefer = kayitlar.Count;
@@ -252,6 +254,7 @@ else
             {
                 toplamGelir = kayitlar.Sum(k => k.BirimGelir * k.Gun);
                 toplamGider = kayitlar.Sum(k => k.BirimGider * k.Gun);
+                toplamGunSayisi = kayitlar.Sum(k => k.Gun);
                 slotDagilimi = kayitlar.GroupBy(k => k.Slot.ToString()).ToDictionary(g => g.Key, g => g.Count());
                 finansDagilimi = kayitlar.GroupBy(k => k.FinansYonu.ToString()).ToDictionary(g => g.Key, g => g.Count());
                 kaynakDagilimi = kayitlar.GroupBy(k => k.KaynakTipi.ToString()).ToDictionary(g => g.Key, g => g.Count());
