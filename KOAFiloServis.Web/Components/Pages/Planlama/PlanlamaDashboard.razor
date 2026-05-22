@@ -27,6 +27,13 @@ else
                     <div class="card-body text-center py-3">
                         <h6 class="text-muted">Toplam Sefer</h6>
                         <h2 class="text-primary">@toplamSefer</h2>
+                        @if (oncekiToplamSefer > 0)
+                        {
+                            var degisim = toplamSefer - oncekiToplamSefer;
+                            <small class="@(degisim >= 0 ? "text-success" : "text-danger")">
+                                <i class="bi @(degisim >= 0 ? "bi-arrow-up" : "bi-arrow-down")"></i> @Math.Abs(degisim)
+                            </small>
+                        }
                     </div>
                 </div>
             </div>
@@ -35,6 +42,13 @@ else
                     <div class="card-body text-center py-3">
                         <h6 class="text-muted">Cakisan Kayit</h6>
                         <h2 class="@(cakisanSayisi > 0 ? "text-danger" : "text-success")">@cakisanSayisi</h2>
+                        @if (oncekiCakisanSayisi > 0)
+                        {
+                            var degisim = cakisanSayisi - oncekiCakisanSayisi;
+                            <small class="@(degisim <= 0 ? "text-success" : "text-danger")">
+                                <i class="bi @(degisim <= 0 ? "bi-arrow-down" : "bi-arrow-up")"></i> @Math.Abs(degisim)
+                            </small>
+                        }
                     </div>
                 </div>
             </div>
@@ -146,6 +160,8 @@ else
     private int cakisanSayisi;
     private int faturaBekleyen;
     private int tedarikciSayisi;
+    private int oncekiToplamSefer;
+    private int oncekiCakisanSayisi;
     private Dictionary<string, int> slotDagilimi = new();
     private Dictionary<string, int> finansDagilimi = new();
     private Dictionary<string, int> kaynakDagilimi = new();
@@ -157,6 +173,18 @@ else
         {
             var kayitlar = await PuantajService.GetPuantajlarAsync(seciliYil, seciliAy);
             toplamSefer = kayitlar.Count;
+
+            // Onceki ay verisi (trend oklari icin)
+            var oncekiAy = seciliAy == 1 ? 12 : seciliAy - 1;
+            var oncekiYil = seciliAy == 1 ? seciliYil - 1 : seciliYil;
+            var oncekiKayitlar = await PuantajService.GetPuantajlarAsync(oncekiYil, oncekiAy);
+            oncekiToplamSefer = oncekiKayitlar.Count;
+            oncekiCakisanSayisi = 0;
+            if (oncekiKayitlar.Any())
+            {
+                var prevConflicts = await PuantajService.CheckConflictsAsync(oncekiKayitlar);
+                oncekiCakisanSayisi = prevConflicts.Conflicts.Count;
+            }
 
             if (kayitlar.Any())
             {

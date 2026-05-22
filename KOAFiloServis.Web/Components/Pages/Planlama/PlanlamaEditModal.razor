@@ -138,6 +138,15 @@
                             <option value="Iptal">İptal</option>
                         </select>
                     </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Onay Durumu</label>
+                        <select class="form-select" @bind="Kayit.OnayDurum">
+                            @foreach (PuantajOnayDurum d in Enum.GetValues<PuantajOnayDurum>())
+                            {
+                                <option value="@d">@d</option>
+                            }
+                        </select>
+                    </div>
                     <div class="col-12">
                         <label class="form-label">Notlar</label>
                         <textarea class="form-control" rows="2" @bind="Kayit.Notlar"></textarea>
