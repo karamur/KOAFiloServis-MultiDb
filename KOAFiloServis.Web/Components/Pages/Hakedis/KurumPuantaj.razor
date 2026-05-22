@@ -360,6 +360,13 @@
                     </div>
                     <div class="row g-3 mb-3">
                         <div class="col-md-3">
+                            <label class="form-label small">Slot</label>
+                            <select class="form-select form-select-sm" @bind="duzenleKayit.Slot">
+                                @foreach (SeferSlot s in Enum.GetValues<SeferSlot>())
+                                { <option value="@s">@s</option> }
+                            </select>
+                        </div>
+                        <div class="col-md-3">
                             <label class="form-label small">Yön</label>
                             <select class="form-select form-select-sm" @bind="duzenleKayit.Yon">
                                 <option value="@PuantajYon.Sabah">Sabah</option>
