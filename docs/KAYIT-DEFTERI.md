@@ -1176,6 +1176,46 @@ c004a3d feat(kiralikplaka): Faz 2 - Fatura ve odeme takip alanlari
 
 ---
 
+## 📅 23.05.2026 — Dördüncü Oturum (3 commit)
+
+### ✅ Tamamlanan
+
+| # | İş | Dosyalar | Açıklama |
+|---|-----|----------|----------|
+| **Fix 1** | Tenant DB migration | `Program.cs` | `ApplyMigrationsToTenantDatabases`: tüm tenant DB'lere Slot/Fatura kolonları eklendi |
+| **Fix 2** | Layout düzenleme | `MainLayout.razor`, `NavMenu.razor` | Firma/dönem bilgisi üst bara taşındı, sidebar kart kaldırıldı |
+| **Feat 1** | Puantajı Güncelle | `Planlama.razor`, `KurumPuantajService.cs` | Güzergah/sefer değişikliklerini puantaja yansıtan buton |
+| **Feat 2** | SeferTipi.Mesai | `Guzergah.cs`, `KurumPuantajService.cs` | SeferTipi enum'a Mesai eklendi, slot mantığı güncellendi |
+| **Feat 3** | Gruplandırma varsayılan | `Planlama.razor` | Varsayılan gruplandırma "güzergah" olarak değiştirildi |
+
+### 🧪 Smoke Test
+
+| Test | Sonuç |
+|------|:-----:|
+| `dotnet build` | ✅ **0 hata, 0 uyarı** |
+| `dotnet test` | ✅ 291/291 başarılı |
+
+### 📋 Commit Geçmişi
+
+```
+d4ab624 feat(planlama): Güzergah gruplandirma varsayilan + SeferTipi.Mesai
+b24eef4 feat(planlama): Puantaji Guncelle butonu + GuncellePuantajAsync
+119bd25 fix(db): Tenant DB'lere migration helper uygulama task'i
+2f9eadc fix(layout): Firma/donem bilgisi MainLayout ust bara tasindi
+```
+
+### 🔴 Yapılacaklar (Sonraki Oturum)
+
+| # | İş | Modül |
+|---|-----|-------|
+| 1 | Araç firma değişikliği — tenant izolasyonu korunarak taşıma | Araçlar |
+| 2 | PlanlamaEditModal — sefer başı/günlük/saatlik seçim ve şoför değişikliği | Planlama |
+| 3 | Puantajda güzergah için ek sefer ekleme (hızlı sefer) | Planlama |
+| 4 | Manuel testler (login gerek) | Genel |
+| 5 | Kiralık C Plaka Excel/PDF export — özet sayfası güncelleme | FiloOperasyon |
+
+---
+
 ## 📅 23.05.2026 — BUG RAPORU: Güzergah ve Puantaj Kırılma Sorunları
 
 ### 🔴 Tespit Edilen Hatalar
