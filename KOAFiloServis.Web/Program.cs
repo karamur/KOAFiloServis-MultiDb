@@ -338,6 +338,7 @@ builder.Services.AddScoped<IDatabaseSettingsService, DatabaseSettingsService>();
 builder.Services.AddScoped<IMuhasebeService, MuhasebeService>();
 builder.Services.AddScoped<ISatisService, SatisService>();
 builder.Services.AddSingleton<GuzergahDegisiklikUyariService>();
+builder.Services.AddScoped<FirmaTransferService>();
 builder.Services.AddScoped<IKurumService, KurumService>();
 builder.Services.AddScoped<IPuantajService, PuantajService>();
 builder.Services.AddScoped<IKurumPuantajService, KurumPuantajService>();
