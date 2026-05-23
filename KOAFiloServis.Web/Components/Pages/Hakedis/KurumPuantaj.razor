@@ -526,7 +526,8 @@
         }
         catch (Exception ex)
         {
-            ToastService.ShowError($"Kayıt hatası: {ex.Message}");
+            var msg = ex.InnerException?.Message ?? ex.Message;
+            ToastService.ShowError($"Kayıt hatası: {msg}");
         }
         finally { kaydediliyor = false; }
     }
