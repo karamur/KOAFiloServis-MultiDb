@@ -1259,3 +1259,18 @@ b24eef4 feat(planlama): Puantaji Guncelle butonu + GuncellePuantajAsync
 | `PuantajKayitlar.SlotAdi` kolonu eklendi | `PuantajSlotMigrationHelper.cs` |
 | `GuzergahSeferleri.Slot` kolonu eklendi | `GuzergahKoordinatMigrationHelper.cs` |
 | Güzergah Düzenle - seçili araç/şoför listede yoksa ekleme | `GuzergahForm.razor` |
+---
+
+## 📅 24.05.2026 — Oturum (12 commit)
+
+### Yapilanlar
+- Tenant DB migration fix (Slot/Fatura kolonlari)
+- FK constraint fix (Guzergah + GuzergahSefer)
+- Layout: firma/donem bilgisi ust bara
+- GuzergahForm: firma secimi + tasima modali
+- FirmaTransferService: veri tasima/kopyalama
+- Puantaj: IsverenFirmaId=0 FK fix, Yon fix, Sefer=1 satir, BirimFiyat×2
+- Kurum Puantaj: ozet kartlari, Guncelle butonu
+
+### Yapilacaklar
+1. Kurum Puantaj - Gun grid, arac/sofor ekleme, cakisma, onay
