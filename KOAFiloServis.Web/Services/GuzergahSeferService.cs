@@ -47,7 +47,6 @@ public class GuzergahSeferService : IGuzergahSeferService
         {
             s.Id = 0;
             s.GuzergahId = guzergahId;
-            s.FirmaId = null;
             s.Firma = null;
             s.Sira = sira++;
             s.Guzergah = null;

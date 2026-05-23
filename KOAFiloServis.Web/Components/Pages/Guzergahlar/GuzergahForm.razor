@@ -994,9 +994,11 @@
             // Sefer verisini kaydet
             try
             {
+                var firmaId = guzergah.FirmaId > 0 ? guzergah.FirmaId : AktifFirmaProvider.AktifFirmaId;
                 var seferEntities = seferKalemleri.Select(k => new GuzergahSefer
                 {
                     GuzergahId = guzergah.Id,
+                    FirmaId = firmaId,
                     SeferTipi = k.SeferTipi,
                     Slot = k.Slot,
                     KapasiteAdi = k.KapasiteAdi,
