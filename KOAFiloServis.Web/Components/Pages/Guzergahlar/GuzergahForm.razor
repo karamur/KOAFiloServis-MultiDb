@@ -494,6 +494,34 @@
     </div>
 </div>
 
+@if (showFirmaDegisiklikModal)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title"><i class="bi bi-building-exclamation me-2"></i>Firma Değişikliği</h5>
+                    <button type="button" class="btn-close" @onclick="FirmaDegisiklikIptal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Güzergah başka bir firmaya taşınıyor.</p>
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-primary" @onclick="FirmaTasinsinOnay">
+                            <i class="bi bi-arrow-left-right me-1"></i>Tüm Bilgiler Taşınsın
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" @onclick="FirmaKopyalansinOnay">
+                            <i class="bi bi-calendar-check me-1"></i>Bugünden Sonraki Bilgiler Kopyalansın
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="FirmaDegisiklikIptal">İptal</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     [Parameter]
     public int? Id { get; set; }
@@ -510,6 +538,8 @@
     private Dictionary<int, PersonelAracInfo> aktifAracSoforMap = new();
     private string? kayitHataMesaji;
     private bool kaydediliyor;
+    private int? orijinalFirmaId;
+    private bool showFirmaDegisiklikModal;
     private string? secilenSoforBilgisi;
     private string? secilenSoforTelefon;
     private string? secilenSoforFirma;
@@ -592,6 +622,7 @@
             if (existing != null)
             {
                 guzergah = existing;
+                orijinalFirmaId = existing.FirmaId;
                 // Koordinatlar varsa haritayı aç
                 if (guzergah.BaslangicLatitude.HasValue || guzergah.BitisLatitude.HasValue)
                 {
@@ -1001,6 +1032,13 @@
             return;
         }
 
+        // Firma degisti mi?
+        if (IsEdit && orijinalFirmaId.HasValue && guzergah.FirmaId != orijinalFirmaId)
+        {
+            showFirmaDegisiklikModal = true;
+            return;
+        }
+
         try
         {
             kaydediliyor = true;
@@ -1051,6 +1089,59 @@
         {
             kaydediliyor = false;
         }
+    }
+
+    private void FirmaDegisiklikIptal()
+    {
+        showFirmaDegisiklikModal = false;
+        guzergah.FirmaId = orijinalFirmaId;
+    }
+
+    private async Task FirmaTasinsinOnay()
+    {
+        showFirmaDegisiklikModal = false;
+        await KaydetInternal();
+    }
+
+    private async Task FirmaKopyalansinOnay()
+    {
+        showFirmaDegisiklikModal = false;
+        await KaydetInternal();
+    }
+
+    private async Task KaydetInternal()
+    {
+        try
+        {
+            kaydediliyor = true;
+            if (IsEdit)
+                await GuzergahService.UpdateAsync(guzergah);
+            else
+                await GuzergahService.CreateAsync(guzergah);
+
+            var firmaId = guzergah.FirmaId > 0 ? guzergah.FirmaId : AktifFirmaProvider.AktifFirmaId;
+            var seferEntities = seferKalemleri.Select(k => new GuzergahSefer
+            {
+                GuzergahId = guzergah.Id,
+                FirmaId = firmaId,
+                SeferTipi = k.SeferTipi,
+                Slot = k.Slot,
+                KapasiteAdi = k.KapasiteAdi,
+                AracId = k.AracId,
+                SoforAd = k.SoforAd,
+                SoforTelefon = k.SoforTelefon,
+                FirmaAdiSerbest = k.Firma
+            }).ToList();
+            await GuzergahSeferService.ReplaceAllAsync(guzergah.Id, seferEntities);
+
+            DegisiklikUyari.DegisiklikKaydet(guzergah.Id);
+            Navigation.NavigateTo("/guzergahlar");
+        }
+        catch (Exception ex)
+        {
+            kayitHataMesaji = $"Kayit sirasinda hata: {ex.InnerException?.Message ?? ex.Message}";
+        }
+        finally { kaydediliyor = false; }
     }
 
     private void Geri()
