@@ -8,6 +8,7 @@
 @inject ITasimaTedarikciService TasimaTedarikciService
 @inject IFirmaService FirmaService
 @inject IAktifFirmaProvider AktifFirmaProvider
+@inject FirmaTransferService FirmaTransferService
 @inject IToastService ToastService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -738,17 +739,44 @@
                 </div>
                 <div class="modal-body">
                     <p>Araç <strong>@orijinalFirmaAdi</strong> firmasından <strong>@yeniFirmaAdi</strong> firmasına taşınacak.</p>
-                    <p class="fw-bold">Araç bilgileri nasıl taşınsın?</p>
-                    <div class="d-grid gap-2">
-                        <button type="button" class="btn btn-primary" @onclick="TasinsinOnay">
-                            <i class="bi bi-arrow-left-right me-1"></i>Tüm Bilgiler Taşınsın<br/>
-                            <small>(evrak, puantaj, bakım kayıtları)</small>
-                        </button>
-                        <button type="button" class="btn btn-outline-primary" @onclick="BugundenOnay">
-                            <i class="bi bi-calendar-check me-1"></i>Bugünden Sonraki Bilgiler Kopyalansın<br/>
-                            <small>(sadece evraklar ve bugünden sonraki kayıtlar)</small>
-                        </button>
-                    </div>
+
+                    @if (transferItems == null)
+                    {
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-primary" @onclick="FirmaTransferListele">
+                                <i class="bi bi-list-check me-1"></i>Taşınacak Verileri Listele
+                            </button>
+                        </div>
+                    }
+                    else if (!transferItems.Any())
+                    {
+                        <p class="text-muted">Taşınacak ek veri bulunamadı. Sadece araç kaydı taşınacak.</p>
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-primary" @onclick="AracTasinsinOnay">
+                                <i class="bi bi-check-lg me-1"></i>Onayla ve Taşı
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="fw-bold">Taşınacak veriler (seçiniz):</p>
+                        @foreach (var item in transferItems)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" checked="@item.Selected"
+                                       @onchange="e => item.Selected = (bool)(e.Value ?? false)" id="@item.Key" />
+                                <label class="form-check-label" for="@item.Key">@item.Label</label>
+                            </div>
+                        }
+                        <div class="d-flex gap-2 mt-3">
+                            <button type="button" class="btn btn-primary" @onclick="AracTasinsinOnay">
+                                <i class="bi bi-check-lg me-1"></i>Seçilenleri Taşı
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" @onclick="BugundenOnay">
+                                <i class="bi bi-calendar-check me-1"></i>Bugünden Sonra Kopyala
+                            </button>
+                        </div>
+                    }
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="FirmaDegisiklikIptal">İptal</button>
@@ -904,27 +932,59 @@
         }
     }
 
-    private async Task TasinsinOnay() => await FirmaDegisiklikOnay("tasinsin");
-    private async Task BugundenOnay() => await FirmaDegisiklikOnay("bugunden");
+    private List<TransferableItem>? transferItems;
+
+    private async Task FirmaTransferListele()
+    {
+        transferItems = await FirmaTransferService.GetAracTransferItemsAsync(arac.Id);
+    }
 
     private void FirmaDegisiklikIptal()
     {
         showFirmaDegisiklikModal = false;
         arac.FirmaId = orijinalFirmaId;
+        transferItems = null;
     }
 
-    private async Task FirmaDegisiklikOnay(string secim)
+    private async Task AracTasinsinOnay()
     {
+        var selectedKeys = transferItems?.Where(t => t.Selected).Select(t => t.Key).ToList() ?? new List<string>();
         showFirmaDegisiklikModal = false;
+        transferItems = null;
         try
         {
-            if (IsEdit)
-                await AracService.UpdateAsync(arac);
+            var (moved, errors) = await FirmaTransferService.MoveAracToFirmaAsync(arac.Id, arac.FirmaId!.Value, selectedKeys);
+            await AracService.UpdateAsync(arac);
+            if (errors.Any())
+                ToastService.ShowError($"Taşıma hatası: {string.Join("; ", errors)}");
             else
-                await AracService.CreateAsync(arac, plaka!, PlakaIslemTipi.Alis);
+            {
+                ToastService.ShowSuccess($"Araç taşındı ({moved} kayıt).");
+                Navigation.NavigateTo("/araclar");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Kayıt hatası: {ex.InnerException?.Message ?? ex.Message}");
+        }
+    }
 
-            ToastService.ShowSuccess($"Araç kaydedildi. Firma değişikliği: {(secim == "tasinsin" ? "Tüm bilgiler taşındı" : "Bugünden sonrası kopyalandı")}");
-            Navigation.NavigateTo("/araclar");
+    private async Task BugundenOnay()
+    {
+        var selectedKeys = transferItems?.Where(t => t.Selected).Select(t => t.Key).ToList() ?? new List<string>();
+        showFirmaDegisiklikModal = false;
+        transferItems = null;
+        try
+        {
+            var (moved, errors) = await FirmaTransferService.MoveAracToFirmaAsync(arac.Id, arac.FirmaId!.Value, selectedKeys);
+            await AracService.UpdateAsync(arac);
+            if (errors.Any())
+                ToastService.ShowError($"Kopyalama hatası: {string.Join("; ", errors)}");
+            else
+            {
+                ToastService.ShowSuccess($"Araç kaydedildi ({moved} kayıt).");
+                Navigation.NavigateTo("/araclar");
+            }
         }
         catch (Exception ex)
         {
