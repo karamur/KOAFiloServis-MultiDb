@@ -1518,11 +1518,14 @@
                                 c.RelativeColumn(2);     // Fatura
                                 c.RelativeColumn(2);     // Ek
                                 c.RelativeColumn(2);     // Toplam
+                                c.RelativeColumn(2);     // Kesilen Fatura
+                                c.RelativeColumn(2);     // Kalan
+                                c.RelativeColumn(2);     // Ödenen
                             });
 
                             table.Header(h =>
                             {
-                                string[] hs = { "#", "PLAKA", "EŞLEŞEN ARAÇ", "İSİM SOYİSİM", "BAŞLAMA", "BİTİŞ", "DURUM", "KASA", "FATURA", "EK TUTAR", "TOPLAM" };
+                                string[] hs = { "#", "PLAKA", "EŞLEŞEN ARAÇ", "İSİM SOYİSİM", "BAŞLAMA", "BİTİŞ", "DURUM", "KASA", "FATURA", "EK TUTAR", "TOPLAM", "KESİLEN FATURA", "KALAN", "ÖDENEN" };
                                 foreach (var head in hs)
                                     h.Cell().Background(Colors.Blue.Darken2).Padding(4).AlignCenter().Text(head).Bold().FontSize(8).FontColor(Colors.White);
                             });
@@ -1557,6 +1560,9 @@
                                 Cell().AlignRight().Text(item.FaturaOdemesi.ToString("N2")).FontSize(7);
                                 Cell().AlignRight().Text(item.EkTutar.ToString("N2")).FontSize(7);
                                 Cell().AlignRight().Text(item.Toplam.ToString("N2")).Bold().FontSize(7);
+                                Cell().AlignRight().Text(item.KesilenFaturaTutar > 0 ? item.KesilenFaturaTutar.ToString("N2") : "-").FontSize(7);
+                                Cell().AlignRight().Text(item.KalanFaturaTutar > 0 ? item.KalanFaturaTutar.ToString("N2") : "-").FontSize(7);
+                                Cell().AlignRight().Text(item.OdenenTutar > 0 ? item.OdenenTutar.ToString("N2") : "-").FontSize(7);
                             }
 
                             // Toplam satırı
@@ -1565,6 +1571,9 @@
                             table.Cell().Background(Colors.Grey.Darken1).Padding(4).AlignRight().Text(data.Sum(x => x.FaturaOdemesi).ToString("N2")).Bold().FontSize(9).FontColor(Colors.White);
                             table.Cell().Background(Colors.Grey.Darken1).Padding(4).AlignRight().Text(data.Sum(x => x.EkTutar).ToString("N2")).Bold().FontSize(9).FontColor(Colors.White);
                             table.Cell().Background(Colors.Green.Darken3).Padding(4).AlignRight().Text(data.Sum(x => x.Toplam).ToString("N2")).Bold().FontSize(10).FontColor(Colors.White);
+                            table.Cell().Background(Colors.Grey.Darken1).Padding(4).AlignRight().Text(data.Sum(x => x.KesilenFaturaTutar).ToString("N2")).Bold().FontSize(9).FontColor(Colors.White);
+                            table.Cell().Background(Colors.Grey.Darken1).Padding(4).AlignRight().Text(data.Sum(x => x.KalanFaturaTutar).ToString("N2")).Bold().FontSize(9).FontColor(Colors.White);
+                            table.Cell().Background(Colors.Grey.Darken1).Padding(4).AlignRight().Text(data.Sum(x => x.OdenenTutar).ToString("N2")).Bold().FontSize(9).FontColor(Colors.White);
                         });
                     });
 
