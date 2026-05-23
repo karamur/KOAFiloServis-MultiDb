@@ -875,6 +875,49 @@ await RunScopedSafeAsync(app, "AutoCreateTenantDatabases", async services =>
     }
 });
 
+// Tenant DB'lerde migration helper'lari uygula (yeni kolonlar icin)
+await RunScopedSafeAsync(app, "ApplyMigrationsToTenantDatabases", async services =>
+{
+    var masterFactory = services.GetRequiredService<IDbContextFactory<MasterDbContext>>();
+    var connProvider = services.GetRequiredService<ITenantConnectionStringProvider>();
+    var logger = services.GetRequiredService<ILogger<Program>>();
+
+    using var masterCtx = await masterFactory.CreateDbContextAsync();
+    var tenantFirms = await masterCtx.Firmalar
+        .Where(f => f.Aktif && !f.IsDeleted && f.DatabaseName != null)
+        .ToListAsync();
+
+    if (tenantFirms.Count == 0)
+    {
+        logger.LogInformation("Tum firmalar shared DB kullaniyor, tenant DB yok.");
+        return;
+    }
+
+    foreach (var firma in tenantFirms)
+    {
+        try
+        {
+            var connStr = connProvider.GetConnectionStringForFirma(firma.Id, firma.DatabaseName);
+            if (string.IsNullOrWhiteSpace(connStr)) continue;
+
+            var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
+            optionsBuilder.UseNpgsql(connStr);
+            await using var tenantCtx = new ApplicationDbContext(optionsBuilder.Options);
+            await tenantCtx.Database.OpenConnectionAsync();
+
+            await KOAFiloServis.Web.Data.Migrations.GuzergahKoordinatMigrationHelper.ApplyGuzergahKoordinatMigrationPostgresAsync(tenantCtx);
+            await KOAFiloServis.Web.Data.Migrations.PuantajSlotMigrationHelper.ApplyAsync(tenantCtx, logger);
+            await KOAFiloServis.Web.Data.Migrations.KiralikPlakaFaturaMigrationHelper.ApplyAsync(tenantCtx, logger);
+
+            logger.LogInformation("Migration helper'lar uygulandi: {Firma} ({DbName})", firma.FirmaAdi, firma.DatabaseName);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Migration helper hatasi: {Firma} ({DbName})", firma.FirmaAdi, firma.DatabaseName);
+        }
+    }
+});
+
 // Holding DB: olustur ve tablolari hazirla
 await RunScopedSafeAsync(app, "EnsureHoldingDatabase", async services =>
 {
