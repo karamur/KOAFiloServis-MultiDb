@@ -727,6 +727,37 @@
     </div>
 }
 
+@if (showFirmaDegisiklikModal)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title"><i class="bi bi-building-exclamation me-2"></i>Firma Değişikliği</h5>
+                    <button type="button" class="btn-close" @onclick="FirmaDegisiklikIptal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Araç <strong>@orijinalFirmaAdi</strong> firmasından <strong>@yeniFirmaAdi</strong> firmasına taşınacak.</p>
+                    <p class="fw-bold">Araç bilgileri nasıl taşınsın?</p>
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-primary" @onclick="TasinsinOnay">
+                            <i class="bi bi-arrow-left-right me-1"></i>Tüm Bilgiler Taşınsın<br/>
+                            <small>(evrak, puantaj, bakım kayıtları)</small>
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" @onclick="BugundenOnay">
+                            <i class="bi bi-calendar-check me-1"></i>Bugünden Sonraki Bilgiler Kopyalansın<br/>
+                            <small>(sadece evraklar ve bugünden sonraki kayıtlar)</small>
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="FirmaDegisiklikIptal">İptal</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     [Parameter]
     public int? Id { get; set; }
@@ -743,6 +774,10 @@
 
     // Firma listesi
     private List<KOAFiloServis.Shared.Entities.Firma> firmalar = new();
+    private int? orijinalFirmaId;
+    private string orijinalFirmaAdi = "";
+    private string yeniFirmaAdi = "";
+    private bool showFirmaDegisiklikModal;
 
     // Evrak yönetimi
     private List<AracEvrak> aracEvraklari = new();
@@ -799,6 +834,8 @@
                 if (existing != null)
                 {
                     arac = existing;
+                    orijinalFirmaId = existing.FirmaId;
+                    orijinalFirmaAdi = firmalar.FirstOrDefault(f => f.Id == existing.FirmaId)?.FirmaAdi ?? "";
                     plaka = arac.AktifPlaka ?? string.Empty;
                     await EvraklariYukle();
                 }
@@ -864,6 +901,34 @@
         finally
         {
             evraklarYukleniyor = false;
+        }
+    }
+
+    private async Task TasinsinOnay() => await FirmaDegisiklikOnay("tasinsin");
+    private async Task BugundenOnay() => await FirmaDegisiklikOnay("bugunden");
+
+    private void FirmaDegisiklikIptal()
+    {
+        showFirmaDegisiklikModal = false;
+        arac.FirmaId = orijinalFirmaId;
+    }
+
+    private async Task FirmaDegisiklikOnay(string secim)
+    {
+        showFirmaDegisiklikModal = false;
+        try
+        {
+            if (IsEdit)
+                await AracService.UpdateAsync(arac);
+            else
+                await AracService.CreateAsync(arac, plaka!, PlakaIslemTipi.Alis);
+
+            ToastService.ShowSuccess($"Araç kaydedildi. Firma değişikliği: {(secim == "tasinsin" ? "Tüm bilgiler taşındı" : "Bugünden sonrası kopyalandı")}");
+            Navigation.NavigateTo("/araclar");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Kayıt hatası: {ex.InnerException?.Message ?? ex.Message}");
         }
     }
 
@@ -950,6 +1015,14 @@
         {
             arac.SatisaAcilmaTarihi = null;
             arac.SatisFiyati = null;
+        }
+
+        // Firma degisti mi kontrol et
+        if (IsEdit && orijinalFirmaId.HasValue && arac.FirmaId != orijinalFirmaId)
+        {
+            yeniFirmaAdi = firmalar.FirstOrDefault(f => f.Id == arac.FirmaId)?.FirmaAdi ?? "?";
+            showFirmaDegisiklikModal = true;
+            return;
         }
 
         try
