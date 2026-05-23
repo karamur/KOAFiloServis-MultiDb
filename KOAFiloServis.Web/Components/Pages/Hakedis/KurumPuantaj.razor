@@ -468,9 +468,8 @@
     // ── Lifecycle ─────────────────────────────────────────────────────────────
     protected override async Task OnInitializedAsync()
     {
-        kurumlar = await KurumPuantajService.GetAktifKurumlarAsync();
-        guzergahListesi = await GuzergahService.GetActiveAsync();
-        aracListesi = await AracService.GetActiveAsync();
+        Navigation.NavigateTo("/puantaj", forceLoad: false);
+        return;
     }
 
     // ── Filtre olayları ───────────────────────────────────────────────────────

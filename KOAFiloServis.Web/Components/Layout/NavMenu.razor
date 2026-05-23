@@ -380,26 +380,20 @@
                                             </NavLink>
                                         </div>
                                         <div class="nav-item px-3">
-                                            <NavLink class="nav-link" href="kurum-puantaj">
-                                                <i class="bi bi-calendar3-range me-2 text-primary"></i> Kurum Puantaj
-                                            </NavLink>
-                                        </div>
-                                        <div class="nav-item px-3">
-                                            <NavLink class="nav-link" href="hakedis/kurum-puantaj/import">
+                                            <NavLink class="nav-link" href="puantaj/import">
                                                 <i class="bi bi-file-earmark-excel me-2 text-success"></i> Puantaj Excel Aktar
                                             </NavLink>
                                         </div>
                                         @if (HasMenuYetki(Yetkiler.MenuPlanlama))
                                         {
                                             <div class="nav-item px-3">
-                                                <NavLink class="nav-link" href="planlama">
-                                                    <i class="bi bi-calendar-check me-2 text-success"></i> <strong>Planlama</strong>
-                                                    <span class="badge bg-success ms-1 small">Yeni</span>
+                                                <NavLink class="nav-link" href="puantaj">
+                                                    <i class="bi bi-calendar-check me-2 text-success"></i> <strong>Puantaj</strong>
                                                 </NavLink>
                                             </div>
                                             <div class="nav-item px-3">
-                                                <NavLink class="nav-link" href="planlama/dashboard">
-                                                    <i class="bi bi-speedometer2 me-2 text-info"></i> Planlama Dashboard
+                                                <NavLink class="nav-link" href="puantaj/dashboard">
+                                                    <i class="bi bi-speedometer2 me-2 text-info"></i> Puantaj Dashboard
                                                 </NavLink>
                                             </div>
                                         }

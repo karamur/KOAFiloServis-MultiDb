@@ -1,4 +1,4 @@
-@page "/planlama"
+@page "/puantaj"
 @attribute [Authorize(Roles = "Admin,Operasyon,Muhasebeci,HoldingYoneticisi")]
 @rendermode InteractiveServer
 @using KOAFiloServis.Shared.Entities
@@ -15,7 +15,7 @@
 @inject GuzergahDegisiklikUyariService DegisiklikUyari
 @inject ILogger<Planlama> Logger
 
-<PageTitle>Planlama</PageTitle>
+<PageTitle>Puantaj</PageTitle>
 
 @if (!yukleniyor && DegisiklikUyari.DegisiklikVar)
 {
