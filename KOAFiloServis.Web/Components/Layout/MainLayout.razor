@@ -63,6 +63,18 @@
                                     <small class="text-muted">@aktifKullanici?.Rol?.RolAdi</small>
                                 </div>
                             </div>
+                            @if (!tumFirmalarMod && !string.IsNullOrEmpty(aktifFirmaKodu))
+                            {
+                                <div class="vr d-none d-md-block"></div>
+                                <div class="d-none d-md-block">
+                                    <div class="fw-bold small">@aktifFirmaAdi</div>
+                                    <small class="text-muted">@aktifFirmaKodu</small>
+                                </div>
+                                <div class="vr d-none d-md-block"></div>
+                                <div class="d-none d-md-block text-muted small">
+                                    <i class="bi bi-calendar-month me-1"></i>Dönem: @aktifDonemAy.ToString("D2")/@aktifDonemYil
+                                </div>
+                            }
                             <div class="vr d-none d-md-block"></div>
                             <div class="text-muted d-none d-md-block">
                                 <i class="bi bi-calendar3 me-2"></i>
@@ -240,6 +252,9 @@
     private List<KOAFiloServis.Shared.Entities.Firma> firmalar = new();
     private int aktifFirmaId;
     private string aktifFirmaAdi = "Firma";
+    private string aktifFirmaKodu = "";
+    private int aktifDonemYil = DateTime.Today.Year;
+    private int aktifDonemAy = DateTime.Today.Month;
     private bool tumFirmalarMod = false;
     private bool isDarkMode = false;
 
@@ -402,6 +417,9 @@
             aktifFirmaId = aktifFirma.FirmaId;
             tumFirmalarMod = aktifFirma.TumFirmalar;
             aktifFirmaAdi = tumFirmalarMod ? "Tüm Firmalar" : aktifFirma.FirmaAdi;
+            aktifFirmaKodu = tumFirmalarMod ? "" : aktifFirma.FirmaKodu;
+            aktifDonemYil = aktifFirma.AktifDonemYil;
+            aktifDonemAy = aktifFirma.AktifDonemAy;
         }
         catch (Exception ex)
         {

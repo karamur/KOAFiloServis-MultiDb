@@ -20,45 +20,6 @@
     <KOAFiloServis.Web.Components.Shared.GlobalSearch />
 </div>
 
-@{
-    var aktifFirma = AktifFirmaProvider.Mevcut;
-    var kullanici = AuthProvider.GetAktifKullanici();
-}
-
-<!-- Aktif Firma ve Kullanici Bilgisi -->
-@if (!aktifFirma.TumFirmalar || kullanici != null)
-{
-    <div class="px-3 pb-2">
-        <div class="card bg-dark border-secondary">
-            <div class="card-body py-2 px-3 small">
-                @if (!aktifFirma.TumFirmalar)
-                {
-                    <div class="text-white mb-1">
-                        <i class="bi bi-building me-1 opacity-75"></i>
-                        <strong>@aktifFirma.FirmaAdi</strong>
-                        <span class="opacity-50">(@aktifFirma.FirmaKodu)</span>
-                    </div>
-                    <div class="text-white-50 mb-1 small">
-                        <i class="bi bi-calendar-month me-1"></i>
-                        @aktifFirma.AktifDonemAy.ToString("D2")/@aktifFirma.AktifDonemYil
-                    </div>
-                }
-                @if (kullanici != null)
-                {
-                    <div class="text-white-50 small">
-                        <i class="bi bi-person-circle me-1"></i>
-                        @(kullanici.AdSoyad ?? kullanici.KullaniciAdi)
-                        @if (!string.IsNullOrEmpty(kullanici.Rol?.RolAdi))
-                        {
-                            <span class="badge bg-secondary ms-1">@kullanici.Rol.RolAdi</span>
-                        }
-                    </div>
-                }
-            </div>
-        </div>
-    </div>
-}
-
 <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
 
 <div class="nav-scrollable">
