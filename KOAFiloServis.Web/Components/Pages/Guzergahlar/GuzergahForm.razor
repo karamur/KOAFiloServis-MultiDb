@@ -941,10 +941,14 @@
             kayitHataMesaji = "Güzergah Adı zorunludur.";
             return;
         }
-        if (secilenKurumId == 0)
+        if (secilenKurumId == 0 && (!guzergah.KurumId.HasValue || guzergah.KurumId.Value <= 0))
         {
             kayitHataMesaji = "Kurum / Müşteri Kartı seçimi zorunludur. Lütfen listeden bir kurum seçin.";
             return;
+        }
+        if (secilenKurumId == 0 && guzergah.KurumId.HasValue && guzergah.KurumId.Value > 0)
+        {
+            secilenKurumId = guzergah.KurumId.Value;
         }
         if (guzergah.CariId == 0)
         {
