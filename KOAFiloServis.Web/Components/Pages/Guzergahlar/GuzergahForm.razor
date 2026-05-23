@@ -14,6 +14,7 @@
 @inject IKapasiteService KapasiteService
 @inject IDbContextFactory<ApplicationDbContext> DbContextFactory
 @inject IAktifFirmaProvider AktifFirmaProvider
+@inject IFirmaService FirmaService
 @inject GuzergahDegisiklikUyariService DegisiklikUyari
 @inject NavigationManager Navigation
 @rendermode InteractiveServer
@@ -309,6 +310,20 @@
                     </div>
                 }
 
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Güzergahın Bağlı Olduğu Firma</label>
+                        <select class="form-select" value="@(guzergah.FirmaId?.ToString() ?? "")"
+                                @onchange="e => guzergah.FirmaId = int.TryParse(e.Value?.ToString(), out var fid) && fid > 0 ? fid : (int?)null">
+                            <option value="">-- Varsayılan (Aktif Firma) --</option>
+                            @foreach (var f in firmalar)
+                            {
+                                <option value="@f.Id">@f.FirmaAdi</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
                 <div class="row">
                     <div class="col-md-4">
                         <div class="mb-3">
@@ -491,6 +506,7 @@
     private List<Kurum> kurumlar = new();
     private List<Arac> araclar = new();
     private List<Sofor> soforler = new();
+    private List<KOAFiloServis.Shared.Entities.Firma> firmalar = new();
     private Dictionary<int, PersonelAracInfo> aktifAracSoforMap = new();
     private string? kayitHataMesaji;
     private bool kaydediliyor;
@@ -566,6 +582,7 @@
         kurumlar = await KurumService.GetAktifAsync();
         araclar = await AracService.GetActiveAsync();
         soforler = await SoforService.GetActiveAsync();
+        firmalar = await FirmaService.GetAktifFirmalarAsync();
         await YukleKapasitelerAsync();
         await YukleAktifAracSoforMapAsync();
 
