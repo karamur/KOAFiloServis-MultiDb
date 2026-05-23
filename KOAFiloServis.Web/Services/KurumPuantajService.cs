@@ -623,6 +623,8 @@ public sealed class KurumPuantajService : IKurumPuantajService
                 SeferTipi.Mesai      => PuantajYon.SabahAksam,
                 _                    => PuantajYon.SabahAksam
             },
+            BirimGelir  = seferTipi == SeferTipi.SabahAksam ? guzergah.GelirFiyat * 2 : guzergah.GelirFiyat,
+            BirimGider  = seferTipi == SeferTipi.SabahAksam ? guzergah.GiderFiyat * 2 : guzergah.GiderFiyat,
             SeferSayisi = 1,
             Gun         = 0
         });
