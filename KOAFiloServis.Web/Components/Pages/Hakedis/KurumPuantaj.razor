@@ -5,6 +5,7 @@
 @inject IKurumPuantajService KurumPuantajService
 @inject IGuzergahService GuzergahService
 @inject IAracService AracService
+@inject GuzergahDegisiklikUyariService DegisiklikUyari
 @inject IToastService ToastService
 @inject NavigationManager Navigation
 @attribute [Authorize(Roles = "Admin,Operasyon,Muhasebeci,HoldingYoneticisi")]
@@ -54,6 +55,16 @@
             </a>
         </div>
     </div>
+
+    @if (!yukleniyor && DegisiklikUyari.DegisiklikVar)
+    {
+        <div class="alert alert-warning alert-dismissible fade show py-2 mb-3">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <strong>@DegisiklikUyari.DegisenSayisi güzergah</strong> düzenlendi.
+            Puantajı güncellemek için <strong>"Şablon Oluştur"</strong> butonunu kullanın.
+            <button type="button" class="btn-close" @onclick="DegisiklikUyari.TumunuTemizle" title="Uyarıyı kapat"></button>
+        </div>
+    }
 
     <!-- Filtre Çubuğu -->
     <div class="card mb-3">

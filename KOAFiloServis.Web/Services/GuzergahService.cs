@@ -118,6 +118,7 @@ public class GuzergahService : IGuzergahService
         existing.GiderFiyat = guzergah.GiderFiyat;
         existing.SeferTipi = guzergah.SeferTipi;
         existing.PersonelSayisi = guzergah.PersonelSayisi;
+        existing.KapasiteAdi = guzergah.KapasiteAdi;
         existing.CariId = guzergah.CariId;
         existing.KurumId = guzergah.KurumId;
         existing.FirmaId = guzergah.FirmaId;

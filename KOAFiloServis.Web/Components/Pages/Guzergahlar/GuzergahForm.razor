@@ -14,6 +14,7 @@
 @inject IKapasiteService KapasiteService
 @inject IDbContextFactory<ApplicationDbContext> DbContextFactory
 @inject IAktifFirmaProvider AktifFirmaProvider
+@inject GuzergahDegisiklikUyariService DegisiklikUyari
 @inject NavigationManager Navigation
 @rendermode InteractiveServer
 
@@ -1007,10 +1008,14 @@
                 }).ToList();
                 await GuzergahSeferService.ReplaceAllAsync(guzergah.Id, seferEntities);
             }
-            catch
+            catch (Exception ex)
             {
-                // Sefer kaydi basarisiz olursa guzergah yine de kaydedilsin
+                kayitHataMesaji = $"Güzergah kaydedildi ancak seferler kaydedilirken hata oluştu: {ex.InnerException?.Message ?? ex.Message}";
+                return;
             }
+
+            // Degisiklik uyarisi: Planlama ve Puantaj modullerinde guncelleme hatirlatmasi
+            DegisiklikUyari.DegisiklikKaydet(guzergah.Id);
 
             Navigation.NavigateTo("/guzergahlar");
         }
