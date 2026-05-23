@@ -306,16 +306,43 @@
             using var ms = new MemoryStream();
             await stream.CopyToAsync(ms);
             using var wb = new XLWorkbook(ms);
+
+            if (!wb.Worksheets.Any())
+            {
+                ToastService.ShowError("Excel dosyasında hiçbir sayfa bulunamadı.");
+                return;
+            }
+
             var ws = wb.Worksheet(1);
             var lastRow = ws.LastRowUsed()?.RowNumber() ?? 1;
 
+            if (lastRow < 2)
+            {
+                ToastService.ShowWarning("Excel dosyasında veri satırı bulunamadı. Şablonu indirip doldurarak tekrar deneyin.");
+                return;
+            }
+
+            // Başlık kontrolü
+            var ilkHucre = ws.Cell(1, 1).GetString().Trim();
+            if (!ilkHucre.Contains("Plaka", StringComparison.OrdinalIgnoreCase))
+            {
+                ToastService.ShowWarning("Excel başlık satırı beklenen formatta değil. Lütfen şablonu kullanın. (İlk sütun 'Plaka' olmalı)");
+            }
+
             for (int row = 2; row <= lastRow; row++)
             {
+                // Boş satırları atla
+                var plaka = ws.Cell(row, 1).GetString().Trim();
+                var guzergahAdi = ws.Cell(row, 2).GetString().Trim();
+                var kurumAdi = ws.Cell(row, 3).GetString().Trim();
+                if (string.IsNullOrWhiteSpace(plaka) && string.IsNullOrWhiteSpace(guzergahAdi) && string.IsNullOrWhiteSpace(kurumAdi))
+                    continue;
+
                 var satir = new ImportOnizlemeSatiri
                 {
-                    Plaka = ws.Cell(row, 1).GetString().Trim(),
-                    GuzergahAdi = ws.Cell(row, 2).GetString().Trim(),
-                    KurumAdi = ws.Cell(row, 3).GetString().Trim(),
+                    Plaka = plaka,
+                    GuzergahAdi = guzergahAdi,
+                    KurumAdi = kurumAdi,
                     SoforAdi = ws.Cell(row, 4).GetString().Trim(),
                     SlotAdi = ws.Cell(row, 5).GetString().Trim(),
                     YonAdi = ws.Cell(row, 6).GetString().Trim(),
@@ -365,7 +392,10 @@
                 onizlemeSatirlar.Add(satir);
             }
 
-            ToastService.ShowInfo($"{onizlemeSatirlar.Count} satır okundu.");
+            var bosAtlanan = (lastRow - 1) - onizlemeSatirlar.Count;
+            var msg = $"{onizlemeSatirlar.Count} satır okundu.";
+            if (bosAtlanan > 0) msg += $" {bosAtlanan} boş satır atlandı.";
+            ToastService.ShowInfo(msg);
         }
         catch (Exception ex) { ToastService.ShowError($"Okuma hatası: {ex.Message}"); }
         finally { isliyor = false; }
