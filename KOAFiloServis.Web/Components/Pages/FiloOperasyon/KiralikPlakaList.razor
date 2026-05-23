@@ -1182,7 +1182,7 @@
             // ───────────────── DETAY SAYFASI ─────────────────
             var ws = workbook.Worksheets.Add("Detay");
 
-            var headers = new[] { "S.NO", "PLAKA", "EŞLEŞEN ARAÇ", "İSİM SOYİSİM", "BAŞLAMA TARİHİ", "BİTİŞ TARİHİ", "KALAN GÜN", "DURUM", "KASA DURUMU", "FATURA", "PERİYOT", "AYLIK/YILLIK", "EK TUTAR", "TOPLAM" };
+            var headers = new[] { "S.NO", "PLAKA", "EŞLEŞEN ARAÇ", "İSİM SOYİSİM", "BAŞLAMA TARİHİ", "BİTİŞ TARİHİ", "KALAN GÜN", "DURUM", "KASA DURUMU", "FATURA", "PERİYOT", "AYLIK/YILLIK", "EK TUTAR", "TOPLAM", "KESİLEN FATURA NO", "KESİLEN FATURA TUTAR", "KALAN FATURA", "ÖDENEN" };
             for (int i = 0; i < headers.Length; i++)
                 ws.Cell(1, i + 1).Value = headers[i];
 
@@ -1221,6 +1221,13 @@
                 ws.Cell(row, 14).Value = item.Toplam;
                 ws.Cell(row, 14).Style.NumberFormat.Format = "#,##0.00";
                 ws.Cell(row, 14).Style.Font.Bold = true;
+                ws.Cell(row, 15).Value = item.KesilenFaturaNo ?? "";
+                ws.Cell(row, 16).Value = item.KesilenFaturaTutar;
+                ws.Cell(row, 16).Style.NumberFormat.Format = "#,##0.00";
+                ws.Cell(row, 17).Value = item.KalanFaturaTutar;
+                ws.Cell(row, 17).Style.NumberFormat.Format = "#,##0.00";
+                ws.Cell(row, 18).Value = item.OdenenTutar;
+                ws.Cell(row, 18).Style.NumberFormat.Format = "#,##0.00";
 
                 // Bitiş tarihi rengi
                 if (kalan < 0)
@@ -1269,6 +1276,12 @@
             ws.Cell(row, 13).Style.NumberFormat.Format = "#,##0.00";
             ws.Cell(row, 14).FormulaA1 = $"SUM(N2:N{row - 1})";
             ws.Cell(row, 14).Style.NumberFormat.Format = "#,##0.00";
+            ws.Cell(row, 16).FormulaA1 = $"SUM(P2:P{row - 1})";
+            ws.Cell(row, 16).Style.NumberFormat.Format = "#,##0.00";
+            ws.Cell(row, 17).FormulaA1 = $"SUM(Q2:Q{row - 1})";
+            ws.Cell(row, 17).Style.NumberFormat.Format = "#,##0.00";
+            ws.Cell(row, 18).FormulaA1 = $"SUM(R2:R{row - 1})";
+            ws.Cell(row, 18).Style.NumberFormat.Format = "#,##0.00";
             ws.Range(row, 1, row, headers.Length).Style.Fill.BackgroundColor = XLColor.DarkGray;
             ws.Range(row, 1, row, headers.Length).Style.Font.FontColor = XLColor.White;
             ws.Range(row, 1, row, headers.Length).Style.Font.Bold = true;
