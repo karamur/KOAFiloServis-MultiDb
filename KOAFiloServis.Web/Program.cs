@@ -830,6 +830,13 @@ await RunScopedSafeAsync(app, "PuantajSlotMigration", async services =>
     await KOAFiloServis.Web.Data.Migrations.PuantajSlotMigrationHelper.ApplyAsync(context, logger);
 });
 
+await RunScopedSafeAsync(app, "GuzergahSeferFirmaIdConstraint", async services =>
+{
+    var context = services.GetRequiredService<ApplicationDbContext>();
+    var logger = services.GetRequiredService<ILogger<Program>>();
+    await KOAFiloServis.Web.Data.Migrations.GuzergahSeferFirmaIdConstraintHelper.ApplyAsync(context, logger);
+});
+
 await RunScopedSafeAsync(app, "KiralikPlakaFaturaMigration", async services =>
 {
     var context = services.GetRequiredService<ApplicationDbContext>();
@@ -909,6 +916,7 @@ await RunScopedSafeAsync(app, "ApplyMigrationsToTenantDatabases", async services
             await KOAFiloServis.Web.Data.Migrations.GuzergahKoordinatMigrationHelper.ApplyGuzergahKoordinatMigrationPostgresAsync(tenantCtx);
             await KOAFiloServis.Web.Data.Migrations.PuantajSlotMigrationHelper.ApplyAsync(tenantCtx, logger);
             await KOAFiloServis.Web.Data.Migrations.KiralikPlakaFaturaMigrationHelper.ApplyAsync(tenantCtx, logger);
+            await KOAFiloServis.Web.Data.Migrations.GuzergahSeferFirmaIdConstraintHelper.ApplyAsync(tenantCtx, logger);
 
             logger.LogInformation("Migration helper'lar uygulandi: {Firma} ({DbName})", firma.FirmaAdi, firma.DatabaseName);
         }
