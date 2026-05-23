@@ -450,16 +450,9 @@ public sealed class KurumPuantajService : IKurumPuantajService
             {
                 foreach (var sefer in gSeferler)
                 {
-                    // GuzergahSefer'de belirtilen spesifik slot varsa onu kullan,
-                    // yoksa SeferTipi'nden turet
-                    var slotlar = sefer.Slot != SeferSlot.Sabah || sefer.SeferTipi == SeferTipi.Sabah
-                        ? new[] { sefer.Slot }
-                        : SeferTipindenSlotlara(sefer.SeferTipi);
-                    foreach (var slot in slotlar)
-                    {
-                        EkleEksikSatir(sonuc, mevcutlar, guzergah, sefer.AracId!.Value,
-                            sefer.Arac?.AktifPlaka ?? sefer.Arac?.Plaka, null, sefer.SoforAd, yil, ay, slot, sefer.SeferTipi);
-                    }
+                    // Her sefer = 1 puantaj satiri, kendi slot'u ile
+                    EkleEksikSatir(sonuc, mevcutlar, guzergah, sefer.AracId!.Value,
+                        sefer.Arac?.AktifPlaka ?? sefer.Arac?.Plaka, null, sefer.SoforAd, yil, ay, sefer.Slot, sefer.SeferTipi);
                 }
                 continue;
             }
@@ -671,11 +664,7 @@ public sealed class KurumPuantajService : IKurumPuantajService
             {
                 foreach (var sefer in gSeferler)
                 {
-                    var slotlar = sefer.Slot != SeferSlot.Sabah || sefer.SeferTipi == SeferTipi.Sabah
-                        ? new[] { sefer.Slot }
-                        : SeferTipindenSlotlara(sefer.SeferTipi);
-
-                    foreach (var slot in slotlar)
+                    var slot = sefer.Slot;
                     {
                         var mevcut = mevcutlar.FirstOrDefault(p =>
                             p.GuzergahId == guzergah.Id && p.Slot == slot);
