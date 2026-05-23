@@ -24,7 +24,8 @@ public class CacheService : ICacheService
     {
         PropertyNamingPolicy = null,
         WriteIndented = false,
-        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+        ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
     };
 
     public CacheService(IDistributedCache cache, ILogger<CacheService> logger)
