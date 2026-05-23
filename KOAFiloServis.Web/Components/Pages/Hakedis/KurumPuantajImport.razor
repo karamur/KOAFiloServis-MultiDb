@@ -1,8 +1,10 @@
 @page "/hakedis/kurum-puantaj/import"
+@attribute [Authorize]
 @using KOAFiloServis.Shared.Entities
 @using KOAFiloServis.Web.Services
 @using KOAFiloServis.Web.Services.Interfaces
 @using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Authorization
 @using ClosedXML.Excel
 @inject IKurumPuantajService PuantajService
 @inject IKurumService KurumService
