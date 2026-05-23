@@ -50,7 +50,13 @@
             <button class="btn btn-outline-secondary" @onclick="SablonOlustur" disabled="@yukleniyor">
                 <i class="bi bi-magic me-1"></i> Şablon Oluştur
             </button>
-            <a href="/hakedis/kurum-puantaj/import" class="btn btn-outline-success">
+            @if (seciliKurumId > 0 && kayitlar.Any())
+            {
+                <button class="btn btn-outline-warning" @onclick="PuantajGuncelle" disabled="@yukleniyor">
+                    <i class="bi bi-arrow-repeat me-1"></i> Puantajı Güncelle
+                </button>
+            }
+            <a href="/puantaj/import" class="btn btn-outline-success">
                 <i class="bi bi-file-earmark-excel me-1"></i> Excel Aktar
             </a>
         </div>
@@ -175,6 +181,34 @@
 
         @if (gorunumDetayli)
         {
+            <!-- Özet Kartlar -->
+            <div class="row g-2 mb-2">
+                <div class="col-6 col-md-2">
+                    <div class="card bg-primary text-white text-center py-1">
+                        <small class="opacity-75">Toplam Kayıt</small>
+                        <h5 class="mb-0">@kayitlar.Count</h5>
+                    </div>
+                </div>
+                <div class="col-6 col-md-2">
+                    <div class="card bg-success text-white text-center py-1">
+                        <small class="opacity-75">Toplam Gelir</small>
+                        <h5 class="mb-0">@kayitlar.Sum(k => k.ToplamGelir).ToString("N0") ₺</h5>
+                    </div>
+                </div>
+                <div class="col-6 col-md-2">
+                    <div class="card bg-danger text-white text-center py-1">
+                        <small class="opacity-75">Toplam Gider</small>
+                        <h5 class="mb-0">@kayitlar.Sum(k => k.ToplamGider).ToString("N0") ₺</h5>
+                    </div>
+                </div>
+                <div class="col-6 col-md-2">
+                    <div class="card bg-info text-white text-center py-1">
+                        <small class="opacity-75">Net Kar</small>
+                        <h5 class="mb-0">@((kayitlar.Sum(k => k.ToplamGelir) - kayitlar.Sum(k => k.ToplamGider)).ToString("N0")) ₺</h5>
+                    </div>
+                </div>
+            </div>
+
             <!-- ─── GÜNLÜK DETAYLI TABLO ─────────────────────────────── -->
             <div class="table-responsive" style="overflow-x:auto; max-height:72vh; overflow-y:auto;">
                 <table class="table table-bordered table-sm puantaj-table align-middle">
@@ -468,8 +502,9 @@
     // ── Lifecycle ─────────────────────────────────────────────────────────────
     protected override async Task OnInitializedAsync()
     {
-        Navigation.NavigateTo("/puantaj", forceLoad: false);
-        return;
+        kurumlar = await KurumPuantajService.GetAktifKurumlarAsync();
+        guzergahListesi = await GuzergahService.GetActiveAsync();
+        aracListesi = await AracService.GetActiveAsync();
     }
 
     // ── Filtre olayları ───────────────────────────────────────────────────────
@@ -509,6 +544,28 @@
         {
             ToastService.ShowError($"Şablon oluşturulamadı: {ex.Message}");
         }
+        finally { yukleniyor = false; }
+    }
+
+    async Task PuantajGuncelle()
+    {
+        if (seciliKurumId == 0) return;
+        yukleniyor = true;
+        try
+        {
+            var sonuc = await KurumPuantajService.GuncellePuantajAsync(seciliKurumId, seciliYil, seciliAy);
+            if (sonuc.Guncellenen > 0 || sonuc.Eklenen > 0)
+            {
+                kayitlar = await KurumPuantajService.GetPuantajlarAsync(seciliYil, seciliAy, seciliKurumId);
+                degisikSatirlar.Clear();
+                ToastService.ShowSuccess($"Puantaj güncellendi: {sonuc.Guncellenen} değişti, {sonuc.Eklenen} eklendi, {sonuc.Degismeyen} aynı.");
+            }
+            else
+            {
+                ToastService.ShowInfo($"Tüm kayıtlar güncel ({sonuc.Degismeyen} kayıt).");
+            }
+        }
+        catch (Exception ex) { ToastService.ShowError($"Güncelleme hatası: {ex.Message}"); }
         finally { yukleniyor = false; }
     }
 
