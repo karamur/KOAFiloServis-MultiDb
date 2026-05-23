@@ -4,6 +4,7 @@
 @implements IDisposable
 @inject IKullaniciService KullaniciService
 @inject AppAuthenticationStateProvider AuthProvider
+@inject IAktifFirmaProvider AktifFirmaProvider
 @inject ILogger<NavMenu> Logger
 
 <div class="top-row ps-3 navbar navbar-dark">
@@ -11,6 +12,30 @@
         <a class="navbar-brand" href="dashboard">
             <i class="bi bi-truck me-2"></i>Koa Filo Servis
         </a>
+        <div class="d-flex align-items-center gap-3 text-white small">
+            @{
+                var aktifFirma = AktifFirmaProvider.Mevcut;
+                var kullanici = AuthProvider.GetAktifKullanici();
+            }
+            @if (!aktifFirma.TumFirmalar)
+            {
+                <span class="d-none d-lg-inline" title="Aktif Firma">
+                    <i class="bi bi-building me-1 opacity-75"></i>@aktifFirma.FirmaAdi
+                    <span class="opacity-50 ms-1">(@aktifFirma.FirmaKodu)</span>
+                </span>
+                <span class="d-none d-lg-inline opacity-50">|</span>
+                <span class="d-none d-lg-inline" title="Donem">
+                    <i class="bi bi-calendar-month me-1 opacity-75"></i>@aktifFirma.AktifDonemAy.ToString("D2")/@aktifFirma.AktifDonemYil
+                </span>
+                <span class="d-none d-lg-inline opacity-50">|</span>
+            }
+            @if (kullanici != null)
+            {
+                <span class="text-white-50" title="Kullanici">
+                    <i class="bi bi-person-circle me-1"></i>@(kullanici.AdSoyad ?? kullanici.KullaniciAdi)
+                </span>
+            }
+        </div>
     </div>
 </div>
 

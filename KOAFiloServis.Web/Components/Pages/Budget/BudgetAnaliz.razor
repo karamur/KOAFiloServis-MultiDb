@@ -2385,7 +2385,7 @@
         {
             OdemeTarihi = secilenGun.HasValue ? secilenGunTarih : DateTime.Today,
             Durum = OdemeDurum.Bekliyor,
-            FirmaId = aktifFirma.TumFirmalar ? null : aktifFirma.FirmaId
+            FirmaId = (aktifFirma.TumFirmalar || aktifFirma.FirmaId <= 0) ? null : aktifFirma.FirmaId
         };
         showOdemeModal = true;
     }
@@ -2482,7 +2482,7 @@
         {
             BaslangicTarihi = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1),
             TaksitSayisi = 12,
-            FirmaId = aktifFirma.TumFirmalar ? null : aktifFirma.FirmaId
+            FirmaId = (aktifFirma.TumFirmalar || aktifFirma.FirmaId <= 0) ? null : aktifFirma.FirmaId
         };
         showTaksitModal = true;
     }
@@ -2749,7 +2749,7 @@
             Periyod = TekrarPeriyodu.Aylik,
             Aktif = true,
             HatirlatmaGunSayisi = 3,
-            FirmaId = aktifFirma.TumFirmalar ? null : aktifFirma.FirmaId
+            FirmaId = (aktifFirma.TumFirmalar || aktifFirma.FirmaId <= 0) ? null : aktifFirma.FirmaId
         };
         showTekrarlayanModal = true;
     }

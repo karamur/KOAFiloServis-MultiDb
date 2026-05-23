@@ -159,17 +159,20 @@ public class BudgetService : IBudgetService
         // DateTime'i UTC olarak ayarla
         odeme.OdemeTarihi = DateTime.SpecifyKind(odeme.OdemeTarihi, DateTimeKind.Utc);
         odeme.Miktar = Math.Abs(odeme.Miktar);
-        
+
+        // FirmaId=0 FK hatasina yol acmasin diye null'a cevir
+        if (odeme.FirmaId <= 0) odeme.FirmaId = null;
+
         // Varsayilan degerler
         odeme.OdemeAy = odeme.OdemeTarihi.Month;
         odeme.OdemeYil = odeme.OdemeTarihi.Year;
-        
+
         if (!odeme.TaksitliMi)
         {
             odeme.ToplamTaksitSayisi = 1;
             odeme.KacinciTaksit = 1;
         }
-        
+
         odeme.CreatedAt = DateTime.UtcNow;
 
         context.BudgetOdemeler.Add(odeme);
@@ -184,7 +187,10 @@ public class BudgetService : IBudgetService
         var odemeTarihi = DateTime.SpecifyKind(odeme.OdemeTarihi, DateTimeKind.Utc);
         var miktar = Math.Abs(odeme.Miktar);
         var updatedAt = DateTime.UtcNow;
-        
+
+        // FirmaId=0 FK hatasina yol acmasin diye null'a cevir
+        if (odeme.FirmaId <= 0) odeme.FirmaId = null;
+
         // Doğrudan veritabanında güncelle (tracking sorunu olmaz)
         await context.BudgetOdemeler
             .Where(o => o.Id == odeme.Id)
@@ -529,6 +535,10 @@ public class BudgetService : IBudgetService
     public async Task<List<BudgetOdeme>> CreateTaksitliOdemeAsync(TaksitliOdemeRequest request)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
+
+        // FirmaId=0 FK hatasina yol acmasin diye null'a cevir
+        var firmaId = (request.FirmaId.HasValue && request.FirmaId.Value > 0) ? request.FirmaId : null;
+
         var taksitGrupId = Guid.NewGuid();
         var taksitler = new List<BudgetOdeme>();
 
@@ -557,7 +567,7 @@ public class BudgetService : IBudgetService
                     TaksitBaslangicAy = baslangicUtc,
                     TaksitBitisAy = baslangicUtc.AddMonths(request.TaksitSayisi - 1), // Yaklasik bitis tarihi
                     Notlar = request.Notlar,
-                    FirmaId = request.FirmaId,
+                    FirmaId = firmaId,
                     Durum = OdemeDurum.Bekliyor,
                     CreatedAt = DateTime.UtcNow
                 };
@@ -592,7 +602,7 @@ public class BudgetService : IBudgetService
                     TaksitBaslangicAy = baslangicUtc,
                     TaksitBitisAy = baslangicUtc.AddMonths(request.TaksitSayisi - 1),
                     Notlar = request.Notlar,
-                    FirmaId = request.FirmaId,
+                    FirmaId = firmaId,
                     Durum = OdemeDurum.Bekliyor,
                     CreatedAt = DateTime.UtcNow
                 };
