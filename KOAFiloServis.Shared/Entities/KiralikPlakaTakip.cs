@@ -32,6 +32,20 @@ public class KiralikPlakaTakip : BaseEntity
 
     public decimal EkTutar { get; set; } = 0;
 
+    // Fatura takip alanları
+    [StringLength(50)]
+    public string? KesilenFaturaNo { get; set; }
+    public DateTime? KesilenFaturaTarih { get; set; }
+    public decimal KesilenFaturaTutar { get; set; } = 0;
+    public decimal KalanFaturaTutar { get; set; } = 0;
+    public int? GelenFaturaId { get; set; }
+
+    // Ödeme takip alanları (Faz 3'te kullanılacak)
+    public decimal ToplamOdeme { get; set; } = 0;
+    public decimal OdenenTutar { get; set; } = 0;
+    public decimal KalanOdeme => ToplamOdeme - OdenenTutar;
+    public DateTime? SonOdemeTarihi { get; set; }
+
     [NotMapped]
     public decimal Toplam => FaturaOdemesi + EkTutar;
 }

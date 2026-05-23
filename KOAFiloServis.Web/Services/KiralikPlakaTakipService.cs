@@ -61,6 +61,14 @@ public class KiralikPlakaTakipService : IKiralikPlakaTakipService
         existing.Periyot = entity.Periyot;
         existing.AylikVeyaYillikTutar = entity.AylikVeyaYillikTutar;
         existing.EkTutar = entity.EkTutar;
+        existing.KesilenFaturaNo = entity.KesilenFaturaNo;
+        existing.KesilenFaturaTarih = entity.KesilenFaturaTarih?.Date;
+        existing.KesilenFaturaTutar = entity.KesilenFaturaTutar;
+        existing.KalanFaturaTutar = entity.KalanFaturaTutar;
+        existing.GelenFaturaId = entity.GelenFaturaId <= 0 ? null : entity.GelenFaturaId;
+        existing.ToplamOdeme = entity.ToplamOdeme;
+        existing.OdenenTutar = entity.OdenenTutar;
+        existing.SonOdemeTarihi = entity.SonOdemeTarihi?.Date;
         existing.UpdatedAt = DateTime.UtcNow;
 
         await context.SaveChangesAsync();

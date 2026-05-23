@@ -142,6 +142,10 @@
                             <th>AYLIK / YILLIK</th>
                             <th>EK TUTAR</th>
                             <th>TOPLAM</th>
+                            <th>KESİLEN FATURA NO</th>
+                            <th class="text-end">KESİLEN FATURA</th>
+                            <th class="text-end">KALAN</th>
+                            <th class="text-end">ÖDENEN</th>
                             <th class="text-end">İşlem</th>
                         </tr>
                     </thead>
@@ -196,6 +200,18 @@
                                 <td>@item.Periyot <br /><small class="text-muted">@item.AylikVeyaYillikTutar.ToString("N2")</small></td>
                                 <td>@item.EkTutar.ToString("N2")</td>
                                 <td><strong>@item.Toplam.ToString("N2")</strong></td>
+                                <td>@(item.KesilenFaturaNo ?? "-")</td>
+                                <td class="text-end">@(item.KesilenFaturaTutar > 0 ? item.KesilenFaturaTutar.ToString("N2") : "-")</td>
+                                <td class="text-end">
+                                    @if (item.KalanFaturaTutar > 0)
+                                    { <span class="text-danger fw-semibold">@item.KalanFaturaTutar.ToString("N2")</span> }
+                                    else { <span>-</span> }
+                                </td>
+                                <td class="text-end">
+                                    @if (item.OdenenTutar > 0)
+                                    { <span class="text-success fw-semibold">@item.OdenenTutar.ToString("N2")</span> }
+                                    else { <span>-</span> }
+                                </td>
                                 <td class="text-end">
                                     <div class="btn-group btn-group-sm">
                                         <a href="/araclar/plaka-takip/@item.Id/duzenle" class="btn btn-outline-primary" title="Düzenle"><i class="bi bi-pencil"></i></a>
@@ -294,6 +310,8 @@
                         <span class="badge bg-dark">Süresi Geçen: @FiltrelenmisListe.Count(x => (x.BitisTarihi.Date - DateTime.Today).Days < 0)</span>
                         <span class="badge bg-warning text-dark">7 Gün İçinde: @FiltrelenmisListe.Count(x => { var g = (x.BitisTarihi.Date - DateTime.Today).Days; return g >= 0 && g <= 7; })</span>
                         <span class="badge bg-info text-dark">Toplam Tutar: @FiltrelenmisListe.Sum(x => x.Toplam).ToString("N2") ₺</span>
+                        <span class="badge bg-warning text-dark">Toplam Ödenen: @FiltrelenmisListe.Sum(x => x.OdenenTutar).ToString("N2") ₺</span>
+                        <span class="badge bg-danger">Toplam Kalan: @FiltrelenmisListe.Sum(x => x.KalanFaturaTutar).ToString("N2") ₺</span>
                     </div>
 
                     @{
@@ -365,6 +383,9 @@
                                     <th class="text-end">Fatura</th>
                                     <th class="text-end">Ek Tutar</th>
                                     <th class="text-end">Toplam</th>
+                                    <th>Kesilen Fatura No</th>
+                                    <th class="text-end">Kesilen Fatura</th>
+                                    <th class="text-end">Kalan</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -411,6 +432,9 @@
                                         <td class="text-end">@item.FaturaOdemesi.ToString("N2")</td>
                                         <td class="text-end">@item.EkTutar.ToString("N2")</td>
                                         <td class="text-end"><strong>@item.Toplam.ToString("N2")</strong></td>
+                                        <td>@(item.KesilenFaturaNo ?? "-")</td>
+                                        <td class="text-end">@(item.KesilenFaturaTutar > 0 ? item.KesilenFaturaTutar.ToString("N2") : "-")</td>
+                                        <td class="text-end">@(item.KalanFaturaTutar > 0 ? item.KalanFaturaTutar.ToString("N2") : "-")</td>
                                     </tr>
                                 }
                             </tbody>
@@ -420,6 +444,9 @@
                                     <th class="text-end">@FiltrelenmisListe.Sum(x => x.FaturaOdemesi).ToString("N2")</th>
                                     <th class="text-end">@FiltrelenmisListe.Sum(x => x.EkTutar).ToString("N2")</th>
                                     <th class="text-end">@FiltrelenmisListe.Sum(x => x.Toplam).ToString("N2")</th>
+                                    <th></th>
+                                    <th class="text-end">@FiltrelenmisListe.Sum(x => x.KesilenFaturaTutar).ToString("N2")</th>
+                                    <th class="text-end">@FiltrelenmisListe.Sum(x => x.KalanFaturaTutar).ToString("N2")</th>
                                 </tr>
                             </tfoot>
                         </table>
