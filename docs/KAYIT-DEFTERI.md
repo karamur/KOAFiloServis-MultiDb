@@ -1162,6 +1162,12 @@ Yeni repo açma ve Faz 1'e başlama kararı alınırsa:
 ### 📋 Commit Geçmişi
 
 ```
+4574090 fix(cache): JsonSerializer ReferenceHandler.IgnoreCycles eklendi
+a9f227d feat(navmenu): Puantaj Excel Aktar menu linki eklendi
+3672972 feat(puantaj): Excel'den puantaj import sayfasi
+072ba66 feat(kiralikplaka): PDF export'a fatura/odeme sutunlari eklendi
+f5395f5 feat(kiralikplaka): Excel export'a fatura/odeme sutunlari eklendi
+eb3c29e fix(genel): Proje geneli FirmaId=0 FK korumasi (5 nokta)
 cfa6ab0 feat(kiralikplaka): Faz 4 - Hesap Pusulasi modali
 59e2ae2 fix(layout): NavMenu - Firma/kullanici bilgisi sidebar'a tasindi
 f697192 feat(kiralikplaka): Faz 3 - Aylik odeme plani tablosu
