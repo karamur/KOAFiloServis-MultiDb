@@ -941,15 +941,15 @@
             kayitHataMesaji = "Güzergah Adı zorunludur.";
             return;
         }
-        if (secilenKurumId == 0 && (!guzergah.KurumId.HasValue || guzergah.KurumId.Value <= 0))
+        var kurumId = guzergah.KurumId > 0 ? guzergah.KurumId : (secilenKurumId > 0 ? secilenKurumId : (int?)null);
+        if (!kurumId.HasValue)
         {
             kayitHataMesaji = "Kurum / Müşteri Kartı seçimi zorunludur. Lütfen listeden bir kurum seçin.";
             return;
         }
-        if (secilenKurumId == 0 && guzergah.KurumId.HasValue && guzergah.KurumId.Value > 0)
-        {
-            secilenKurumId = guzergah.KurumId.Value;
-        }
+        guzergah.KurumId = kurumId.Value;
+        secilenKurumId = kurumId.Value;
+
         if (guzergah.CariId == 0)
         {
             kayitHataMesaji = "Cari Kartı seçimi zorunludur. Lütfen listeden bir cari seçin.";
