@@ -1274,3 +1274,25 @@ b24eef4 feat(planlama): Puantaji Guncelle butonu + GuncellePuantajAsync
 
 ### Yapilacaklar
 1. Kurum Puantaj - Gun grid, arac/sofor ekleme, cakisma, onay
+
+---
+
+## 📅 24.05.2026 — İkinci Oturum (KurumPuantaj Bug Fix)
+
+### 🔴 Tespit Edilen Hatalar
+
+| # | Dosya | Satır | Sorun | Şiddet |
+|---|-------|:-----:|-------|:------:|
+| **B1** | `KurumPuantaj.razor` | 882 | `degisikSatirlar.Remove(kayitlar[idx])` — atama sonrası *yeni* nesneyi set'ten silmeye çalışıyor. `BaseEntity`'de `Equals` override yok, referans eşitliği ile çalışır. Eski nesne yerine yeni nesne aranır → bulunamaz → silme başarısız, kirli satır set'te kalır. | 🔴 |
+| **B2** | `KurumPuantaj.razor` | 843 | `YeniKayitEkle()` metodunda `FinansYonu = PlanlamaFinansYonu.Gelen` yazılmış, entity default'u `Giden`. Tutarsızlık. | 🟡 |
+| **B3** | `KurumPuantaj.razor` | 805-827 | `TekKayitDuzenle()` deep copy'de `OnayDurum` alanı kopyalanmamış. Entity default'u `Taslak` olduğu için, mevcut `Onaylandi` bir kaydı düzenleyip kaydedince OnayDurum sıfırlanır (veri kaybı). | 🔴 |
+| **B4** | `KurumPuantaj.razor` | 904 | `KayitSil()` — yeni kayıt (`Id==0`) silinince `degisikSatirlar`'dan kaldırılmıyor. Kullanıcı eklediği kaydı silse bile kirli set'te kalır, "Tümünü Kaydet"te hata oluşabilir. | 🟡 |
+
+### ✅ Yapılan Fix'ler
+
+| Fix | Dosya | Açıklama |
+|-----|-------|----------|
+| **B1** | `KurumPuantaj.razor:881-883` | `var eski = kayitlar[idx]` ile eski referans saklandı, atama sonrası `degisikSatirlar.Remove(eski)` ile doğru nesne siliniyor |
+| **B2** | `KurumPuantaj.razor:843` | `FinansYonu = PlanlamaFinansYonu.Giden` olarak düzeltildi (entity default'u ile tutarlı) |
+| **B3** | `KurumPuantaj.razor:827` | `OnayDurum = kayit.OnayDurum` deep copy'e eklendi |
+| **B4** | `KurumPuantaj.razor:904` | `degisikSatirlar.Remove(kayit)` eklendi |

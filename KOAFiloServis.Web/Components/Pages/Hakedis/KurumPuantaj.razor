@@ -5,6 +5,7 @@
 @inject IKurumPuantajService KurumPuantajService
 @inject IGuzergahService GuzergahService
 @inject IAracService AracService
+@inject ISoforService SoforService
 @inject GuzergahDegisiklikUyariService DegisiklikUyari
 @inject IToastService ToastService
 @inject NavigationManager Navigation
@@ -28,6 +29,8 @@
     .guzergah-grup th { background:#e3eeff; font-weight:600; font-size:.79rem; }
     .sticky-col { position:sticky; left:0; z-index:2; background:#fff; }
     .sticky-col2 { position:sticky; left:160px; z-index:2; background:#fff; }
+    .bugun-vurgu { border: 2px solid #dc3545 !important; border-radius: 3px; }
+    .bugun-hdr { background: #ffe0e0 !important; font-weight: 700; }
 </style>
 
 <div class="container-fluid px-3">
@@ -56,6 +59,12 @@
                     <i class="bi bi-arrow-repeat me-1"></i> Puantajı Güncelle
                 </button>
             }
+            @if (seciliKurumId > 0)
+            {
+                <button class="btn btn-outline-primary" @onclick="YeniKayitEkle">
+                    <i class="bi bi-plus-circle me-1"></i> Yeni Kayıt Ekle
+                </button>
+            }
             <a href="/puantaj/import" class="btn btn-outline-success">
                 <i class="bi bi-file-earmark-excel me-1"></i> Excel Aktar
             </a>
@@ -70,6 +79,41 @@
             Puantajı güncellemek için <strong>"Şablon Oluştur"</strong> butonunu kullanın.
             <button type="button" class="btn-close" @onclick="DegisiklikUyari.TumunuTemizle" title="Uyarıyı kapat"></button>
         </div>
+    }
+
+    @if (cakismaSonucu != null && cakismaSonucu.Conflicts.Any())
+    {
+        var blockings = cakismaSonucu.Conflicts.Where(c => c.Severity == ConflictSeverity.Blocking).ToList();
+        var warnings = cakismaSonucu.Conflicts.Where(c => c.Severity == ConflictSeverity.Warning).ToList();
+        <div class="alert @(blockings.Any() ? "alert-danger" : "alert-warning") alert-dismissible fade show py-2 mb-3">
+            <i class="bi @(blockings.Any() ? "bi-x-octagon-fill" : "bi-exclamation-triangle-fill") me-2"></i>
+            <strong>@cakismaSonucu.Conflicts.Count çakışma</strong> bulundu:
+            @if (blockings.Any()) { <span class="badge bg-danger me-1">@blockings.Count engelleyici</span> }
+            @if (warnings.Any()) { <span class="badge bg-warning text-dark">@warnings.Count uyarı</span> }
+            <button type="button" class="btn btn-sm btn-outline-secondary ms-2" @onclick="() => CakismaDetayGoster = !CakismaDetayGoster">
+                <i class="bi @(CakismaDetayGoster ? "bi-chevron-up" : "bi-chevron-down") me-1"></i>Detay
+            </button>
+            <button type="button" class="btn-close" @onclick="() => cakismaSonucu = null"></button>
+        </div>
+        @if (CakismaDetayGoster)
+        {
+            <div class="card mb-3 border-danger">
+                <div class="card-body py-2 small">
+                    <table class="table table-sm table-borderless mb-0">
+                        @foreach (var c in cakismaSonucu.Conflicts.OrderBy(c => c.Severity).ThenBy(c => c.Gun))
+                        {
+                            <tr class="@(c.Severity == ConflictSeverity.Blocking ? "table-danger" : "table-warning")">
+                                <td style="width:80px">
+                                    <span class="badge @(c.Severity == ConflictSeverity.Blocking ? "bg-danger" : "bg-warning text-dark")">@c.Kural</span>
+                                </td>
+                                <td style="width:50px">@(c.Gun > 0 ? $"Gün {c.Gun}" : "-")</td>
+                                <td>@c.Mesaj</td>
+                            </tr>
+                        }
+                    </table>
+                </div>
+            </div>
+        }
     }
 
     <!-- Filtre Çubuğu -->
@@ -165,11 +209,31 @@
 
         <!-- Toplu seçim araç çubuğu -->
         <div class="d-flex gap-2 mb-2 flex-wrap">
+            <button class="btn btn-sm btn-outline-danger" @onclick="CakismaKontrolEt">
+                <i class="bi bi-shield-exclamation me-1"></i> Çakışma Kontrolü
+            </button>
+            <span class="vr"></span>
+            <button class="btn btn-sm btn-outline-success" @onclick="TopluOnayla">
+                <i class="bi bi-check-circle me-1"></i> Onayla
+            </button>
+            <button class="btn btn-sm btn-outline-warning" @onclick="TopluOnayaGonder">
+                <i class="bi bi-send me-1"></i> Onaya Gönder
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="TopluOnayKaldir">
+                <i class="bi bi-arrow-counterclockwise me-1"></i> Onay Kaldır
+            </button>
+            <span class="vr"></span>
             <button class="btn btn-sm btn-outline-secondary" @onclick="TumGunleriAc">
-                <i class="bi bi-check2-all me-1"></i> Tüm Günler = 1
+                <i class="bi bi-check2-all me-1"></i> Tümü = 1
             </button>
             <button class="btn btn-sm btn-outline-secondary" @onclick="TumGunleriSifirla">
-                <i class="bi bi-x-circle me-1"></i> Tüm Günler = 0
+                <i class="bi bi-x-circle me-1"></i> Sıfırla
+            </button>
+            <button class="btn btn-sm btn-outline-warning" @onclick="SadeceHaftaIciAc">
+                <i class="bi bi-briefcase me-1"></i> Hafta İçi = 1
+            </button>
+            <button class="btn btn-sm btn-outline-warning" @onclick="SadeceHaftaSonuAc">
+                <i class="bi bi-calendar-week me-1"></i> Hafta Sonu = 1
             </button>
             <span class="vr"></span>
             <small class="text-muted align-self-center">
@@ -221,7 +285,10 @@
                             @for (int g = 1; g <= AydakiGunSayisi(); g++)
                             {
                                 var tarih = new DateTime(seciliYil, seciliAy, g);
-                                <th class="gun-hdr @(HaftaSonuMu(tarih) ? "hafta-sonu" : "")">
+                                var gunClass = "gun-hdr";
+                                if (HaftaSonuMu(tarih)) gunClass += " hafta-sonu";
+                                if (BugunMu(tarih)) gunClass += " bugun-hdr";
+                                <th class="@gunClass">
                                     <div>@g</div>
                                     <div style="font-size:.65rem;color:#888">@tarih.ToString("ddd", new System.Globalization.CultureInfo("tr-TR"))</div>
                                 </th>
@@ -264,7 +331,9 @@
                                     {
                                         var gunNo = g;
                                         var tarih = new DateTime(seciliYil, seciliAy, gunNo);
-                                        <td class="@(HaftaSonuMu(tarih) ? "hafta-sonu" : "")">
+                                        var cellClass = HaftaSonuMu(tarih) ? "hafta-sonu" : "";
+                                        if (BugunMu(tarih)) cellClass += " bugun-vurgu";
+                                        <td class="@cellClass">
                                             <input type="number" min="0" max="2"
                                                    value="@kayit.GetGunDeger(gunNo)"
                                                    @onchange="e => GunDegerDegisti(kayit, gunNo, e)"
@@ -338,11 +407,13 @@
                                 <td class="col-toplam">@kayit.SeferGunuToplami</td>
                                 <td class="text-center">
                                     @if (kayit.OnayDurum == PuantajOnayDurum.Onaylandi)
-                                    { <span class="badge bg-success small">Onayli</span> }
+                                    { <span class="badge bg-success small" style="cursor:pointer" title="Onayı kaldır" @onclick="() => OnayToggle(kayit)">Onayli</span> }
                                     else if (kayit.OnayDurum == PuantajOnayDurum.OnayBekliyor)
-                                    { <span class="badge bg-warning text-dark small">Bekliyor</span> }
+                                    { <span class="badge bg-warning text-dark small" style="cursor:pointer" title="Onayla" @onclick="() => OnayToggle(kayit)">Bekliyor</span> }
                                     else if (kayit.OnayDurum == PuantajOnayDurum.Reddedildi)
-                                    { <span class="badge bg-danger small">Red</span> }
+                                    { <span class="badge bg-danger small" style="cursor:pointer" title="Taslağa çevir" @onclick="() => OnayToggle(kayit)">Red</span> }
+                                    else
+                                    { <span class="badge bg-secondary small" style="cursor:pointer" title="Onayla" @onclick="() => OnayToggle(kayit)">Taslak</span> }
                                 </td>
                                 <td>
                                     <div class="d-flex gap-1">
@@ -373,11 +444,19 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
-                        <i class="bi bi-pencil-square me-2"></i>
-                        @duzenleKayit.Guzergah?.GuzergahAdi — @duzenleKayit.Plaka
+                        @if (yeniKayitMi)
+                        {
+                            <i class="bi bi-plus-circle me-2 text-success"></i>
+                            <span>Yeni Puantaj Kaydı</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-pencil-square me-2"></i>
+                            @duzenleKayit.Guzergah?.GuzergahAdi <text>—</text> @duzenleKayit.Plaka
+                        }
                         <small class="text-muted ms-2">(@AyAdi(seciliAy) @seciliYil)</small>
                     </h5>
-                    <button class="btn-close" @onclick="() => duzenleKayit = null"></button>
+                    <button class="btn-close" @onclick="() => { duzenleKayit = null; yeniKayitMi = false; }"></button>
                 </div>
                 <div class="modal-body">
                     <div class="row g-3 mb-3">
@@ -399,7 +478,11 @@
                         </div>
                         <div class="col-md-3">
                             <label class="form-label small">Şoför</label>
-                            <input class="form-control form-control-sm" @bind="duzenleKayit.SoforAdi" placeholder="Şoför adı" />
+                            <select class="form-select form-select-sm" @bind="duzenleKayit.SoforId" @bind:after="() => duzenleKayit.SoforAdi = soforListesi.FirstOrDefault(s => s.Id == duzenleKayit.SoforId)?.TamAd ?? duzenleKayit.SoforAdi">
+                                <option value="">-- Seçiniz --</option>
+                                @foreach (var s in soforListesi)
+                                { <option value="@s.Id">@s.TamAd</option> }
+                            </select>
                         </div>
                         <div class="col-md-2">
                             <label class="form-label small">Sefer/Gün</label>
@@ -443,7 +526,10 @@
                                 @for (int g = 1; g <= AydakiGunSayisi(); g++)
                                 {
                                     var tarih = new DateTime(seciliYil, seciliAy, g);
-                                    <th class="gun-hdr @(HaftaSonuMu(tarih) ? "hafta-sonu" : "")">
+                                    var gunClass = "gun-hdr";
+                                    if (HaftaSonuMu(tarih)) gunClass += " hafta-sonu";
+                                    if (BugunMu(tarih)) gunClass += " bugun-hdr";
+                                    <th class="@gunClass">
                                         <div>@g</div>
                                         <div style="font-size:.62rem;color:#888">@tarih.ToString("ddd", new System.Globalization.CultureInfo("tr-TR"))</div>
                                     </th>
@@ -457,7 +543,9 @@
                                 {
                                     var gunNo = g;
                                     var tarih = new DateTime(seciliYil, seciliAy, gunNo);
-                                    <td class="@(HaftaSonuMu(tarih) ? "hafta-sonu" : "")">
+                                    var cellClass = HaftaSonuMu(tarih) ? "hafta-sonu" : "";
+                                    if (BugunMu(tarih)) cellClass += " bugun-vurgu";
+                                    <td class="@cellClass">
                                         <input type="number" min="0" max="2"
                                                value="@duzenleKayit.GetGunDeger(gunNo)"
                                                @onchange="e => DuzenleGunDegisti(gunNo, e)" />
@@ -469,7 +557,7 @@
                     </table>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" @onclick="() => duzenleKayit = null">İptal</button>
+                    <button class="btn btn-secondary" @onclick="() => { duzenleKayit = null; yeniKayitMi = false; }">İptal</button>
                     <button class="btn btn-primary" @onclick="TekKayitKaydet" disabled="@kaydediliyor">
                         @if (kaydediliyor) { <span class="spinner-border spinner-border-sm me-1"></span> }
                         <i class="bi bi-floppy me-1"></i> Kaydet
@@ -494,8 +582,12 @@
     bool gorunumDetayli = true;
 
     PuantajKayit? duzenleKayit = null;
+    bool yeniKayitMi = false;
     List<Guzergah> guzergahListesi = [];
     List<Arac> aracListesi = [];
+    List<Sofor> soforListesi = [];
+    ConflictResult? cakismaSonucu = null;
+    bool CakismaDetayGoster = false;
 
     bool degisiklikVar => degisikSatirlar.Count > 0;
 
@@ -505,12 +597,15 @@
         kurumlar = await KurumPuantajService.GetAktifKurumlarAsync();
         guzergahListesi = await GuzergahService.GetActiveAsync();
         aracListesi = await AracService.GetActiveAsync();
+        soforListesi = await SoforService.GetActiveSoforlerAsync();
     }
 
     // ── Filtre olayları ───────────────────────────────────────────────────────
     async Task KurumDegisti()
     {
         degisikSatirlar.Clear();
+        cakismaSonucu = null;
+        CakismaDetayGoster = false;
         await LoadData();
     }
 
@@ -572,11 +667,24 @@
     // ── Toplu kaydet ──────────────────────────────────────────────────────────
     async Task TopluKaydet()
     {
+        // Önce çakışma kontrolü
+        var degisenListe = degisikSatirlar.ToList();
+        var catisma = await KurumPuantajService.CheckConflictsAsync(degisenListe);
+        var blockings = catisma.Conflicts.Where(c => c.Severity == ConflictSeverity.Blocking).ToList();
+        if (blockings.Any())
+        {
+            cakismaSonucu = catisma;
+            CakismaDetayGoster = true;
+            ToastService.ShowError($"{blockings.Count} engelleyici çakışma var, kaydetme iptal edildi.");
+            return;
+        }
+
         kaydediliyor = true;
         try
         {
             await KurumPuantajService.TopluSavePuantajAsync(degisikSatirlar);
             degisikSatirlar.Clear();
+            cakismaSonucu = null;
             await LoadData();
             ToastService.ShowSuccess("Tüm değişiklikler kaydedildi.");
         }
@@ -586,6 +694,67 @@
             ToastService.ShowError($"Kayıt hatası: {msg}");
         }
         finally { kaydediliyor = false; }
+    }
+
+    async Task CakismaKontrolEt()
+    {
+        var degisenListe = degisikSatirlar.Any() ? degisikSatirlar.ToList() : kayitlar;
+        if (!degisenListe.Any())
+        {
+            ToastService.ShowInfo("Kontrol edilecek kayıt yok.");
+            return;
+        }
+        cakismaSonucu = await KurumPuantajService.CheckConflictsAsync(degisenListe);
+        CakismaDetayGoster = cakismaSonucu.Conflicts.Any();
+        if (!cakismaSonucu.Conflicts.Any())
+            ToastService.ShowSuccess("Hiç çakışma bulunamadı.");
+        else
+            ToastService.ShowWarning($"{cakismaSonucu.Conflicts.Count} çakışma bulundu.");
+    }
+
+    // ── Onay işlemleri ────────────────────────────────────────────────────────
+    void TopluOnayla()
+    {
+        foreach (var k in kayitlar)
+        {
+            k.OnayDurum = PuantajOnayDurum.Onaylandi;
+            degisikSatirlar.Add(k);
+        }
+        ToastService.ShowSuccess($"{kayitlar.Count} kayıt onaylandı. Değişiklikleri kaydetmek için 'Tümünü Kaydet' butonuna basın.");
+    }
+
+    void TopluOnayKaldir()
+    {
+        foreach (var k in kayitlar)
+        {
+            k.OnayDurum = PuantajOnayDurum.Taslak;
+            degisikSatirlar.Add(k);
+        }
+        ToastService.ShowSuccess($"{kayitlar.Count} kaydın onayı kaldırıldı. Değişiklikleri kaydetmek için 'Tümünü Kaydet' butonuna basın.");
+    }
+
+    void TopluOnayaGonder()
+    {
+        var taslaklar = kayitlar.Where(k => k.OnayDurum == PuantajOnayDurum.Taslak).ToList();
+        foreach (var k in taslaklar)
+        {
+            k.OnayDurum = PuantajOnayDurum.OnayBekliyor;
+            degisikSatirlar.Add(k);
+        }
+        ToastService.ShowSuccess($"{taslaklar.Count} kayıt onaya gönderildi. Değişiklikleri kaydetmek için 'Tümünü Kaydet' butonuna basın.");
+    }
+
+    void OnayToggle(PuantajKayit kayit)
+    {
+        kayit.OnayDurum = kayit.OnayDurum switch
+        {
+            PuantajOnayDurum.Taslak => PuantajOnayDurum.Onaylandi,
+            PuantajOnayDurum.OnayBekliyor => PuantajOnayDurum.Onaylandi,
+            PuantajOnayDurum.Onaylandi => PuantajOnayDurum.Taslak,
+            PuantajOnayDurum.Reddedildi => PuantajOnayDurum.Taslak,
+            _ => PuantajOnayDurum.Taslak
+        };
+        degisikSatirlar.Add(kayit);
     }
 
     // ── Hücre değişim olayları ────────────────────────────────────────────────
@@ -638,6 +807,7 @@
     // ── Tek kayıt düzenle ─────────────────────────────────────────────────────
     void TekKayitDuzenle(PuantajKayit kayit)
     {
+        yeniKayitMi = false;
         // Derin kopya (modal iptal edilirse orijinal bozulmasın)
         duzenleKayit = new PuantajKayit
         {
@@ -652,9 +822,44 @@
             Yon        = kayit.Yon,
             SeferSayisi= kayit.SeferSayisi,
             Yil        = kayit.Yil,
-            Ay         = kayit.Ay
+            Ay         = kayit.Ay,
+            Slot       = kayit.Slot,
+            SlotAdi    = kayit.SlotAdi,
+            KurumId    = kayit.KurumId,
+            BirimGelir = kayit.BirimGelir,
+            BirimGider = kayit.BirimGider,
+            KaynakTipi = kayit.KaynakTipi,
+            FinansYonu = kayit.FinansYonu,
+            IsverenFirmaId = kayit.IsverenFirmaId,
+            OnayDurum = kayit.OnayDurum
         };
         for (int g = 1; g <= 31; g++) duzenleKayit.SetGunDeger(g, kayit.GetGunDeger(g));
+    }
+
+    void YeniKayitEkle()
+    {
+        yeniKayitMi = true;
+        duzenleKayit = new PuantajKayit
+        {
+            Yil        = seciliYil,
+            Ay         = seciliAy,
+            KurumId    = seciliKurumId,
+            Slot       = SeferSlot.Sabah,
+            Yon        = PuantajYon.SabahAksam,
+            SeferSayisi = 1,
+            KaynakTipi = PlanlamaKaynakTipi.Kendi,
+            FinansYonu = PlanlamaFinansYonu.Giden
+        };
+        // Varsayılan güzergahı ata (kurumun ilk güzergahı)
+        var kurumGuzergahlari = guzergahListesi.Where(g => g.KurumId == seciliKurumId).ToList();
+        if (kurumGuzergahlari.Any())
+        {
+            var ilk = kurumGuzergahlari.First();
+            duzenleKayit.GuzergahId = ilk.Id;
+            duzenleKayit.Guzergah = ilk;
+            duzenleKayit.GuzergahAdi = ilk.GuzergahAdi;
+            duzenleKayit.BirimGelir = ilk.BirimFiyat;
+        }
     }
 
     void DuzenleGunDegisti(int gun, ChangeEventArgs e)
@@ -677,27 +882,34 @@
         try
         {
             var kaydedilen = await KurumPuantajService.SavePuantajAsync(duzenleKayit);
-            // Listedeki satırı güncelle
-            var idx = kayitlar.FindIndex(k => k.Id == kaydedilen.Id || (k.GuzergahId == kaydedilen.GuzergahId && k.AracId == kaydedilen.AracId));
+            // Listedeki satırı güncelle veya ekle
+            var idx = kayitlar.FindIndex(k => k.Id == kaydedilen.Id || (k.Id == 0 && k.GuzergahId == kaydedilen.GuzergahId && k.AracId == kaydedilen.AracId && k.Slot == kaydedilen.Slot));
             if (idx >= 0)
             {
+                var eski = kayitlar[idx];
                 kayitlar[idx] = kaydedilen;
-                degisikSatirlar.Remove(kayitlar[idx]);
+                degisikSatirlar.Remove(eski);
             }
             else
             {
                 kayitlar.Add(kaydedilen);
             }
+            var eklendi = yeniKayitMi;
             duzenleKayit = null;
-            ToastService.ShowSuccess("Kayıt güncellendi.");
+            yeniKayitMi = false;
+            ToastService.ShowSuccess(eklendi ? "Yeni kayıt eklendi." : "Kayıt güncellendi.");
         }
-        catch (Exception ex) { ToastService.ShowError($"Hata: {ex.Message}"); }
+        catch (Exception ex)
+        {
+            var msg = ex.InnerException?.Message ?? ex.Message;
+            ToastService.ShowError($"Hata: {msg}");
+        }
         finally { kaydediliyor = false; }
     }
 
     async Task KayitSil(PuantajKayit kayit)
     {
-        if (kayit.Id == 0) { kayitlar.Remove(kayit); return; }
+        if (kayit.Id == 0) { kayitlar.Remove(kayit); degisikSatirlar.Remove(kayit); return; }
         try
         {
             await KurumPuantajService.DeletePuantajAsync(kayit.Id);
@@ -719,6 +931,35 @@
 
     static bool HaftaSonuMu(DateTime tarih)
         => tarih.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
+
+    static bool BugunMu(DateTime tarih)
+        => tarih.Date == DateTime.Today;
+
+    void SadeceHaftaIciAc()
+    {
+        foreach (var k in kayitlar)
+        {
+            for (int g = 1; g <= AydakiGunSayisi(); g++)
+            {
+                var tarih = new DateTime(seciliYil, seciliAy, g);
+                k.SetGunDeger(g, HaftaSonuMu(tarih) ? 0 : 1);
+            }
+            degisikSatirlar.Add(k);
+        }
+    }
+
+    void SadeceHaftaSonuAc()
+    {
+        foreach (var k in kayitlar)
+        {
+            for (int g = 1; g <= AydakiGunSayisi(); g++)
+            {
+                var tarih = new DateTime(seciliYil, seciliAy, g);
+                k.SetGunDeger(g, HaftaSonuMu(tarih) ? 1 : 0);
+            }
+            degisikSatirlar.Add(k);
+        }
+    }
 
     static string AyAdi(int ay) => ay switch
     {
