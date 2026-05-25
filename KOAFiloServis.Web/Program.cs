@@ -350,6 +350,8 @@ builder.Services.AddScoped<KOAFiloServis.Web.Services.Interfaces.IPuantajWorkflo
 builder.Services.AddScoped<KOAFiloServis.Web.Services.Interfaces.IPuantajFinansService, PuantajFinansService>();
 builder.Services.AddScoped(typeof(KOAFiloServis.Web.Services.Interfaces.IFiloKomisyonService), typeof(FiloKomisyonService));
 builder.Services.AddScoped<KOAFiloServis.Web.Services.Interfaces.IPuantajEslestirmeService, PuantajEslestirmeService>();
+builder.Services.AddScoped<IPuantajJobService, PuantajJobService>(); // Sprint 8: Quartz job servisi
+builder.Services.AddScoped<IPuantajMutexService, PuantajMutexService>(); // Sprint 8: Table-based mutex
 builder.Services.AddScoped<IPiyasaKaynakService, PiyasaKaynakService>(); // Piyasa Kaynak Yonetimi (once kaydet)
 builder.Services.AddScoped<IHttpScraperService, HttpScraperService>(); // HTTP Scraper (en hizli)
 builder.Services.AddScoped<IPlaywrightScraperService, PlaywrightScraperService>(); // Playwright Web Scraper (yedek)
@@ -506,6 +508,18 @@ builder.Services.AddQuartz(q =>
         .ForJob("holding-veri-toplama-job")
         .WithIdentity("holding-veri-toplama-trigger")
         .WithSchedule(CronScheduleBuilder.MonthlyOnDayAndHourAndMinute(1, 2, 7)));
+
+    // Puantaj Engine - her ayın 1'inde saat 00:30'da geçen ayı otomatik hesaplar
+    var puantajAutoEnabled = builder.Configuration.GetValue("PuantajEngine:AutoProcess:Enabled", true);
+    if (puantajAutoEnabled)
+    {
+        q.AddJob<PuantajEngineJob>(opts => opts.WithIdentity("puantaj-engine-job"));
+        q.AddTrigger(opts => opts
+            .ForJob("puantaj-engine-job")
+            .WithIdentity("puantaj-engine-trigger")
+            .WithSchedule(CronScheduleBuilder.CronSchedule("0 30 0 1 * ?")
+                .WithMisfireHandlingInstructionDoNothing()));
+    }
 });
 builder.Services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 

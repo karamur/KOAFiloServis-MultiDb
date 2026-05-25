@@ -257,6 +257,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<PuantajDetay> PuantajDetaylari { get; set; }
     public DbSet<PuantajAuditLog> PuantajAuditLogs { get; set; }
     public DbSet<PuantajFinansalKayit> PuantajFinansalKayitlar { get; set; }
+    public DbSet<PuantajJobExecution> PuantajJobExecutions { get; set; }
 
     // Proforma Fatura Modülü
     public DbSet<ProformaFatura> ProformaFaturalar { get; set; }
@@ -1642,6 +1643,22 @@ public class ApplicationDbContext : DbContext
 
             entity.HasOne(e => e.PuantajKayit).WithMany().HasForeignKey(e => e.PuantajKayitId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.HesapDonemi).WithMany().HasForeignKey(e => e.HesapDonemiId).OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // PuantajJobExecution - Quartz job çalışma kaydı + table-based mutex
+        modelBuilder.Entity<PuantajJobExecution>(entity =>
+        {
+            entity.HasIndex(e => new { e.FirmaId, e.Yil, e.Ay }).IsUnique()
+                .HasFilter("\"Durum\" = 0"); // Sadece Running durumunda UNIQUE → mutex
+
+            entity.HasIndex(e => new { e.FirmaId, e.Yil, e.Ay });
+            entity.HasIndex(e => e.Durum);
+
+            entity.Property(e => e.Tetikleyen).HasMaxLength(50);
+            entity.Property(e => e.HataMesaji).HasMaxLength(1000);
+            entity.Property(e => e.Hesaplayan).HasMaxLength(50);
 
             entity.HasQueryFilter(e => !e.IsDeleted);
         });
