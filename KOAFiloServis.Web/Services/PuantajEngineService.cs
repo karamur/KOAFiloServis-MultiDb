@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Threading;
 using KOAFiloServis.Shared.Entities;
 using KOAFiloServis.Web.Data;
 using KOAFiloServis.Web.Services.Interfaces;
@@ -17,7 +18,7 @@ public sealed class PuantajEngineService : IPuantajEngineService
     public PuantajEngineService(IDbContextFactory<ApplicationDbContext> dbFactory)
         => _dbFactory = dbFactory;
 
-    public async Task<PuantajEngineSonucV1> ProcessDonemAsync(int yil, int ay, int? kurumId = null, string? hesaplayan = null, string? notlar = null)
+    public async Task<PuantajEngineSonucV1> ProcessDonemAsync(int yil, int ay, int? kurumId = null, string? hesaplayan = null, string? notlar = null, CancellationToken ct = default)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();
 
@@ -65,11 +66,11 @@ public sealed class PuantajEngineService : IPuantajEngineService
                 var guzergahIds = await db.Guzergahlar
                     .Where(g => !g.IsDeleted && g.KurumId == kurumId.Value)
                     .Select(g => g.Id)
-                    .ToListAsync();
+                    .ToListAsync(ct);
                 query = query.Where(o => guzergahIds.Contains(o.GuzergahId));
             }
 
-            var operasyonlar = await query.ToListAsync();
+            var operasyonlar = await query.ToListAsync(ct);
             if (!operasyonlar.Any())
             {
                 hesapDonemi.Durum = PuantajHesapDurum.Iptal;
@@ -82,7 +83,7 @@ public sealed class PuantajEngineService : IPuantajEngineService
             var guzergahIds2 = operasyonlar.Select(o => o.GuzergahId).Distinct().ToList();
             var guzergahlar = await db.Guzergahlar.Where(g => guzergahIds2.Contains(g.Id)).ToDictionaryAsync(g => g.Id);
             var eslestirmeler = await db.FiloGuzergahEslestirmeleri
-                .Where(e => guzergahIds2.Contains(e.GuzergahId) && e.IsActive).ToListAsync();
+                .Where(e => guzergahIds2.Contains(e.GuzergahId) && e.IsActive).ToListAsync(ct);
 
             // 5. GuzergahId + AracId + Slot bazında grupla
             var gruplar = operasyonlar.GroupBy(o => new { o.GuzergahId, o.AracId, o.Slot }).ToList();
@@ -200,7 +201,7 @@ public sealed class PuantajEngineService : IPuantajEngineService
 
                 var oncekiKayitlar = await db.PuantajKayitlar
                     .Where(p => p.HesapDonemiId == oncekiAktif.Id && !p.IsDeleted)
-                    .ToListAsync();
+                    .ToListAsync(ct);
                 foreach (var pk in oncekiKayitlar)
                 {
                     pk.OnayDurum = PuantajOnayDurum.Taslak;
@@ -233,7 +234,7 @@ public sealed class PuantajEngineService : IPuantajEngineService
         }
     }
 
-    public async Task IptalEtAsync(int hesapDonemiId, string? iptalEden = null)
+    public async Task IptalEtAsync(int hesapDonemiId, string? iptalEden = null, CancellationToken ct = default)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();
 
@@ -246,7 +247,7 @@ public sealed class PuantajEngineService : IPuantajEngineService
         // PuantajKayit'ları soft-delete
         var kayitlar = await db.PuantajKayitlar
             .Where(p => p.HesapDonemiId == hesapDonemiId && !p.IsDeleted)
-            .ToListAsync();
+            .ToListAsync(ct);
         foreach (var k in kayitlar)
         {
             k.IsDeleted = true;
@@ -256,7 +257,7 @@ public sealed class PuantajEngineService : IPuantajEngineService
         // PuantajDetay'ları soft-delete
         var detaylar = await db.PuantajDetaylari
             .Where(d => d.HesapDonemiId == hesapDonemiId && !d.IsDeleted)
-            .ToListAsync();
+            .ToListAsync(ct);
         foreach (var d in detaylar)
         {
             d.IsDeleted = true;
@@ -269,7 +270,7 @@ public sealed class PuantajEngineService : IPuantajEngineService
         await db.SaveChangesAsync();
     }
 
-    public async Task<List<PuantajEngineDetayDto>> GetDetaylarAsync(int hesapDonemiId)
+    public async Task<List<PuantajEngineDetayDto>> GetDetaylarAsync(int hesapDonemiId, CancellationToken ct = default)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();
         return await db.PuantajDetaylari
@@ -290,6 +291,6 @@ public sealed class PuantajEngineService : IPuantajEngineService
                 BirimGider = d.BirimGider,
                 HesaplananTutar = d.HesaplananTutar
             })
-            .ToListAsync();
+            .ToListAsync(ct);
     }
 }

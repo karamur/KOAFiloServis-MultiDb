@@ -30,6 +30,16 @@ public partial class PuantajHesaplama : ComponentBase
     // ── Sonuç ────────────────────────────────────────────────────────────
     private PuantajEngineSonucV1? hesaplamaSonucu;
 
+    // ── Comparison ──────────────────────────────────────────────────────
+    private ComparisonResult? comparison;
+    private bool comparisonYukleniyor;
+
+    // ── Drill-Down ──────────────────────────────────────────────────────
+    private bool drillDownAcik;
+    private List<DrillDownOperasyon> drillDownOps = new();
+    private string drillDownBaslik = "";
+    private bool drillDownYukleniyor;
+
     protected override async Task OnInitializedAsync()
     {
         tumKurumlar = await KurumService.GetAktifAsync();
@@ -116,5 +126,56 @@ public partial class PuantajHesaplama : ComponentBase
         {
             hesaplamaYapiliyor = false;
         }
+    }
+
+    // ── Comparison ──────────────────────────────────────────────────────
+
+    private async Task Karsilastir()
+    {
+        if (preview?.OncekiHesapDonemiId == null || hesaplamaSonucu == null) return;
+
+        comparisonYukleniyor = true;
+        try
+        {
+            comparison = await PreviewEngine.CompareAsync(
+                preview.OncekiHesapDonemiId.Value, hesaplamaSonucu.HesapDonemiId);
+        }
+        catch (Exception ex)
+        {
+            hataMesaji = ex.Message;
+        }
+        finally
+        {
+            comparisonYukleniyor = false;
+        }
+    }
+
+    // ── Drill-Down ──────────────────────────────────────────────────────
+
+    private async Task DrillDownAc(PreviewGrupDetay grup)
+    {
+        drillDownYukleniyor = true;
+        drillDownBaslik = $"{grup.GuzergahAdi} / {grup.Plaka} / {grup.Slot}";
+        try
+        {
+            drillDownOps = await PreviewEngine.DrillDownAsync(
+                grup.GuzergahId, grup.AracId,
+                (int)Enum.Parse<SeferSlot>(grup.Slot),
+                seciliYil, seciliAy);
+            drillDownAcik = true;
+        }
+        catch (Exception ex)
+        {
+            hataMesaji = ex.Message;
+        }
+        finally
+        {
+            drillDownYukleniyor = false;
+        }
+    }
+
+    private void DrillDownKapat()
+    {
+        drillDownAcik = false;
     }
 }

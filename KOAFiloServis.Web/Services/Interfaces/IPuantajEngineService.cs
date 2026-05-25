@@ -1,3 +1,5 @@
+using System.Threading;
+
 namespace KOAFiloServis.Web.Services.Interfaces;
 
 /// <summary>
@@ -10,18 +12,9 @@ public interface IPuantajEngineService
     /// Belirtilen dönem için yeni PuantajHesapDonemi oluşturup tüm OperasyonKaydi'ları işler.
     /// Önceki Aktif hesap varsa Superseded yapar.
     /// </summary>
-    Task<PuantajEngineSonucV1> ProcessDonemAsync(int yil, int ay, int? kurumId = null, string? hesaplayan = null, string? notlar = null);
-
-    /// <summary>
-    /// Belirtilen dönemdeki en son Aktif hesaplamayı iptal eder.
-    /// İlgili PuantajKayit ve PuantajDetay'ları soft-delete yapar.
-    /// </summary>
-    Task IptalEtAsync(int hesapDonemiId, string? iptalEden = null);
-
-    /// <summary>
-    /// Belirtilen hesap dönemindeki PuantajDetay'ları döner (audit).
-    /// </summary>
-    Task<List<PuantajEngineDetayDto>> GetDetaylarAsync(int hesapDonemiId);
+    Task<PuantajEngineSonucV1> ProcessDonemAsync(int yil, int ay, int? kurumId = null, string? hesaplayan = null, string? notlar = null, CancellationToken ct = default);
+    Task IptalEtAsync(int hesapDonemiId, string? iptalEden = null, CancellationToken ct = default);
+    Task<List<PuantajEngineDetayDto>> GetDetaylarAsync(int hesapDonemiId, CancellationToken ct = default);
 }
 
 public sealed class PuantajEngineSonucV1
