@@ -1,0 +1,273 @@
+@page "/puantaj-hesaplama"
+@using KOAFiloServis.Shared.Entities
+@using KOAFiloServis.Web.Services
+@using KOAFiloServis.Web.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin,Operasyon,Muhasebeci,HoldingYoneticisi")]
+@rendermode InteractiveServer
+
+<PageTitle>Puantaj Hesaplama</PageTitle>
+
+<style>
+    .summary-card { border-left: 4px solid; transition: transform .1s; }
+    .summary-card:hover { transform: translateY(-1px); }
+    .preview-table { font-size: .80rem; }
+    .preview-table th { font-size: .76rem; background: #f0f4f8; }
+    .preview-table td { padding: 3px 8px; }
+    .revizyon-badge { animation: pulse 2s infinite; }
+</style>
+
+<div class="container-fluid px-3">
+
+    @* ── Başlık ────────────────────────────────────────────────────── *@
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h4 class="mb-0"><i class="bi bi-calculator me-2 text-primary"></i>Puantaj Hesaplama</h4>
+            <p class="text-muted small mb-0">Önce preview → Sonra hesapla → Sonra incele</p>
+        </div>
+    </div>
+
+    @* ── Filtre Kartı ───────────────────────────────────────────────── *@
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            <div class="row g-2 align-items-end">
+                <div class="col-auto">
+                    <label class="form-label small mb-1">Yıl</label>
+                    <select class="form-select form-select-sm" @bind="seciliYil">
+                        @for (int y = DateTime.Today.Year - 2; y <= DateTime.Today.Year + 1; y++)
+                        {
+                            <option value="@y">@y</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label small mb-1">Ay</label>
+                    <select class="form-select form-select-sm" @bind="seciliAy">
+                        @for (int m = 1; m <= 12; m++)
+                        {
+                            <option value="@m">@(new DateTime(2000, m, 1).ToString("MMMM"))</option>
+                        }
+                    </select>
+                </div>
+                <div class="col">
+                    <label class="form-label small mb-1">Kurum (opsiyonel)</label>
+                    <div class="position-relative">
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control" placeholder="Kurum adı..."
+                                   value="@kurumArama" @oninput="KurumAramaGuncelle" autocomplete="off" />
+                            @if (seciliKurumId.HasValue)
+                            {
+                                <button class="btn btn-outline-secondary" @onclick="KurumTemizle"><i class="bi bi-x"></i></button>
+                            }
+                        </div>
+                        @if (kurumOnerileri.Any() && !seciliKurumId.HasValue)
+                        {
+                            <div class="list-group position-absolute w-100 shadow-sm" style="z-index:1050;max-height:200px;overflow:auto">
+                                @foreach (var k in kurumOnerileri)
+                                {
+                                    <button type="button" class="list-group-item list-group-item-action py-1 px-2 small"
+                                            @onclick="() => KurumSec(k)">@k.KurumAdi</button>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-primary" @onclick="PreviewYap" disabled="@previewYukleniyor">
+                        @if (previewYukleniyor)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                            <span>Önizleme...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-eye me-1"></i>
+                            <span>Preview</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* ── Hata ───────────────────────────────────────────────────────── *@
+    @if (!string.IsNullOrEmpty(hataMesaji))
+    {
+        <div class="alert alert-danger py-2">
+            <i class="bi bi-exclamation-triangle me-1"></i> @hataMesaji
+        </div>
+    }
+
+    @* ── Uyarılar ───────────────────────────────────────────────────── *@
+    @if (preview?.UyariMesajlari.Any() == true)
+    {
+        <div class="alert alert-warning py-2">
+            @foreach (var u in preview.UyariMesajlari)
+            {
+                <div><i class="bi bi-info-circle me-1"></i> @u</div>
+            }
+        </div>
+    }
+
+    @* ── Revizyon Bilgisi ───────────────────────────────────────────── *@
+    @if (preview is { RevizyonYapilacak: true })
+    {
+        <div class="alert alert-info py-2">
+            <i class="bi bi-arrow-repeat me-1"></i>
+            <strong>Revizyon:</strong> Bu dönem için V@(preview.OncekiVersiyon) aktif hesap mevcut
+            (@(preview.OncekiHesaplayan), @(preview.OncekiHesaplamaTarihi?.ToString("dd.MM.yyyy HH:mm"))).
+            Yeni hesaplama <strong>V@(preview.YeniVersiyon)</strong> olacak, önceki Superseded yapılacak.
+        </div>
+    }
+
+    @* ── Summary Kartları ───────────────────────────────────────────── *@
+    @if (preview != null && preview.HesaplamaYapilabilir)
+    {
+        <div class="row g-3 mb-3">
+            <div class="col-md-3">
+                <div class="card summary-card border-primary">
+                    <div class="card-body py-2">
+                        <small class="text-muted">Operasyon</small>
+                        <h5 class="mb-0">@preview.OperasyonSayisi <small class="text-muted">kayıt</small></h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card summary-card border-info">
+                    <div class="card-body py-2">
+                        <small class="text-muted">Puantaj Grup</small>
+                        <h5 class="mb-0">@preview.GrupSayisi <small class="text-muted">grup</small></h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card summary-card border-success">
+                    <div class="card-body py-2">
+                        <small class="text-muted">Toplam Gelir</small>
+                        <h5 class="mb-0 text-success">@preview.ToplamGelir.ToString("N2") ₺</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card summary-card border-danger">
+                    <div class="card-body py-2">
+                        <small class="text-muted">Toplam Gider</small>
+                        <h5 class="mb-0 text-danger">@preview.ToplamGider.ToString("N2") ₺</h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* ── Net Kar + Sefer ───────────────────────────────────────── *@
+        <div class="row g-3 mb-3">
+            <div class="col-md-3">
+                <div class="card summary-card @(preview.NetKar >= 0 ? "border-success" : "border-danger")">
+                    <div class="card-body py-2 text-center">
+                        <small class="text-muted">Net Kâr</small>
+                        <h5 class="mb-0 @(preview.NetKar >= 0 ? "text-success" : "text-danger")">
+                            @preview.NetKar.ToString("N2") ₺
+                        </h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card summary-card border-secondary">
+                    <div class="card-body py-2 text-center">
+                        <small class="text-muted">Toplam Sefer Günü</small>
+                        <h5 class="mb-0">@preview.ToplamSeferGunu</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card summary-card border-secondary">
+                    <div class="card-body py-2 text-center">
+                        <small class="text-muted">Ort. Birim Gelir</small>
+                        <h5 class="mb-0">@preview.OrtalamaBirimGelir.ToString("N2") ₺</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 d-flex align-items-center">
+                <button class="btn btn-success w-100 @(hesaplamaYapiliyor ? "disabled" : "")"
+                        @onclick="Hesapla" disabled="@hesaplamaYapiliyor">
+                    @if (hesaplamaYapiliyor)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        <span>Hesaplanıyor...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-calculator-fill me-2"></i>
+                        <span>Hesapla (V@(preview.YeniVersiyon))</span>
+                    }
+                </button>
+            </div>
+        </div>
+
+        @* ── Preview Grid ──────────────────────────────────────────── *@
+        <div class="card">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                <strong class="small"><i class="bi bi-table me-1"></i>Önizleme Detayı (@preview.GrupSayisi grup)</strong>
+                <span class="badge @(preview.RevizyonYapilacak ? "bg-warning revizyon-badge" : "bg-primary")">
+                    Versiyon @preview.YeniVersiyon
+                </span>
+            </div>
+            <div class="table-responsive" style="max-height:50vh;overflow-y:auto">
+                <table class="table table-sm preview-table mb-0">
+                    <thead class="table-light sticky-top">
+                        <tr>
+                            <th>Güzergah</th>
+                            <th>Plaka</th>
+                            <th>Şoför</th>
+                            <th>Slot</th>
+                            <th class="text-end">Sefer Günü</th>
+                            <th class="text-end">Birim Gelir</th>
+                            <th class="text-end">Birim Gider</th>
+                            <th class="text-end">Toplam Gelir</th>
+                            <th class="text-end">Toplam Gider</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var g in preview.Gruplar)
+                        {
+                            <tr>
+                                <td class="fw-medium">@g.GuzergahAdi</td>
+                                <td>@g.Plaka</td>
+                                <td class="text-muted small">@(g.SoforAdi ?? "-")</td>
+                                <td><span class="badge bg-light text-dark">@g.Slot</span></td>
+                                <td class="text-end fw-medium">@g.SeferGunuToplami</td>
+                                <td class="text-end">@g.BirimGelir.ToString("N2")</td>
+                                <td class="text-end">@g.BirimGider.ToString("N2")</td>
+                                <td class="text-end text-success">@g.ToplamGelir.ToString("N2")</td>
+                                <td class="text-end text-danger">@g.ToplamGider.ToString("N2")</td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td colspan="4">Toplam</td>
+                            <td class="text-end">@preview.ToplamSeferGunu</td>
+                            <td class="text-end">@preview.OrtalamaBirimGelir.ToString("N2")</td>
+                            <td></td>
+                            <td class="text-end text-success">@preview.ToplamGelir.ToString("N2")</td>
+                            <td class="text-end text-danger">@preview.ToplamGider.ToString("N2")</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    }
+    else if (preview != null && !preview.HesaplamaYapilabilir)
+    {
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-inbox display-4 d-block mb-2"></i>
+            Bu dönemde işlenecek operasyon kaydı bulunamadı.
+        </div>
+    }
+    else if (!previewYukleniyor && preview == null)
+    {
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-arrow-up-circle display-4 d-block mb-2"></i>
+            Dönem seçip <strong>Preview</strong> butonuna tıklayın.
+        </div>
+    }
+</div>

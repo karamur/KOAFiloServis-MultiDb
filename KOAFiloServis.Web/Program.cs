@@ -344,6 +344,7 @@ builder.Services.AddScoped<IPuantajService, PuantajService>();
 builder.Services.AddScoped<IKurumPuantajService, KurumPuantajService>();
 builder.Services.AddScoped<OperasyonKaydiBusinessRules>();
 builder.Services.AddScoped<KOAFiloServis.Web.Services.Interfaces.IOperasyonKaydiService, OperasyonKaydiService>();
+builder.Services.AddScoped<KOAFiloServis.Web.Services.Interfaces.IPreviewEngineService, PreviewEngineService>();
 builder.Services.AddScoped<KOAFiloServis.Web.Services.Interfaces.IPuantajEngineService, PuantajEngineService>();
 builder.Services.AddScoped(typeof(KOAFiloServis.Web.Services.Interfaces.IFiloKomisyonService), typeof(FiloKomisyonService));
 builder.Services.AddScoped<KOAFiloServis.Web.Services.Interfaces.IPuantajEslestirmeService, PuantajEslestirmeService>();
