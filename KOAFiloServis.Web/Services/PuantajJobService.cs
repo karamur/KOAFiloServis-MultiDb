@@ -44,6 +44,11 @@ public sealed class PuantajJobService : IPuantajJobService
         {
             firmalar = await GetAktifFirmalarAsync(ct);
         }
+        catch (OperationCanceledException)
+        {
+            _logger.LogWarning("Job iptal edildi — firma listesi alınırken");
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Firma listesi alınamadı");
