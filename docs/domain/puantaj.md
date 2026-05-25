@@ -1,73 +1,72 @@
 # Puantaj Modülü — Domain Mimarisi
 
-> Son güncelleme: 25.05.2026 — Sprint 2
+> Son güncelleme: 25.05.2026 — Sprint 3
 
-## Entity Katmanları
+## Entity İlişkileri (V1)
 
 ```
-┌─────────────────────────────────────────────────┐
-│                OperasyonKaydi                     │
-│            (Ham Operasyon Verisi)                 │
-│  • Günlük kayıt (Tarih + Araç + Güzergah + Slot) │
-│  • Sefer sayısı, operasyon durumu                │
-│  • Kaynak takibi (manuel/Excel/otomatik)          │
-│  • Audit: CreatedBy, UpdatedBy, DeletedBy        │
-│  • Engine: Islendi, PuantajKayitId               │
-└──────────────────┬──────────────────────────────┘
-                   │  PuantajEngineService
-                   │  (grupla → aggregate → hesapla)
-                   ▼
-┌─────────────────────────────────────────────────┐
-│                PuantajKayit                       │
-│          (Hesaplanmış Puantaj Çıktısı)            │
-│  • Aylık kayıt (Yil + Ay + Gun01..Gun31)         │
-│  • Finansal: BirimGelir/Gider, KDV, Toplam       │
-│  • Fatura/ödeme takibi                            │
-│  • Onay durumu                                    │
-└─────────────────────────────────────────────────┘
+┌──────────────────────┐
+│   PuantajHesapDonemi  │  Hesap döngüsü / batch
+│   • Yil, Ay, KurumId  │  Unique(FirmaId, Yil, Ay, KurumId, Versiyon)
+│   • Versiyon (1,2,3..)│
+│   • Durum (Taslak→    │
+│     Aktif→Superseded) │
+│   • OncekiDonemId (SF)│
+└──┬────────┬──────────┘
+   │ 1:N    │ 1:N
+   ▼        ▼
+┌──────────┐  ┌──────────────────────────┐
+│PuantajDetay│  │     PuantajKayit         │
+│• Op.KaydiId│  │  • HesapDonemiId         │
+│• PKayitId  │  │  • OncekiVersiyonId (SF) │
+│• HesapDon. │  │  • Versiyon              │
+│• Snapshot  │  │  • Gun01..Gun31          │
+│  gelir/gider│  │  • Finansal alanlar      │
+└────┬───────┘  └──────────────────────────┘
+     │ N:1
+     ▼
+┌──────────────────────┐
+│   OperasyonKaydi      │  Saf ham veri
+│   • Tarih, Araç,      │  (Islendi/PuantajKayitId KALDIRILDI)
+│     Güzergah, Slot    │
+└──────────────────────┘
 ```
 
-## Akış
+## Hesaplama Akışı
 
-1. **Operasyon Girişi**: `/operasyon-giris` → `OperasyonKaydi` tablosuna günlük kayıt
-2. **Puantaj Engine**: `PuantajEngineService.ProcessDonemAsync()` → günlük kayıtları gruplayıp aylık `PuantajKayit` üretir
-3. **Puantaj Görüntüleme**: `/kurum-puantaj` → `PuantajKayit` üzerinden aylık grid
+```
+1. PuantajHesapDonemi oluştur (Taslak)
+2. OperasyonKaydi'ları topla (Tarih aralığı)
+3. Grupla: GuzergahId + AracId + Slot
+4. Her grup → YENİ PuantajKayit (HesapDonemiId + Versiyon)
+5. Her OperasyonKaydi → PuantajDetay (snapshot fiyatlarla)
+6. Önceki Aktif → Superseded
+7. HesapDonemi → Aktif
+8. Hata → Rollback (transaction)
+```
 
-## OperasyonKaydi
+## Revizyon Zinciri
 
-### Alanlar
+```
+Versiyon 1: PK#100 (Aktif)
+    ↓ yeni hesap
+Versiyon 2: PK#200 (Aktif), PK#100 (Superseded)
+    OncekiVersiyonId=100
+```
 
-| Grup | Alan | Tip |
-|------|------|-----|
-| Tenant | FirmaId | int? |
-| Tarih | Tarih | DateTime |
-| Güzergah/Araç/Şoför | GuzergahId, AracId, SoforId | int, int, int? |
-| Slot/Yön | Slot, SlotAdi, Yon | SeferSlot, string?, PuantajYon |
-| Kurum | KurumId, IsverenFirmaId | int?, int? |
-| Sefer | SeferSayisi, PuantajCarpani | int, decimal |
-| Durum | OperasyonDurumu | enum |
-| Kaynak/Finans | KaynakTipi, FinansYonu, SoforOdemeTipi | enum |
-| Referans | BelgeNo, TransferDurum | string? |
-| Engine | Islendi, IslenmeTarihi, PuantajKayitId | bool, DateTime?, int? |
-| Audit | CreatedBy, UpdatedBy | string? |
-| Soft Delete | DeletedAt, DeletedBy | DateTime?, string? |
+## Transaction
 
-### FK İlişkileri (tümü Restrict)
+`BeginTransactionAsync` ile HesapDonemi + PuantajKayit + PuantajDetay tek transaction'da.
+Hata → `RollbackAsync`. Partial puantaj oluşmaz.
 
-- GuzergahId → Guzergahlar
-- AracId → Araclar
-- SoforId → Personeller
-- KurumId → Kurumlar
-- IsverenFirmaId → Firmalar
-- OdemeYapilacakCariId → Cariler
-- FaturaKesiciCariId → Cariler
-- PuantajKayitId → PuantajKayitlar
+## Kilitleme
 
-### İndexler
+Optimistic concurrency. `HesapDonemi.Aktif` varsa yeni operasyon düzenlemesi engellenir.
 
-- Unique: (Tarih, GuzergahId, AracId, Slot)
-- Standalone: Tarih, OperasyonDurumu, Slot, Islendi
-- Composite: (FirmaId, Tarih), (Tarih, KurumId), (Tarih, AracId)
+## Finansal Audit
+
+PuantajDetay snapshot: hesaplama anındaki BirimGelir/BirimGider dondurulur.
+Fiyat sonradan değişse bile iz sürülebilir.
 
 ## Servisler
 
@@ -76,13 +75,13 @@
 | `OperasyonKaydiValidator` | Input validasyon (statik) |
 | `OperasyonKaydiBusinessRules` | Domain kuralları + çakışma kontrolü |
 | `IOperasyonKaydiService` | CRUD + şablon + migrasyon |
-| `IPuantajEngineService` | OperasyonKaydi → PuantajKayit dönüşüm |
-| `IKurumPuantajService` | PuantajKayit CRUD (mevcut, korundu) |
+| `IPuantajEngineService` | HesapDonemi + PuantajDetay + revizyon motoru |
+| `IKurumPuantajService` | PuantajKayit CRUD (mevcut) |
 
 ## Sayfalar
 
 | Route | Sayfa | Açıklama |
 |-------|-------|----------|
-| `/operasyon-giris` | OperasyonGiris.razor | Günlük operasyon girişi (grid + inline edit) |
-| `/kurum-puantaj` | KurumPuantaj.razor | Aylık puantaj grid (mevcut) |
-| `/puantaj/import` | KurumPuantajImport.razor | Excel import (mevcut) |
+| `/operasyon-giris` | OperasyonGiris.razor | Günlük operasyon girişi |
+| `/kurum-puantaj` | KurumPuantaj.razor | Aylık puantaj grid |
+| `/puantaj/import` | KurumPuantajImport.razor | Excel import |

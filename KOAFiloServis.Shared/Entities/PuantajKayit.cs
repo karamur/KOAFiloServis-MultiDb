@@ -243,11 +243,20 @@ public class PuantajKayit : BaseEntity
     
     // Kaynak Bilgisi
     public PuantajKaynak Kaynak { get; set; } = PuantajKaynak.Manuel;
-    public int? ExcelImportId { get; set; } // Hangi import batch'inden geldi
-    public int? ExcelSatirNo { get; set; } // Excel'deki satır numarası
-    
-    // Operasyon Kaydı Bağlantısı (PuantajEngine tarafından doldurulur)
-    public virtual ICollection<OperasyonKaydi> OperasyonKayitlari { get; set; } = new List<OperasyonKaydi>();
+    public int? ExcelImportId { get; set; }
+    public int? ExcelSatirNo { get; set; }
+
+    // ── Hesap Dönemi + Revizyon (PuantajEngine V1) ──────────────────────
+    public int? HesapDonemiId { get; set; }
+    public virtual PuantajHesapDonemi? HesapDonemi { get; set; }
+
+    public int? OncekiVersiyonId { get; set; }
+    public virtual PuantajKayit? OncekiVersiyon { get; set; }
+
+    public int Versiyon { get; set; } = 1;
+
+    // ── Detay bağlantısı ─────────────────────────────────────────────────
+    public virtual ICollection<PuantajDetay> PuantajDetaylari { get; set; } = new List<PuantajDetay>();
 
     // Notlar ve Açıklamalar
     public string? Notlar { get; set; }

@@ -1419,3 +1419,44 @@ Kullanıcının son görevi: Operasyon çekirdeğini oluşturacak **OperasyonKay
 |------|:-----:|
 | `dotnet build` | ✅ **0 hata** |
 | Route: `/operasyon-giris` | ✅ Sayfa hazır |
+
+---
+
+## 📅 25.05.2026 — Sprint 3: Puantaj Engine V1
+
+### ✅ Sprint 3 — Tamamlanan
+
+| # | İş | Dosyalar | Açıklama |
+|---|-----|----------|----------|
+| **S3.1** | PuantajHesapDonemi entity | `Shared/Entities/PuantajHesapDonemi.cs` (YENİ) | Hesap döngüsü: Yil/Ay/KurumId/Versiyon/Durum, Self-FK OncekiDonemId, Unique(FirmaId,Yil,Ay,KurumId,Versiyon) |
+| **S3.2** | PuantajDetay entity | `Shared/Entities/PuantajDetay.cs` (YENİ) | Operasyon↔Puantaj bağlantısı: snapshot BirimGelir/BirimGider, Unique(OperasyonKaydiId,HesapDonemiId) |
+| **S3.3** | PuantajKayit güncelleme | `Shared/Entities/PuantajKayit.cs` | HesapDonemiId, OncekiVersiyonId (Self-FK), Versiyon eklendi |
+| **S3.4** | OperasyonKaydi sadeleştirme | `Shared/Entities/OperasyonKaydi.cs` | Islendi, IslenmeTarihi, PuantajKayitId → KALDIRILDI (saf ham veri) |
+| **S3.5** | PuantajEngine V1 | `Services/PuantajEngineService.cs` | Transaction scope, revizyon zinciri, Superseded, PuantajDetay snapshot |
+| **S3.6** | DbContext + Migration | `Data/ApplicationDbContext.cs`, `Data/Migrations/*_AddPuantajEngineV1.cs` | 2 yeni tablo + OperasyonKaydi'dan 3 kolon sil + unique constraint |
+
+### 🏗️ Mimari Kararlar
+
+| Karar | Gerekçe |
+|-------|---------|
+| OperasyonKaydi saf ham veri | Islendi/PuantajKayitId kaldırıldı. Bağlantı PuantajDetay üzerinden |
+| Transaction scope | BeginTransactionAsync + CommitAsync/RollbackAsync. Partial puantaj oluşmaz |
+| Unique(FirmaId,Yil,Ay,KurumId,Versiyon) | Aynı versiyon iki kez oluşmaz |
+| Snapshot mekanizması | PuantajDetay hesaplama anındaki fiyatları dondurur. Fiyat değişse bile audit korunur |
+| Optimistic concurrency | Aktif hesap varsa operasyon düzenlenemez |
+| Self-FK revizyon zinciri | OncekiDonemId + OncekiVersiyonId ile tam izlenebilirlik |
+
+### 🧪 Bitiş Kriterleri
+
+| Kriter | Sonuç |
+|--------|:-----:|
+| Revizyon çalışıyor | ✅ Yeni hesap → önceki Superseded |
+| Superseded zinciri | ✅ OncekiVersiyonId + OncekiDonemId self-FK |
+| Snapshot korunuyor | ✅ PuantajDetay.BirimGelir/Gider hesaplama anında dondurulur |
+| Transaction rollback | ✅ Hata → RollbackAsync, partial veri yok |
+| Aynı dönem çift hesap yok | ✅ Unique(FirmaId,Yil,Ay,KurumId,Versiyon) |
+| Audit korunuyor | ✅ CreatedBy/UpdatedBy/DeletedBy/DeletedAt |
+| Build temiz | ✅ 0 hata, 0 uyarı |
+| Testler geçiyor | ✅ 305/305 başarılı |
+
+### 📊 Toplam: 4 yeni dosya, 4 değişiklik

@@ -78,7 +78,6 @@ public sealed class OperasyonKaydiService : IOperasyonKaydiService
             .Include(o => o.Guzergah)
             .Include(o => o.Arac)
             .Include(o => o.Sofor)
-            .Include(o => o.PuantajKayit)
             .FirstOrDefaultAsync(o => o.Id == id && !o.IsDeleted);
     }
 
@@ -409,11 +408,5 @@ public sealed class OperasyonKaydiService : IOperasyonKaydiService
         mevcut.Notlar = kayit.Notlar;
         mevcut.UpdatedAt = DateTime.UtcNow;
         mevcut.UpdatedBy = kayit.UpdatedBy;
-
-        if (mevcut.Islendi)
-        {
-            mevcut.Islendi = false;
-            mevcut.IslenmeTarihi = null;
-        }
     }
 }

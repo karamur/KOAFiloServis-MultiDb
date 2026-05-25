@@ -69,13 +69,6 @@ public class OperasyonKaydi : BaseEntity, IFirmaTenant
     public int? ExcelImportId { get; set; }
     public int? ExcelSatirNo { get; set; }
 
-    // Engine Takip
-    public bool Islendi { get; set; } = false;
-    public DateTime? IslenmeTarihi { get; set; }
-
-    public int? PuantajKayitId { get; set; }
-    public virtual PuantajKayit? PuantajKayit { get; set; }
-
     // Yardımcı property'ler (Tarih'ten türetilir)
     public int Yil => Tarih.Year;
     public int Ay => Tarih.Month;

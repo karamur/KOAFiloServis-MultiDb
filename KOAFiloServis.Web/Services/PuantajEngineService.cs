@@ -7,7 +7,8 @@ using Microsoft.EntityFrameworkCore;
 namespace KOAFiloServis.Web.Services;
 
 /// <summary>
-/// OperasyonKaydi → PuantajKayit dönüşüm motoru.
+/// OperasyonKaydi → PuantajKayit dönüşüm motoru V1.
+/// HesapDonemi + PuantajDetay + revizyon zinciri + finansal audit.
 /// </summary>
 public sealed class PuantajEngineService : IPuantajEngineService
 {
@@ -16,372 +17,279 @@ public sealed class PuantajEngineService : IPuantajEngineService
     public PuantajEngineService(IDbContextFactory<ApplicationDbContext> dbFactory)
         => _dbFactory = dbFactory;
 
-    public async Task<PuantajEngineSonuc> ProcessDonemAsync(int yil, int ay, int? kurumId = null)
+    public async Task<PuantajEngineSonucV1> ProcessDonemAsync(int yil, int ay, int? kurumId = null, string? hesaplayan = null, string? notlar = null)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();
 
         var baslangic = new DateTime(yil, ay, 1);
         var bitis = baslangic.AddMonths(1).AddDays(-1);
 
-        // 1. İşlenmemiş operasyon kayıtlarını al
-        var query = db.OperasyonKayitlari
-            .Where(o => !o.IsDeleted && !o.Islendi
-                        && o.Tarih >= baslangic && o.Tarih <= bitis);
+        // ── Transaction: HesapDonemi + PuantajKayit + PuantajDetay tek seferde ──
+        await using var tx = await db.Database.BeginTransactionAsync();
 
-        if (kurumId.HasValue && kurumId.Value > 0)
+        try
         {
-            var guzergahIds = await db.Guzergahlar
-                .Where(g => !g.IsDeleted && g.KurumId == kurumId.Value)
-                .Select(g => g.Id)
-                .ToListAsync();
-            query = query.Where(o => guzergahIds.Contains(o.GuzergahId));
-        }
+            // 1. Önceki Aktif hesap dönemini bul
+            var oncekiAktif = await db.PuantajHesapDonemleri
+                .Where(h => !h.IsDeleted && h.Yil == yil && h.Ay == ay
+                            && h.KurumId == kurumId && h.Durum == PuantajHesapDurum.Aktif)
+                .OrderByDescending(h => h.Versiyon)
+                .FirstOrDefaultAsync();
 
-        var operasyonlar = await query
-            .Include(o => o.Guzergah)
-            .ToListAsync();
+            int yeniVersiyon = (oncekiAktif?.Versiyon ?? 0) + 1;
 
-        if (!operasyonlar.Any())
-            return new PuantajEngineSonuc { IslenenOperasyonKaydi = 0, UretilenPuantajKayit = 0, GuncellenenPuantajKayit = 0 };
-
-        // 2. Pricing verilerini toplu yükle
-        var guzergahIds2 = operasyonlar.Select(o => o.GuzergahId).Distinct().ToList();
-        var guzergahlar = await db.Guzergahlar
-            .Where(g => guzergahIds2.Contains(g.Id))
-            .ToDictionaryAsync(g => g.Id);
-
-        var eslestirmeler = await db.FiloGuzergahEslestirmeleri
-            .Where(e => guzergahIds2.Contains(e.GuzergahId) && e.IsActive)
-            .ToListAsync();
-
-        // 3. Mevcut PuantajKayit'ları yükle
-        var mevcutPuantajlar = await db.PuantajKayitlar
-            .Where(p => !p.IsDeleted && p.Yil == yil && p.Ay == ay)
-            .ToListAsync();
-
-        // 4. GuzergahId + AracId + Slot bazında grupla
-        var gruplar = operasyonlar
-            .GroupBy(o => new { o.GuzergahId, o.AracId, o.Slot })
-            .ToList();
-
-        int uretilen = 0, guncellenen = 0;
-
-        foreach (var grup in gruplar)
-        {
-            var ilk = grup.First();
-            var guzergahId = grup.Key.GuzergahId;
-            var aracId = grup.Key.AracId;
-            var slot = grup.Key.Slot;
-
-            // 5. Aylık gün değerlerini hesapla
-            var puantajKayit = mevcutPuantajlar.FirstOrDefault(p =>
-                p.GuzergahId == guzergahId && p.AracId == aracId && p.Slot == slot);
-
-            bool yeniKayit = puantajKayit == null;
-            if (yeniKayit)
+            // 2. Yeni HesapDonemi oluştur
+            var hesapDonemi = new PuantajHesapDonemi
             {
-                puantajKayit = new PuantajKayit
+                FirmaId = oncekiAktif?.FirmaId,
+                Yil = yil, Ay = ay, KurumId = kurumId,
+                Versiyon = yeniVersiyon,
+                Durum = PuantajHesapDurum.Taslak,
+                HesaplayanKullanici = hesaplayan,
+                HesaplamaTarihi = DateTime.UtcNow,
+                OncekiDonemId = oncekiAktif?.Id,
+                Notlar = notlar,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = hesaplayan
+            };
+            db.PuantajHesapDonemleri.Add(hesapDonemi);
+            await db.SaveChangesAsync();
+
+            // 3. OperasyonKaydi'ları topla
+            var query = db.OperasyonKayitlari
+                .Include(o => o.Guzergah)
+                .Where(o => !o.IsDeleted && o.Tarih >= baslangic && o.Tarih <= bitis);
+
+            if (kurumId.HasValue && kurumId.Value > 0)
+            {
+                var guzergahIds = await db.Guzergahlar
+                    .Where(g => !g.IsDeleted && g.KurumId == kurumId.Value)
+                    .Select(g => g.Id)
+                    .ToListAsync();
+                query = query.Where(o => guzergahIds.Contains(o.GuzergahId));
+            }
+
+            var operasyonlar = await query.ToListAsync();
+            if (!operasyonlar.Any())
+            {
+                hesapDonemi.Durum = PuantajHesapDurum.Iptal;
+                hesapDonemi.Notlar = (hesapDonemi.Notlar ?? "") + " | İşlenecek operasyon bulunamadı.";
+                await db.SaveChangesAsync();
+                return new PuantajEngineSonucV1 { HesapDonemiId = hesapDonemi.Id, Versiyon = yeniVersiyon };
+            }
+
+            // 4. Pricing verilerini toplu yükle
+            var guzergahIds2 = operasyonlar.Select(o => o.GuzergahId).Distinct().ToList();
+            var guzergahlar = await db.Guzergahlar.Where(g => guzergahIds2.Contains(g.Id)).ToDictionaryAsync(g => g.Id);
+            var eslestirmeler = await db.FiloGuzergahEslestirmeleri
+                .Where(e => guzergahIds2.Contains(e.GuzergahId) && e.IsActive).ToListAsync();
+
+            // 5. GuzergahId + AracId + Slot bazında grupla
+            var gruplar = operasyonlar.GroupBy(o => new { o.GuzergahId, o.AracId, o.Slot }).ToList();
+
+            int uretilen = 0, detaySayisi = 0;
+            var yeniPuantajKayitlar = new List<(PuantajKayit pk, List<OperasyonKaydi> ops)>();
+
+            foreach (var grup in gruplar)
+            {
+                var ilk = grup.First();
+                var guzergahId = grup.Key.GuzergahId;
+                var aracId = grup.Key.AracId;
+                var slot = grup.Key.Slot;
+
+                var pk = new PuantajKayit
                 {
-                    Yil = yil,
-                    Ay = ay,
-                    GuzergahId = guzergahId,
-                    AracId = aracId,
-                    Slot = slot,
+                    Yil = yil, Ay = ay,
+                    GuzergahId = guzergahId, AracId = aracId, Slot = slot,
+                    HesapDonemiId = hesapDonemi.Id,
+                    Versiyon = yeniVersiyon,
                     Kaynak = PuantajKaynak.ServisCalismaOtomatik,
                     CreatedAt = DateTime.UtcNow
                 };
-            }
 
-            // Günlük sefer sayılarını Gun01-Gun31'e aktar
-            Debug.Assert(puantajKayit != null);
-            puantajKayit.Gun01 = 0; puantajKayit.Gun02 = 0; puantajKayit.Gun03 = 0;
-            puantajKayit.Gun04 = 0; puantajKayit.Gun05 = 0; puantajKayit.Gun06 = 0;
-            puantajKayit.Gun07 = 0; puantajKayit.Gun08 = 0; puantajKayit.Gun09 = 0;
-            puantajKayit.Gun10 = 0; puantajKayit.Gun11 = 0; puantajKayit.Gun12 = 0;
-            puantajKayit.Gun13 = 0; puantajKayit.Gun14 = 0; puantajKayit.Gun15 = 0;
-            puantajKayit.Gun16 = 0; puantajKayit.Gun17 = 0; puantajKayit.Gun18 = 0;
-            puantajKayit.Gun19 = 0; puantajKayit.Gun20 = 0; puantajKayit.Gun21 = 0;
-            puantajKayit.Gun22 = 0; puantajKayit.Gun23 = 0; puantajKayit.Gun24 = 0;
-            puantajKayit.Gun25 = 0; puantajKayit.Gun26 = 0; puantajKayit.Gun27 = 0;
-            puantajKayit.Gun28 = 0; puantajKayit.Gun29 = 0; puantajKayit.Gun30 = 0;
-            puantajKayit.Gun31 = 0;
+                // Gun01..Gun31 sıfırla
+                pk.Gun01 = 0; pk.Gun02 = 0; pk.Gun03 = 0; pk.Gun04 = 0; pk.Gun05 = 0;
+                pk.Gun06 = 0; pk.Gun07 = 0; pk.Gun08 = 0; pk.Gun09 = 0; pk.Gun10 = 0;
+                pk.Gun11 = 0; pk.Gun12 = 0; pk.Gun13 = 0; pk.Gun14 = 0; pk.Gun15 = 0;
+                pk.Gun16 = 0; pk.Gun17 = 0; pk.Gun18 = 0; pk.Gun19 = 0; pk.Gun20 = 0;
+                pk.Gun21 = 0; pk.Gun22 = 0; pk.Gun23 = 0; pk.Gun24 = 0; pk.Gun25 = 0;
+                pk.Gun26 = 0; pk.Gun27 = 0; pk.Gun28 = 0; pk.Gun29 = 0; pk.Gun30 = 0;
+                pk.Gun31 = 0;
 
-            decimal toplamSefer = 0;
-            foreach (var o in grup)
-            {
-                var gun = o.Tarih.Day;
-                var seferDeger = (int)(o.SeferSayisi * o.PuantajCarpani);
-                if (o.OperasyonDurumu == OperasyonDurumu.Gitti)
+                decimal toplamSefer = 0;
+                foreach (var o in grup)
                 {
-                    puantajKayit.SetGunDeger(gun, seferDeger);
-                    toplamSefer += seferDeger;
+                    var gun = o.Tarih.Day;
+                    if (o.OperasyonDurumu == OperasyonDurumu.Gitti)
+                    {
+                        var seferDeger = (int)(o.SeferSayisi * o.PuantajCarpani);
+                        pk.SetGunDeger(gun, seferDeger);
+                        toplamSefer += seferDeger;
+                    }
                 }
-                // Gitmedi veya İptal durumlarında 0 olarak kalır
-            }
 
-            // 6. Diğer alanları ilk kayıttan kopyala
-            puantajKayit.SoforId = ilk.SoforId;
-            puantajKayit.SlotAdi = ilk.SlotAdi;
-            puantajKayit.Yon = ilk.Yon;
-            puantajKayit.KurumId = ilk.KurumId;
-            puantajKayit.IsverenFirmaId = ilk.IsverenFirmaId;
-            puantajKayit.SeferSayisi = (int)toplamSefer;
-            puantajKayit.KaynakTipi = ilk.KaynakTipi;
-            puantajKayit.FinansYonu = ilk.FinansYonu;
-            puantajKayit.SoforOdemeTipi = ilk.SoforOdemeTipi;
-            puantajKayit.OdemeYapilacakCariId = ilk.OdemeYapilacakCariId;
-            puantajKayit.FaturaKesiciCariId = ilk.FaturaKesiciCariId;
-            puantajKayit.BelgeNo = ilk.BelgeNo;
-            puantajKayit.TransferDurum = ilk.TransferDurum;
-            puantajKayit.Notlar = ilk.Notlar;
-            puantajKayit.UpdatedAt = DateTime.UtcNow;
+                pk.SoforId = ilk.SoforId;
+                pk.SlotAdi = ilk.SlotAdi;
+                pk.Yon = ilk.Yon;
+                pk.KurumId = ilk.KurumId;
+                pk.IsverenFirmaId = ilk.IsverenFirmaId;
+                pk.SeferSayisi = (int)toplamSefer;
+                pk.KaynakTipi = ilk.KaynakTipi;
+                pk.FinansYonu = ilk.FinansYonu;
+                pk.SoforOdemeTipi = ilk.SoforOdemeTipi;
+                pk.OdemeYapilacakCariId = ilk.OdemeYapilacakCariId;
+                pk.FaturaKesiciCariId = ilk.FaturaKesiciCariId;
+                pk.BelgeNo = ilk.BelgeNo;
+                pk.TransferDurum = ilk.TransferDurum;
+                pk.Notlar = ilk.Notlar;
+                pk.UpdatedAt = DateTime.UtcNow;
 
-            // Guzergah bilgilerini doldur
-            if (guzergahlar.TryGetValue(guzergahId, out var guzergah))
-            {
-                puantajKayit.GuzergahAdi = guzergah.GuzergahAdi;
-            }
+                if (guzergahlar.TryGetValue(guzergahId, out var g))
+                {
+                    pk.GuzergahAdi = g.GuzergahAdi;
+                    pk.BirimGelir = g.GelirFiyat;
+                    pk.BirimGider = g.GiderFiyat;
+                }
 
-            // 7. Pricing hesapla
-            var eslestirme = eslestirmeler.FirstOrDefault(e =>
-                e.GuzergahId == guzergahId && e.AracId == aracId);
+                var eslestirme = eslestirmeler.FirstOrDefault(e => e.GuzergahId == guzergahId && e.AracId == aracId);
+                if (eslestirme != null)
+                {
+                    pk.BirimGelir = eslestirme.KurumaKesilecekUcret;
+                    pk.BirimGider = eslestirme.TaseronaOdenenUcret;
+                }
 
-            if (eslestirme != null)
-            {
-                puantajKayit.BirimGelir = eslestirme.KurumaKesilecekUcret;
-                puantajKayit.BirimGider = eslestirme.TaseronaOdenenUcret;
-            }
-            else if (guzergahlar.TryGetValue(guzergahId, out var g))
-            {
-                puantajKayit.BirimGelir = g.GelirFiyat;
-                puantajKayit.BirimGider = g.GiderFiyat;
-            }
+                pk.HesaplaPuantajToplam();
+                pk.HesaplaGelir();
+                pk.HesaplaGider();
 
-            // 8. Finansal hesaplamaları yap
-            puantajKayit.HesaplaPuantajToplam();
-            puantajKayit.HesaplaGelir();
-            puantajKayit.HesaplaGider();
-
-            if (yeniKayit)
-            {
-                db.PuantajKayitlar.Add(puantajKayit);
+                db.PuantajKayitlar.Add(pk);
+                yeniPuantajKayitlar.Add((pk, grup.ToList()));
                 uretilen++;
             }
-            else
+
+            await db.SaveChangesAsync(); // PuantajKayit Id'leri için
+
+            // 6. PuantajDetay'ları oluştur
+            foreach (var (pk, ops) in yeniPuantajKayitlar)
             {
-                guncellenen++;
-            }
-        }
-
-        // 9. Önce PuantajKayit'ları kaydet (Id'lerin oluşması için)
-        await db.SaveChangesAsync();
-
-        // 10. OperasyonKaydi'ları işlenmiş olarak işaretle ve PuantajKayit'e bağla
-        var puantajMap = db.PuantajKayitlar.Local
-            .Where(p => p.Yil == yil && p.Ay == ay && !p.IsDeleted)
-            .ToLookup(p => (p.GuzergahId, p.AracId, p.Slot));
-
-        var simdi = DateTime.UtcNow;
-        foreach (var o in operasyonlar)
-        {
-            var match = puantajMap[(o.GuzergahId, o.AracId, o.Slot)].FirstOrDefault();
-            if (match != null)
-            {
-                o.Islendi = true;
-                o.IslenmeTarihi = simdi;
-                o.PuantajKayitId = match.Id;
-                o.UpdatedAt = simdi;
-            }
-        }
-
-        await db.SaveChangesAsync();
-
-        return new PuantajEngineSonuc
-        {
-            IslenenOperasyonKaydi = operasyonlar.Count,
-            UretilenPuantajKayit = uretilen,
-            GuncellenenPuantajKayit = guncellenen
-        };
-    }
-
-    public async Task ProcessSingleAsync(int operasyonKaydiId)
-    {
-        await using var db = await _dbFactory.CreateDbContextAsync();
-
-        var o = await db.OperasyonKayitlari
-            .FirstOrDefaultAsync(x => x.Id == operasyonKaydiId && !x.IsDeleted);
-
-        if (o == null || o.Islendi) return;
-
-        // İlgili dönem için tüm operasyonları işle (tutarlılık için)
-        await ProcessDonemInternalAsync(db, o.Tarih.Year, o.Tarih.Month, guzergahIds: new[] { o.GuzergahId });
-    }
-
-    public async Task<PuantajEngineSonuc> ReprocessDonemAsync(int yil, int ay, int? kurumId = null)
-    {
-        await using var db = await _dbFactory.CreateDbContextAsync();
-
-        // 1. Mevcut operasyonların Islendi bayrağını sıfırla
-        var baslangic = new DateTime(yil, ay, 1);
-        var bitis = baslangic.AddMonths(1).AddDays(-1);
-
-        var query = db.OperasyonKayitlari
-            .Where(o => !o.IsDeleted && o.Tarih >= baslangic && o.Tarih <= bitis);
-
-        if (kurumId.HasValue && kurumId.Value > 0)
-        {
-            var gIds = await db.Guzergahlar
-                .Where(g => !g.IsDeleted && g.KurumId == kurumId.Value)
-                .Select(g => g.Id)
-                .ToListAsync();
-            query = query.Where(o => gIds.Contains(o.GuzergahId));
-        }
-
-        var ops = await query.ToListAsync();
-        foreach (var o in ops)
-        {
-            o.Islendi = false;
-            o.IslenmeTarihi = null;
-            o.PuantajKayitId = null;
-        }
-        await db.SaveChangesAsync();
-
-        // 2. Normal process'i çalıştır
-        return await ProcessDonemAsync(yil, ay, kurumId);
-    }
-
-    private async Task ProcessDonemInternalAsync(ApplicationDbContext db, int yil, int ay, int[] guzergahIds)
-    {
-        var baslangic = new DateTime(yil, ay, 1);
-        var bitis = baslangic.AddMonths(1).AddDays(-1);
-
-        var operasyonlar = await db.OperasyonKayitlari
-            .Where(o => !o.IsDeleted && !o.Islendi
-                        && o.Tarih >= baslangic && o.Tarih <= bitis
-                        && guzergahIds.Contains(o.GuzergahId))
-            .ToListAsync();
-
-        if (!operasyonlar.Any()) return;
-
-        var guzergahlar = await db.Guzergahlar
-            .Where(g => guzergahIds.Contains(g.Id))
-            .ToDictionaryAsync(g => g.Id);
-
-        var eslestirmeler = await db.FiloGuzergahEslestirmeleri
-            .Where(e => guzergahIds.Contains(e.GuzergahId) && e.IsActive)
-            .ToListAsync();
-
-        var mevcutPuantajlar = await db.PuantajKayitlar
-            .Where(p => !p.IsDeleted && p.Yil == yil && p.Ay == ay)
-            .ToListAsync();
-
-        var gruplar = operasyonlar
-            .GroupBy(o => new { o.GuzergahId, o.AracId, o.Slot });
-
-        foreach (var grup in gruplar)
-        {
-            var ilk = grup.First();
-            var guzergahId = grup.Key.GuzergahId;
-            var aracId = grup.Key.AracId;
-            var slot = grup.Key.Slot;
-
-            var pk = mevcutPuantajlar.FirstOrDefault(p =>
-                p.GuzergahId == guzergahId && p.AracId == aracId && p.Slot == slot);
-
-            bool yeniKayit = pk == null;
-            if (yeniKayit)
-            {
-                pk = new PuantajKayit
+                foreach (var o in ops)
                 {
-                    Yil = yil, Ay = ay, GuzergahId = guzergahId,
-                    AracId = aracId, Slot = slot,
-                    Kaynak = PuantajKaynak.ServisCalismaOtomatik,
-                    CreatedAt = DateTime.UtcNow
-                };
-            }
-
-            // Gun01-Gun31 sıfırla
-            Debug.Assert(pk != null);
-            pk.Gun01 = 0; pk.Gun02 = 0; pk.Gun03 = 0; pk.Gun04 = 0; pk.Gun05 = 0;
-            pk.Gun06 = 0; pk.Gun07 = 0; pk.Gun08 = 0; pk.Gun09 = 0; pk.Gun10 = 0;
-            pk.Gun11 = 0; pk.Gun12 = 0; pk.Gun13 = 0; pk.Gun14 = 0; pk.Gun15 = 0;
-            pk.Gun16 = 0; pk.Gun17 = 0; pk.Gun18 = 0; pk.Gun19 = 0; pk.Gun20 = 0;
-            pk.Gun21 = 0; pk.Gun22 = 0; pk.Gun23 = 0; pk.Gun24 = 0; pk.Gun25 = 0;
-            pk.Gun26 = 0; pk.Gun27 = 0; pk.Gun28 = 0; pk.Gun29 = 0; pk.Gun30 = 0;
-            pk.Gun31 = 0;
-
-            decimal toplamSefer = 0;
-            foreach (var o in grup)
-            {
-                var gun = o.Tarih.Day;
-                if (o.OperasyonDurumu == OperasyonDurumu.Gitti)
-                {
-                    var seferDeger = (int)(o.SeferSayisi * o.PuantajCarpani);
-                    pk.SetGunDeger(gun, seferDeger);
-                    toplamSefer += seferDeger;
+                    var detay = new PuantajDetay
+                    {
+                        FirmaId = o.FirmaId,
+                        OperasyonKaydiId = o.Id,
+                        PuantajKayitId = pk.Id,
+                        HesapDonemiId = hesapDonemi.Id,
+                        BirimGelir = pk.BirimGelir,
+                        BirimGider = pk.BirimGider,
+                        SeferSayisi = o.SeferSayisi,
+                        HesaplananTutar = pk.BirimGelir * o.SeferSayisi * o.PuantajCarpani,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    db.PuantajDetaylari.Add(detay);
+                    detaySayisi++;
                 }
             }
 
-            pk.SoforId = ilk.SoforId;
-            pk.SlotAdi = ilk.SlotAdi;
-            pk.Yon = ilk.Yon;
-            pk.KurumId = ilk.KurumId;
-            pk.IsverenFirmaId = ilk.IsverenFirmaId;
-            pk.SeferSayisi = (int)toplamSefer;
-            pk.KaynakTipi = ilk.KaynakTipi;
-            pk.FinansYonu = ilk.FinansYonu;
-            pk.SoforOdemeTipi = ilk.SoforOdemeTipi;
-            pk.OdemeYapilacakCariId = ilk.OdemeYapilacakCariId;
-            pk.FaturaKesiciCariId = ilk.FaturaKesiciCariId;
-            pk.BelgeNo = ilk.BelgeNo;
-            pk.TransferDurum = ilk.TransferDurum;
-            pk.Notlar = ilk.Notlar;
-            pk.UpdatedAt = DateTime.UtcNow;
-
-            if (guzergahlar.TryGetValue(guzergahId, out var g))
-                pk.GuzergahAdi = g.GuzergahAdi;
-
-            var eslestirme = eslestirmeler.FirstOrDefault(e =>
-                e.GuzergahId == guzergahId && e.AracId == aracId);
-
-            if (eslestirme != null)
+            // 7. Önceki Aktif hesabı Superseded yap
+            int superseded = 0;
+            if (oncekiAktif != null)
             {
-                pk.BirimGelir = eslestirme.KurumaKesilecekUcret;
-                pk.BirimGider = eslestirme.TaseronaOdenenUcret;
-            }
-            else if (guzergahlar.TryGetValue(guzergahId, out var g2))
-            {
-                pk.BirimGelir = g2.GelirFiyat;
-                pk.BirimGider = g2.GiderFiyat;
+                oncekiAktif.Durum = PuantajHesapDurum.Superseded;
+                oncekiAktif.UpdatedAt = DateTime.UtcNow;
+
+                var oncekiKayitlar = await db.PuantajKayitlar
+                    .Where(p => p.HesapDonemiId == oncekiAktif.Id && !p.IsDeleted)
+                    .ToListAsync();
+                foreach (var pk in oncekiKayitlar)
+                {
+                    pk.OnayDurum = PuantajOnayDurum.Taslak;
+                    pk.UpdatedAt = DateTime.UtcNow;
+                    superseded++;
+                }
             }
 
-            pk.HesaplaPuantajToplam();
-            pk.HesaplaGelir();
-            pk.HesaplaGider();
+            // 8. HesapDonemi'ni Aktif yap
+            hesapDonemi.Durum = PuantajHesapDurum.Aktif;
+            hesapDonemi.UpdatedAt = DateTime.UtcNow;
 
-            if (yeniKayit)
-                db.PuantajKayitlar.Add(pk);
+            await db.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            return new PuantajEngineSonucV1
+            {
+                HesapDonemiId = hesapDonemi.Id,
+                Versiyon = yeniVersiyon,
+                IslenenOperasyonSayisi = operasyonlar.Count,
+                UretilenPuantajKayit = uretilen,
+                SupersededKayit = superseded,
+                OlusturulanDetay = detaySayisi
+            };
         }
-
-        await db.SaveChangesAsync();
-
-        var puantajMap = db.PuantajKayitlar.Local
-            .Where(p => p.Yil == yil && p.Ay == ay && !p.IsDeleted)
-            .ToLookup(p => (p.GuzergahId, p.AracId, p.Slot));
-
-        var simdi = DateTime.UtcNow;
-        foreach (var o in operasyonlar)
+        catch
         {
-            var match = puantajMap[(o.GuzergahId, o.AracId, o.Slot)].FirstOrDefault();
-            if (match != null)
-            {
-                o.Islendi = true;
-                o.IslenmeTarihi = simdi;
-                o.PuantajKayitId = match.Id;
-                o.UpdatedAt = simdi;
-            }
+            await tx.RollbackAsync();
+            throw;
+        }
+    }
+
+    public async Task IptalEtAsync(int hesapDonemiId, string? iptalEden = null)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+
+        var hesapDonemi = await db.PuantajHesapDonemleri.FindAsync(hesapDonemiId)
+            ?? throw new InvalidOperationException("Hesap dönemi bulunamadı.");
+
+        if (hesapDonemi.Durum != PuantajHesapDurum.Aktif)
+            throw new InvalidOperationException("Sadece Aktif hesap dönemi iptal edilebilir.");
+
+        // PuantajKayit'ları soft-delete
+        var kayitlar = await db.PuantajKayitlar
+            .Where(p => p.HesapDonemiId == hesapDonemiId && !p.IsDeleted)
+            .ToListAsync();
+        foreach (var k in kayitlar)
+        {
+            k.IsDeleted = true;
+            k.UpdatedAt = DateTime.UtcNow;
         }
 
+        // PuantajDetay'ları soft-delete
+        var detaylar = await db.PuantajDetaylari
+            .Where(d => d.HesapDonemiId == hesapDonemiId && !d.IsDeleted)
+            .ToListAsync();
+        foreach (var d in detaylar)
+        {
+            d.IsDeleted = true;
+        }
+
+        hesapDonemi.Durum = PuantajHesapDurum.Iptal;
+        hesapDonemi.UpdatedAt = DateTime.UtcNow;
+        hesapDonemi.UpdatedBy = iptalEden;
+
         await db.SaveChangesAsync();
+    }
+
+    public async Task<List<PuantajEngineDetayDto>> GetDetaylarAsync(int hesapDonemiId)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        return await db.PuantajDetaylari
+            .Include(d => d.OperasyonKaydi).ThenInclude(o => o!.Arac)
+            .Include(d => d.OperasyonKaydi).ThenInclude(o => o!.Guzergah)
+            .Where(d => d.HesapDonemiId == hesapDonemiId && !d.IsDeleted)
+            .OrderBy(d => d.OperasyonKaydi!.Tarih)
+            .Select(d => new PuantajEngineDetayDto
+            {
+                Id = d.Id,
+                OperasyonKaydiId = d.OperasyonKaydiId,
+                Tarih = d.OperasyonKaydi!.Tarih,
+                Plaka = d.OperasyonKaydi.Arac!.AktifPlaka ?? d.OperasyonKaydi.Arac.Plaka,
+                GuzergahAdi = d.OperasyonKaydi.Guzergah!.GuzergahAdi,
+                Slot = d.OperasyonKaydi.Slot.ToString(),
+                SeferSayisi = d.SeferSayisi,
+                BirimGelir = d.BirimGelir,
+                BirimGider = d.BirimGider,
+                HesaplananTutar = d.HesaplananTutar
+            })
+            .ToListAsync();
     }
 }

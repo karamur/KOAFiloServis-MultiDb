@@ -1,32 +1,49 @@
 namespace KOAFiloServis.Web.Services.Interfaces;
 
 /// <summary>
-/// OperasyonKaydi → PuantajKayit dönüşüm motoru.
-/// Günlük ham operasyon kayıtlarını işleyip aylık finansal puantaj çıktısı üretir.
+/// OperasyonKaydi → PuantajKayit dönüşüm motoru (V1).
+/// HesapDonemi + PuantajDetay + revizyon zinciri ile çalışır.
 /// </summary>
 public interface IPuantajEngineService
 {
     /// <summary>
-    /// Belirtilen dönemdeki işlenmemiş OperasyonKaydi'ları PuantajKayit'a dönüştürür.
+    /// Belirtilen dönem için yeni PuantajHesapDonemi oluşturup tüm OperasyonKaydi'ları işler.
+    /// Önceki Aktif hesap varsa Superseded yapar.
     /// </summary>
-    /// <returns>İşlenen grup sayısı ve üretilen/güncellenen PuantajKayit adedi.</returns>
-    Task<PuantajEngineSonuc> ProcessDonemAsync(int yil, int ay, int? kurumId = null);
+    Task<PuantajEngineSonucV1> ProcessDonemAsync(int yil, int ay, int? kurumId = null, string? hesaplayan = null, string? notlar = null);
 
     /// <summary>
-    /// Tek bir OperasyonKaydi'dan ilgili PuantajKayit'ı günceller.
+    /// Belirtilen dönemdeki en son Aktif hesaplamayı iptal eder.
+    /// İlgili PuantajKayit ve PuantajDetay'ları soft-delete yapar.
     /// </summary>
-    Task ProcessSingleAsync(int operasyonKaydiId);
+    Task IptalEtAsync(int hesapDonemiId, string? iptalEden = null);
 
     /// <summary>
-    /// Mevcut PuantajKayit'ları silip tüm OperasyonKaydi'lardan yeniden üretir.
+    /// Belirtilen hesap dönemindeki PuantajDetay'ları döner (audit).
     /// </summary>
-    Task<PuantajEngineSonuc> ReprocessDonemAsync(int yil, int ay, int? kurumId = null);
+    Task<List<PuantajEngineDetayDto>> GetDetaylarAsync(int hesapDonemiId);
 }
 
-public sealed class PuantajEngineSonuc
+public sealed class PuantajEngineSonucV1
 {
-    public int IslenenOperasyonKaydi { get; init; }
+    public int HesapDonemiId { get; init; }
+    public int Versiyon { get; init; }
+    public int IslenenOperasyonSayisi { get; init; }
     public int UretilenPuantajKayit { get; init; }
-    public int GuncellenenPuantajKayit { get; init; }
-    public int ToplamPuantaj => UretilenPuantajKayit + GuncellenenPuantajKayit;
+    public int SupersededKayit { get; init; }
+    public int OlusturulanDetay { get; init; }
+}
+
+public sealed class PuantajEngineDetayDto
+{
+    public int Id { get; init; }
+    public int OperasyonKaydiId { get; init; }
+    public DateTime Tarih { get; init; }
+    public string? Plaka { get; init; }
+    public string? GuzergahAdi { get; init; }
+    public string Slot { get; init; } = "";
+    public int SeferSayisi { get; init; }
+    public decimal BirimGelir { get; init; }
+    public decimal BirimGider { get; init; }
+    public decimal HesaplananTutar { get; init; }
 }
