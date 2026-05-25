@@ -23,6 +23,9 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using KOAFiloServis.Web.HealthChecks;
 
 // EPPlus lisans ayari (NonCommercial kullanim icin)
 ExcelPackage.License.SetNonCommercialPersonal("KOAFiloServis");
@@ -535,6 +538,10 @@ builder.Services.AddQuartz(q =>
 });
 builder.Services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 
+// ── Health Checks ──────────────────────────────────────────────────
+builder.Services.AddHealthChecks()
+    .AddCheck<PuantajJobHealthCheck>("puantaj_job", tags: ["job"]);
+
 // API Controller ve JWT Authentication
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -990,6 +997,26 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
 }
+
+// Health check endpoints
+app.MapHealthChecks("/healthz", new HealthCheckOptions { Predicate = _ => false });
+app.MapHealthChecks("/readyz", new HealthCheckOptions { Predicate = _ => true });
+app.MapHealthChecks("/health/puantaj-job", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("job"),
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        var json = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            status = report.Status.ToString(),
+            results = report.Entries.ToDictionary(
+                e => e.Key,
+                e => new { e.Value.Status, e.Value.Description, e.Value.Duration })
+        });
+        await context.Response.WriteAsync(json);
+    }
+});
 
 // Swagger UI - tüm ortamlarda aktif (API dokümantasyonu)
 app.UseSwagger(c =>

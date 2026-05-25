@@ -5,9 +5,6 @@ using KOAFiloServis.Web.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Npgsql;
-using Polly;
-using Polly.Retry;
 
 namespace KOAFiloServis.Web.Services;
 
@@ -15,50 +12,18 @@ public sealed class PuantajJobService : IPuantajJobService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IDbContextFactory<MasterDbContext> _masterDbFactory;
+    private readonly IPuantajRetryPolicy _retryPolicy;
     private readonly ILogger<PuantajJobService> _logger;
-
-    // Polly retry pipeline — transient DB/network hatalarında 3 deneme
-    // Polly retry pipeline — SADECE transient infrastructure hatalarında 3 deneme
-    // Business exception'lar (PuantajBusinessException) retry EDİLMEZ
-    // Fatal exception'lar (PuantajFatalException) direkt propagate edilir
-    private static readonly ResiliencePipeline RetryPipeline = new ResiliencePipelineBuilder()
-        .AddRetry(new RetryStrategyOptions
-        {
-            MaxRetryAttempts = 3,
-            Delay = TimeSpan.FromSeconds(1),
-            BackoffType = DelayBackoffType.Exponential,
-            UseJitter = true,
-            ShouldHandle = args => args.Outcome.Exception switch
-            {
-                // ── Business rules → NO RETRY ──
-                PuantajBusinessException => PredicateResult.False(),
-                PuantajFatalException => PredicateResult.False(),
-                OperationCanceledException => PredicateResult.False(),
-
-                // ── Infrastructure (transient check) ──
-                PuantajInfrastructureException pie => pie.IsTransientFailure
-                    ? PredicateResult.True()
-                    : PredicateResult.False(),
-
-                // ── DB/network transient → RETRY ──
-                PostgresException pe when pe.IsTransient => PredicateResult.True(),
-                NpgsqlException => PredicateResult.True(),
-                TimeoutException => PredicateResult.True(),
-
-                // ── Unknown → NO (conservative — explicit is safer) ──
-                _ => PredicateResult.False()
-            }
-        })
-        .AddTimeout(TimeSpan.FromMinutes(5))
-        .Build();
 
     public PuantajJobService(
         IServiceScopeFactory scopeFactory,
         IDbContextFactory<MasterDbContext> masterDbFactory,
+        IPuantajRetryPolicy retryPolicy,
         ILogger<PuantajJobService> logger)
     {
         _scopeFactory = scopeFactory;
         _masterDbFactory = masterDbFactory;
+        _retryPolicy = retryPolicy;
         _logger = logger;
     }
 
@@ -214,14 +179,11 @@ public sealed class PuantajJobService : IPuantajJobService
             PuantajEngineSonucV1 engineResult;
             try
             {
-                engineResult = await RetryPipeline.ExecuteAsync(
-                    async innerCt =>
-                    {
-                        var result = await engine.ProcessDonemAsync(
-                            yil, ay, kurumId: null, hesaplayan: tetikleyen,
-                            notlar: $"Auto ({tetikleyen})", ct: innerCt);
-                        return result;
-                    }, ct);
+                engineResult = await _retryPolicy.ExecuteAsync(
+                    async innerCt => await engine.ProcessDonemAsync(
+                        yil, ay, kurumId: null, hesaplayan: tetikleyen,
+                        notlar: $"Auto ({tetikleyen})", ct: innerCt),
+                    $"Engine:F{firmaId}/{yil}/{ay:00}", ct);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -230,23 +192,31 @@ public sealed class PuantajJobService : IPuantajJobService
                 return TenantProcessResult.Failed(firmaId, ex.Message, record);
             }
 
-            // 5. Audit log
-            await using var auditDb = await dbFactory.CreateDbContextAsync(ct);
-            auditDb.PuantajAuditLogs.Add(new PuantajAuditLog
+            // 5. Audit log — best-effort (engine already committed)
+            try
             {
-                FirmaId = firmaId,
-                HesapDonemiId = engineResult.HesapDonemiId,
-                Aksiyon = PuantajAuditAksiyon.Hesaplandi,
-                Kullanici = tetikleyen,
-                AksiyonTarihi = DateTime.UtcNow,
-                OncekiDurum = "Yok",
-                YeniDurum = $"Aktif V{engineResult.Versiyon}",
-                Aciklama = $"Job: {engineResult.IslenenOperasyonSayisi} op → {engineResult.UretilenPuantajKayit} kayıt",
-                CreatedAt = DateTime.UtcNow
-            });
-            await auditDb.SaveChangesAsync(ct);
+                await using var auditDb = await dbFactory.CreateDbContextAsync(ct);
+                auditDb.PuantajAuditLogs.Add(new PuantajAuditLog
+                {
+                    FirmaId = firmaId,
+                    HesapDonemiId = engineResult.HesapDonemiId,
+                    Aksiyon = PuantajAuditAksiyon.Hesaplandi,
+                    Kullanici = tetikleyen,
+                    AksiyonTarihi = DateTime.UtcNow,
+                    OncekiDurum = "Yok",
+                    YeniDurum = $"Aktif V{engineResult.Versiyon}",
+                    Aciklama = $"Job: {engineResult.IslenenOperasyonSayisi} op → {engineResult.UretilenPuantajKayit} kayıt",
+                    CreatedAt = DateTime.UtcNow
+                });
+                await auditDb.SaveChangesAsync(ct);
+            }
+            catch (Exception auditEx)
+            {
+                _logger.LogError(auditEx,
+                    "Audit log yazılamadı (engine OK) — Reconciliation düzeltecek");
+            }
 
-            // 6. Mutex → Completed
+            // 6. Mutex → Completed (ALWAYS, even if audit failed)
             await mutex.UpdateToCompletedAsync(record, engineResult, ct);
 
             _logger.LogInformation(

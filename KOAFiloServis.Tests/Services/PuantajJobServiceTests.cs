@@ -16,6 +16,7 @@ public class PuantajJobServiceTests
     private readonly Mock<IPuantajMutexService> _mutexMock = new();
     private readonly Mock<IPuantajEngineService> _engineMock = new();
     private readonly Mock<IAktifFirmaProvider> _firmaMock = new();
+    private readonly Mock<IPuantajRetryPolicy> _retryPolicyMock = new();
     private readonly Mock<IDbContextFactory<MasterDbContext>> _masterDbFactoryMock = new();
     private readonly Mock<IDbContextFactory<ApplicationDbContext>> _appDbFactoryMock = new();
     private readonly Mock<ILogger<PuantajJobService>> _loggerMock = new();
@@ -26,6 +27,7 @@ public class PuantajJobServiceTests
         _services.AddScoped(_ => _engineMock.Object);
         _services.AddScoped(_ => _firmaMock.Object);
         _services.AddScoped(_ => _appDbFactoryMock.Object);
+        _services.AddSingleton(_retryPolicyMock.Object);
         _services.AddSingleton(_masterDbFactoryMock.Object);
         _services.AddSingleton(_loggerMock.Object);
         _services.AddScoped<IPuantajJobService, PuantajJobService>();
@@ -147,13 +149,12 @@ public class PuantajJobServiceTests
     // ═══════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void RetryPipeline_IsDefined()
+    public void RetryPolicy_IsRegistered()
     {
-        typeof(PuantajJobService)
-            .GetField("RetryPipeline",
-                System.Reflection.BindingFlags.Static |
-                System.Reflection.BindingFlags.NonPublic)
-            .Should().NotBeNull();
+        // IPuantajRetryPolicy Singleton olarak kaydedildi — scoped değil, ayrı servis
+        var provider = _services.BuildServiceProvider();
+        var policy = provider.GetService<IPuantajRetryPolicy>();
+        policy.Should().NotBeNull("IPuantajRetryPolicy DI'da kayıtlı olmalı");
     }
 
     [Fact]
