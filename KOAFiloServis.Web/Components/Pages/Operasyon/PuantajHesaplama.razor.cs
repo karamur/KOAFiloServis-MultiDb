@@ -10,6 +10,7 @@ public partial class PuantajHesaplama : ComponentBase
     [Inject] private IPreviewEngineService PreviewEngine { get; set; } = null!;
     [Inject] private IPuantajEngineService Engine { get; set; } = null!;
     [Inject] private IKurumService KurumService { get; set; } = null!;
+    [Inject] private IPuantajWorkflowService Workflow { get; set; } = null!;
     [Inject] private IToastService ToastService { get; set; } = null!;
 
     // ── Filtre ───────────────────────────────────────────────────────────
@@ -33,6 +34,10 @@ public partial class PuantajHesaplama : ComponentBase
     // ── Comparison ──────────────────────────────────────────────────────
     private ComparisonResult? comparison;
     private bool comparisonYukleniyor;
+
+    // ── Onay State ──────────────────────────────────────────────────────
+    private bool onayYukleniyor;
+    private List<PuantajAuditLog> auditLogs = new();
 
     // ── Drill-Down ──────────────────────────────────────────────────────
     private bool drillDownAcik;
@@ -177,5 +182,55 @@ public partial class PuantajHesaplama : ComponentBase
     private void DrillDownKapat()
     {
         drillDownAcik = false;
+    }
+
+    // ── Onay ──────────────────────────────────────────────────────────
+
+    private async Task FinansOnayla()
+    {
+        if (hesaplamaSonucu == null) return;
+        onayYukleniyor = true;
+        try
+        {
+            await Workflow.FinansOnaylaAsync(hesaplamaSonucu.HesapDonemiId, "UI");
+            ToastService.ShowSuccess("Finans onayı verildi.");
+            await LoadAuditLogs();
+        }
+        catch (Exception ex) { hataMesaji = ex.Message; }
+        finally { onayYukleniyor = false; }
+    }
+
+    private async Task MuhasebeOnayla()
+    {
+        if (hesaplamaSonucu == null) return;
+        onayYukleniyor = true;
+        try
+        {
+            await Workflow.MuhasebeOnaylaAsync(hesaplamaSonucu.HesapDonemiId, "UI");
+            ToastService.ShowSuccess("Muhasebe onayı verildi.");
+            await LoadAuditLogs();
+        }
+        catch (Exception ex) { hataMesaji = ex.Message; }
+        finally { onayYukleniyor = false; }
+    }
+
+    private async Task Kilitle()
+    {
+        if (hesaplamaSonucu == null) return;
+        onayYukleniyor = true;
+        try
+        {
+            await Workflow.KilitleAsync(hesaplamaSonucu.HesapDonemiId, "UI");
+            ToastService.ShowSuccess("Dönem kilitlendi.");
+            await LoadAuditLogs();
+        }
+        catch (Exception ex) { hataMesaji = ex.Message; }
+        finally { onayYukleniyor = false; }
+    }
+
+    private async Task LoadAuditLogs()
+    {
+        if (hesaplamaSonucu == null) return;
+        auditLogs = await Workflow.GetAuditLogsAsync(hesaplamaSonucu.HesapDonemiId);
     }
 }

@@ -40,6 +40,32 @@ public sealed class OperasyonKaydiBusinessRules
     }
 
     /// <summary>
+    /// Operasyonun ait olduğu dönem için onaylı/kilitli hesap var mı kontrol eder.
+    /// Varsa operasyon değiştirilemez.
+    /// </summary>
+    public async Task<List<string>> CheckDonemLockedAsync(OperasyonKaydi kayit)
+    {
+        var errors = new List<string>();
+
+        await using var db = await _dbFactory.CreateDbContextAsync();
+
+        var kilitli = await db.PuantajHesapDonemleri
+            .Where(h => !h.IsDeleted
+                        && h.Yil == kayit.Tarih.Year
+                        && h.Ay == kayit.Tarih.Month
+                        && h.Durum == PuantajHesapDurum.Aktif
+                        && h.OnayDurum != PuantajDonemOnayDurum.Bekliyor)
+            .OrderByDescending(h => h.Versiyon)
+            .Select(h => new { h.Versiyon, h.OnayDurum })
+            .FirstOrDefaultAsync();
+
+        if (kilitli != null)
+            errors.Add($"Bu dönem için V{kilitli.Versiyon} onaylı/kilitli hesap mevcut ({kilitli.OnayDurum}). Operasyon değiştirilemez.");
+
+        return errors;
+    }
+
+    /// <summary>
     /// Operasyonel kural: Gitti durumunda sefer sayısı 0 olamaz.
     /// </summary>
     public static List<string> CheckOperationalRules(OperasyonKaydi kayit)

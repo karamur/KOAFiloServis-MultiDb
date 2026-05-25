@@ -102,7 +102,12 @@ public sealed class OperasyonKaydiService : IOperasyonKaydiService
         if (conflictErrors.Any())
             throw new InvalidOperationException(string.Join("; ", conflictErrors));
 
-        // 4. Persist
+        // 4. Onay/kilit kontrolü
+        var lockErrors = await _rules.CheckDonemLockedAsync(kayit);
+        if (lockErrors.Any())
+            throw new InvalidOperationException(string.Join("; ", lockErrors));
+
+        // 5. Persist
         var mevcut = await db.OperasyonKayitlari
             .FirstOrDefaultAsync(o =>
                 !o.IsDeleted &&

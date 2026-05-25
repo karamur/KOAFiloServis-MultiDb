@@ -32,6 +32,18 @@ public class PuantajHesapDonemi : BaseEntity, IFirmaTenant
     [StringLength(500)]
     public string? Notlar { get; set; }
 
+    // ── Onay Workflow (Sprint 5) ──────────────────────────────────────
+    public PuantajDonemOnayDurum OnayDurum { get; set; } = PuantajDonemOnayDurum.Bekliyor;
+
+    [StringLength(100)] public string? FinansOnaylayan { get; set; }
+    public DateTime? FinansOnayTarihi { get; set; }
+
+    [StringLength(100)] public string? MuhasebeOnaylayan { get; set; }
+    public DateTime? MuhasebeOnayTarihi { get; set; }
+
+    public DateTime? KilitTarihi { get; set; }
+    [StringLength(100)] public string? KilitAciklama { get; set; }
+
     // Audit
     [StringLength(100)] public string? CreatedBy { get; set; }
     [StringLength(100)] public string? UpdatedBy { get; set; }
@@ -49,4 +61,12 @@ public enum PuantajHesapDurum
     Aktif = 1,
     Superseded = 2,
     Iptal = 3
+}
+
+public enum PuantajDonemOnayDurum
+{
+    Bekliyor = 0,
+    FinansOnaylandi = 1,
+    MuhasebeOnaylandi = 2,
+    Kilitli = 3
 }

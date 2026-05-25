@@ -255,6 +255,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<OperasyonKaydi> OperasyonKayitlari { get; set; }
     public DbSet<PuantajHesapDonemi> PuantajHesapDonemleri { get; set; }
     public DbSet<PuantajDetay> PuantajDetaylari { get; set; }
+    public DbSet<PuantajAuditLog> PuantajAuditLogs { get; set; }
 
     // Proforma Fatura Modülü
     public DbSet<ProformaFatura> ProformaFaturalar { get; set; }
@@ -1604,6 +1605,20 @@ public class ApplicationDbContext : DbContext
                 .WithMany(h => h.Detaylar)
                 .HasForeignKey(e => e.HesapDonemiId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // PuantajAuditLog - Onay/hesap aksiyon logları
+        modelBuilder.Entity<PuantajAuditLog>(entity =>
+        {
+            entity.HasIndex(e => new { e.HesapDonemiId, e.AksiyonTarihi });
+            entity.HasIndex(e => e.FirmaId);
+
+            entity.Property(e => e.Kullanici).HasMaxLength(100);
+            entity.Property(e => e.OncekiDurum).HasMaxLength(100);
+            entity.Property(e => e.YeniDurum).HasMaxLength(100);
+            entity.Property(e => e.Aciklama).HasMaxLength(500);
 
             entity.HasQueryFilter(e => !e.IsDeleted);
         });

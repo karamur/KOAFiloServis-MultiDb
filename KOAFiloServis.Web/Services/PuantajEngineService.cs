@@ -37,6 +37,11 @@ public sealed class PuantajEngineService : IPuantajEngineService
                 .OrderByDescending(h => h.Versiyon)
                 .FirstOrDefaultAsync();
 
+            // Kilit kontrolü: Kilitli dönem varsa revizyon yapılamaz
+            if (oncekiAktif?.OnayDurum == PuantajDonemOnayDurum.Kilitli)
+                throw new InvalidOperationException(
+                    $"Bu dönem kilitli (V{oncekiAktif.Versiyon}). Revizyon için önce kilit açılmalıdır.");
+
             int yeniVersiyon = (oncekiAktif?.Versiyon ?? 0) + 1;
 
             // 2. Yeni HesapDonemi oluştur
