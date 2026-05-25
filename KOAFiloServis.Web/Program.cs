@@ -347,6 +347,7 @@ builder.Services.AddScoped<KOAFiloServis.Web.Services.Interfaces.IOperasyonKaydi
 builder.Services.AddScoped<KOAFiloServis.Web.Services.Interfaces.IPreviewEngineService, PreviewEngineService>();
 builder.Services.AddScoped<KOAFiloServis.Web.Services.Interfaces.IPuantajEngineService, PuantajEngineService>();
 builder.Services.AddScoped<KOAFiloServis.Web.Services.Interfaces.IPuantajWorkflowService, PuantajWorkflowService>();
+builder.Services.AddScoped<KOAFiloServis.Web.Services.Interfaces.IPuantajFinansService, PuantajFinansService>();
 builder.Services.AddScoped(typeof(KOAFiloServis.Web.Services.Interfaces.IFiloKomisyonService), typeof(FiloKomisyonService));
 builder.Services.AddScoped<KOAFiloServis.Web.Services.Interfaces.IPuantajEslestirmeService, PuantajEslestirmeService>();
 builder.Services.AddScoped<IPiyasaKaynakService, PiyasaKaynakService>(); // Piyasa Kaynak Yonetimi (once kaydet)

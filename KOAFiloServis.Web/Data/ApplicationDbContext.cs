@@ -256,6 +256,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<PuantajHesapDonemi> PuantajHesapDonemleri { get; set; }
     public DbSet<PuantajDetay> PuantajDetaylari { get; set; }
     public DbSet<PuantajAuditLog> PuantajAuditLogs { get; set; }
+    public DbSet<PuantajFinansalKayit> PuantajFinansalKayitlar { get; set; }
 
     // Proforma Fatura Modülü
     public DbSet<ProformaFatura> ProformaFaturalar { get; set; }
@@ -1619,6 +1620,28 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.OncekiDurum).HasMaxLength(100);
             entity.Property(e => e.YeniDurum).HasMaxLength(100);
             entity.Property(e => e.Aciklama).HasMaxLength(500);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // PuantajFinansalKayit - Onaylanmış puantajın finansal snapshot'ı
+        modelBuilder.Entity<PuantajFinansalKayit>(entity =>
+        {
+            entity.HasIndex(e => new { e.PuantajKayitId, e.HesapDonemiId }).IsUnique();
+            entity.HasIndex(e => e.HesapDonemiId);
+            entity.HasIndex(e => e.Durum);
+
+            entity.Property(e => e.BirimGelir).HasPrecision(18, 2);
+            entity.Property(e => e.BirimGider).HasPrecision(18, 2);
+            entity.Property(e => e.ToplamGelir).HasPrecision(18, 2);
+            entity.Property(e => e.ToplamGider).HasPrecision(18, 2);
+            entity.Property(e => e.KdvTutar).HasPrecision(18, 2);
+            entity.Property(e => e.GenelToplam).HasPrecision(18, 2);
+            entity.Property(e => e.CreatedBy).HasMaxLength(100);
+            entity.Property(e => e.UpdatedBy).HasMaxLength(100);
+
+            entity.HasOne(e => e.PuantajKayit).WithMany().HasForeignKey(e => e.PuantajKayitId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.HesapDonemi).WithMany().HasForeignKey(e => e.HesapDonemiId).OnDelete(DeleteBehavior.Restrict);
 
             entity.HasQueryFilter(e => !e.IsDeleted);
         });

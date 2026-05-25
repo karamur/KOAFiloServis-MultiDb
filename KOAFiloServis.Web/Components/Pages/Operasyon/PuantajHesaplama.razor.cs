@@ -11,6 +11,7 @@ public partial class PuantajHesaplama : ComponentBase
     [Inject] private IPuantajEngineService Engine { get; set; } = null!;
     [Inject] private IKurumService KurumService { get; set; } = null!;
     [Inject] private IPuantajWorkflowService Workflow { get; set; } = null!;
+    [Inject] private IPuantajFinansService FinansService { get; set; } = null!;
     [Inject] private IToastService ToastService { get; set; } = null!;
 
     // ── Filtre ───────────────────────────────────────────────────────────
@@ -38,6 +39,11 @@ public partial class PuantajHesaplama : ComponentBase
     // ── Onay State ──────────────────────────────────────────────────────
     private bool onayYukleniyor;
     private List<PuantajAuditLog> auditLogs = new();
+
+    // ── Finansal State ──────────────────────────────────────────────────
+    private bool finansYukleniyor;
+    private List<PuantajFinansalKayit> finansalKayitlar = new();
+    private int? finansalUretilenFaturaAdet;
 
     // ── Drill-Down ──────────────────────────────────────────────────────
     private bool drillDownAcik;
@@ -232,5 +238,35 @@ public partial class PuantajHesaplama : ComponentBase
     {
         if (hesaplamaSonucu == null) return;
         auditLogs = await Workflow.GetAuditLogsAsync(hesaplamaSonucu.HesapDonemiId);
+    }
+
+    // ── Finansal ──────────────────────────────────────────────────────
+
+    private async Task FinansalKayitOlustur()
+    {
+        if (hesaplamaSonucu == null) return;
+        finansYukleniyor = true;
+        try
+        {
+            await FinansService.FinansalKayitOlusturAsync(hesaplamaSonucu.HesapDonemiId);
+            ToastService.ShowSuccess("Finansal kayıtlar oluşturuldu.");
+            finansalKayitlar = await FinansService.FinansalKayitlariGetirAsync(hesaplamaSonucu.HesapDonemiId);
+        }
+        catch (Exception ex) { hataMesaji = ex.Message; }
+        finally { finansYukleniyor = false; }
+    }
+
+    private async Task TopluFaturaUret()
+    {
+        if (hesaplamaSonucu == null) return;
+        finansYukleniyor = true;
+        try
+        {
+            finansalUretilenFaturaAdet = await FinansService.TopluFaturaUretAsync(hesaplamaSonucu.HesapDonemiId);
+            ToastService.ShowSuccess($"{finansalUretilenFaturaAdet} finansal kayıt için fatura üretildi.");
+            finansalKayitlar = await FinansService.FinansalKayitlariGetirAsync(hesaplamaSonucu.HesapDonemiId);
+        }
+        catch (Exception ex) { hataMesaji = ex.Message; }
+        finally { finansYukleniyor = false; }
     }
 }
