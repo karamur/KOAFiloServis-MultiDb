@@ -1,66 +1,55 @@
 # Operasyon & Puantaj Modülü — Sprint Planı
 
-> Son güncelleme: 25.05.2026
+> Son güncelleme: 25.05.2026 — Sprint 3 tamamlandı
 
 ## Tamamlanan Sprintler
 
-### Sprint 1: OperasyonKaydi Entity Mimarisi ✅ (25.05.2026)
+### Sprint 1: OperasyonKaydi Entity Mimarisi ✅
 
-| İş | Durum |
-|----|:----:|
-| OperasyonKaydi entity (39 alan, IFirmaTenant) | ✅ |
-| PuantajKayit.OperasyonKayitlari nav | ✅ |
-| DbContext: DbSet + fluent config (8 FK Restrict, 13 index) | ✅ |
-| OperasyonKaydiValidator (statik input validasyon) | ✅ |
-| OperasyonKaydiBusinessRules (domain + çakışma) | ✅ |
-| IOperasyonKaydiService + OperasyonKaydiService (CRUD) | ✅ |
-| IPuantajEngineService + PuantajEngineService (dönüşüm motoru) | ✅ |
-| EF Migration: OperasyonKayitlari tablosu | ✅ |
-| DI kayıtları (Program.cs) | ✅ |
-| Duplicate check SQL (docs/sql/) | ✅ |
-| Audit: CreatedBy, UpdatedBy, DeletedBy, DeletedAt | ✅ |
+- OperasyonKaydi entity (39 alan, IFirmaTenant, audit, soft delete)
+- 8 FK Restrict, 13 performans indexi
+- OperasyonKaydiValidator + BusinessRules + Service (3 katmanlı)
+- PuantajEngineService (ilk versiyon)
+- EF Migration: OperasyonKayitlari tablosu
 
-### Sprint 2: Operasyon Giriş Ekranı ✅ (25.05.2026)
+### Sprint 2: Operasyon Giriş Ekranı ✅
 
-| İş | Durum |
-|----|:----:|
-| OperasyonGiris.razor + code-behind | ✅ |
-| Tarih + Kurum autocomplete + Güzergah cascade filtre | ✅ |
-| Grid: günlük liste + inline edit (slot/sefer/durum) | ✅ |
-| Yeni kayıt: inline form (araç/şoför autocomplete) | ✅ |
-| Slot hızlı seçim (Sabah/Akşam/Mesai toggle) | ✅ |
-| Dirty tracking + toplu kaydet | ✅ |
-| Çakışma kontrolü entegrasyonu | ✅ |
+- `/operasyon-giris` sayfası: tarih/kurum/güzergah filtresi
+- Grid: inline edit (slot/sefer/durum), dirty tracking, toplu kaydet
+- Yeni kayıt: inline form (araç/şoför autocomplete, slot toggle)
+
+### Sprint 3: Puantaj Engine V1 ✅
+
+- PuantajHesapDonemi: hesap döngüsü (Unique: FirmaId+Yil+Ay+KurumId+Versiyon)
+- PuantajDetay: Operasyon↔Puantaj bağlantısı + snapshot (finansal audit)
+- PuantajKayit: HesapDonemiId + OncekiVersiyonId (Self-FK revizyon zinciri) + Versiyon
+- OperasyonKaydi sadeleştirme: Islendi/IslenmeTarihi/PuantajKayitId kaldırıldı
+- Transaction scope: BeginTransactionAsync + CommitAsync/RollbackAsync
+- Revizyon: yeni hesap → önceki Superseded, self-FK zinciri
+- Migration: 2 yeni tablo + 3 kolon sil
 
 ---
 
 ## Yapılacak Sprintler
 
-### Sprint 3: Excel Import + Puantaj Tetikleme 🟡
+### Sprint 4: Puantaj Hesap UI + Tetikleme 🟡
 
 | İş | Öncelik |
 |----|:---:|
-| OperasyonKaydi Excel import sayfası | 🔴 |
-| PuantajEngine tetikleme butonu (UI) | 🔴 |
-| İşlenmiş/işlenmemiş operasyon göstergesi | 🟡 |
-| PuantajEngine job (Quartz - ay sonu otomatik) | 🟡 |
+| PuantajEngine tetikleme butonu (UI'da "Hesapla") | 🔴 |
+| Hesap dönemi listesi + durum badge'leri | 🔴 |
+| PuantajDetay görüntüleme (hangi operasyon hangi PK'ya gitti) | 🔴 |
+| İptal etme butonu | 🟡 |
+| OperasyonKaydi Excel import sayfası | 🟡 |
 
-### Sprint 4: Toplu İşlemler + Filtreler 🟡
-
-| İş | Öncelik |
-|----|:---:|
-| Haftalık/aylık toplu operasyon girişi | 🟡 |
-| Şablon kopyalama (önceki günden/haftadan) | 🟡 |
-| Gelişmiş filtreler (slot, durum, araç tipi) | ⚪ |
-| Export (Excel/PDF) | ⚪ |
-
-### Sprint 5: Dashboard + Raporlama ⚪
+### Sprint 5: Raporlama + Dashboard ⚪
 
 | İş | Öncelik |
 |----|:---:|
+| Versiyon karşılaştırma (V1 vs V2 fark tablosu) | ⚪ |
 | Günlük operasyon özet kartı (Dashboard) | ⚪ |
-| Puantaj karşılaştırma (operasyon vs puantaj) | ⚪ |
 | Eksik/hatalı operasyon raporu | ⚪ |
+| PuantajEngine Quartz job (ay sonu otomatik) | ⚪ |
 
 ---
 
@@ -71,9 +60,17 @@
 | OperasyonKaydiValidator | static | `Services/OperasyonKaydiValidator.cs` |
 | OperasyonKaydiBusinessRules | scoped | `Services/OperasyonKaydiBusinessRules.cs` |
 | IOperasyonKaydiService | scoped | `Services/Interfaces/IOperasyonKaydiService.cs` |
-| OperasyonKaydiService | scoped | `Services/OperasyonKaydiService.cs` |
 | IPuantajEngineService | scoped | `Services/Interfaces/IPuantajEngineService.cs` |
 | PuantajEngineService | scoped | `Services/PuantajEngineService.cs` |
+
+## Entity Envanteri
+
+| Entity | Tablo | Açıklama |
+|--------|-------|----------|
+| OperasyonKaydi | OperasyonKayitlari | Günlük ham operasyon (saf veri) |
+| PuantajHesapDonemi | PuantajHesapDonemleri | Hesap döngüsü + revizyon |
+| PuantajDetay | PuantajDetaylari | Operasyon↔Puantaj bağlantısı + snapshot |
+| PuantajKayit | PuantajKayitlar | Aylık hesaplanmış çıktı |
 
 ## Sayfa Envanteri
 
