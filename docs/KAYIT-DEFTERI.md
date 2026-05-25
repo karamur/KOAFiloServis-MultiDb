@@ -1460,3 +1460,133 @@ Kullanıcının son görevi: Operasyon çekirdeğini oluşturacak **OperasyonKay
 | Testler geçiyor | ✅ 305/305 başarılı |
 
 ### 📊 Toplam: 4 yeni dosya, 4 değişiklik
+
+---
+
+## 📅 25.05.2026 — Sprint 4: Puantaj Hesaplama UI + Preview Engine
+
+### ✅ Sprint 4 — Tamamlanan
+
+| # | İş | Dosyalar | Açıklama |
+|---|-----|----------|----------|
+| **S4.1** | PreviewEngineService | `Services/PreviewEngineService.cs` (YENİ) | Dry-run hesaplama, DB write yok, AsNoTracking |
+| **S4.2** | PuantajHesaplama sayfası | `Pages/Operasyon/PuantajHesaplama.razor` (YENİ) | Filtre + preview grid + summary kartlar + hesapla |
+| **S4.3** | Comparison + Drill-down | `Services/PreviewEngineService.cs` | CompareAsync (V1↔V2 delta), DrillDownAsync (operasyon detayı) |
+| **S4.4** | CancellationToken | Tüm async metodlar | ct desteği, EF sorgularına geçirildi |
+
+### 🧪 Smoke Test
+
+| Test | Sonuç |
+|------|:-----:|
+| `dotnet build` | ✅ 0 hata, 0 uyarı |
+| `dotnet test` | ✅ 305/305 |
+
+---
+
+## 📅 25.05.2026 — Sprint 5: Workflow + Approval + Authorization
+
+### ✅ Sprint 5 — Tamamlanan
+
+| # | İş | Dosyalar | Açıklama |
+|---|-----|----------|----------|
+| **S5.1** | Onay alanları | `PuantajHesapDonemi.cs` | +7 alan: OnayDurum, FinansOnaylayan/Tarih, MuhasebeOnaylayan/Tarih, KilitTarihi, KilitAciklama |
+| **S5.2** | PuantajDonemOnayDurum | Enum | Bekliyor → FinansOnaylandi → MuhasebeOnaylandi → Kilitli |
+| **S5.3** | PuantajAuditLog | `PuantajAuditLog.cs` (YENİ) | Her durum geçişinde otomatik log |
+| **S5.4** | PuantajWorkflowService | `Services/PuantajWorkflowService.cs` (YENİ) | FinansOnayla, MuhasebeOnayla, Kilitle, KilitAc |
+| **S5.5** | Engine + BusinessRules | Kilit kontrolü | Kilitli dönem → revizyon engeli, Onaylı dönem → operasyon değişiklik engeli |
+| **S5.6** | UI onay paneli | `PuantajHesaplama.razor` | 4 buton + audit log tablosu |
+
+### 🧪 Smoke Test
+
+| Test | Sonuç |
+|------|:-----:|
+| `dotnet build` | ✅ 0 hata, 0 uyarı |
+| `dotnet test` | ✅ 305/305 |
+
+---
+
+## 📅 25.05.2026 — Sprint 6: Finansal Çıktı Üretimi
+
+### ✅ Sprint 6 — Tamamlanan
+
+| # | İş | Dosyalar | Açıklama |
+|---|-----|----------|----------|
+| **S6.1** | PuantajFinansalKayit | `PuantajFinansalKayit.cs` (YENİ) | Snapshot: BirimGelir/Gider, KDV, GenelToplam. Unique(PKId, DonemId) |
+| **S6.2** | PuantajFinansService | `Services/PuantajFinansService.cs` (YENİ) | GelirFaturasiUret, GiderFaturasiUret, TopluFaturaUret |
+| **S6.3** | Fatura entegrasyonu | Mevcut IFaturaService | Fatura + FaturaKalem otomatik üretim |
+| **S6.4** | UI finans paneli | `PuantajHesaplama.razor` | Finansal Kayıt Oluştur + Toplu Fatura Üret |
+
+### 🧪 Smoke Test
+
+| Test | Sonuç |
+|------|:-----:|
+| `dotnet build` | ✅ 0 hata, 0 uyarı |
+| `dotnet test` | ✅ 305/305 |
+
+---
+
+## 📅 25.05.2026 — Sprint 7: OperasyonKaydi Excel Import + Toplu Giriş
+
+### ✅ Sprint 7 — Tamamlanan
+
+| # | İş | Dosyalar | Açıklama |
+|---|-----|----------|----------|
+| **S7.1** | ImportFromExcelAsync | `OperasyonKaydiService.cs` | Excel parse + lookup + validate + duplicate check + batch save |
+| **S7.2** | ExcelSablonUret | `OperasyonKaydiService.cs` | 8 kolonlu şablon + örnek veri satırı |
+| **S7.3** | OperasyonImport sayfası | `Pages/Operasyon/OperasyonImport.razor` (YENİ) | Upload + Preview + Save (2 panelli, dryRun pipeline) |
+| **S7.4** | Önceki Gün Kopyala | `OperasyonGiris.razor` + `.cs` | Önceki günün operasyonlarını bugüne klonla |
+| **S7.5** | NavMenu | `NavMenu.razor` | Operasyon Girişi + Excel Import linkleri |
+| **S7.6** | ADR | `docs/adr/` (6 dosya) | 5 ADR + README index |
+
+### 🧪 Smoke Test
+
+| Test | Sonuç |
+|------|:-----:|
+| `dotnet build` | ✅ 0 hata, 0 uyarı |
+| `dotnet test` | ✅ 305/305 |
+| Migration | YOK |
+| Breaking Change | YOK |
+
+### 📊 Sprint 7: 7 dosya, 0 migration
+
+---
+
+## 📅 25.05.2026 — 7 Sprint Final Özeti
+
+### Commit Geçmişi
+
+```
+78236a8 feat(operasyon-import): Sprint 7 - Excel import + toplu giris + onceki gun kopyala
+c41e83e docs(adr): 5 Architecture Decision Record olusturuldu
+bc7594d feat(puantaj-finans): Sprint 6 - Finansal cikti uretimi (fatura + snapshot)
+db8c9e7 feat(puantaj-workflow): Sprint 5 - Onay + Kilit + Audit Log sistemi
+7031b1a feat(puantaj-ui): Sprint 4 tamamlandi - comparison + drill-down + CancellationToken
+d90e3b7 feat(puantaj-ui): Sprint 4 - Puantaj hesaplama ekrani + preview engine
+87f8988 feat(puantaj-engine): Sprint 3 - Puantaj Engine V1 (revizyon + detay + audit + transaction)
+```
+
+### Domain Mimarisi (7 Sprint Sonunda)
+
+```
+OperasyonKaydi (ham) → PuantajEngine → PuantajKayit (hesaplanmış)
+    │                      │                    │
+    │              PuantajHesapDonemi     PuantajDetay (snapshot)
+    │              (revizyon zinciri)           │
+    │                    │              PuantajFinansalKayit
+    │              Onay Workflow         (finansal snapshot)
+    │              (Finans→Muhasebe→Kilit)       │
+    │                                   Fatura + FaturaKalem
+    │                                   (mevcut IFaturaService)
+```
+
+### Rotalar
+
+| Route | Sayfa | Sprint |
+|-------|-------|:------:|
+| `/operasyon-giris` | OperasyonGiris | S2 |
+| `/operasyon/import` | OperasyonImport | S7 |
+| `/puantaj-hesaplama` | PuantajHesaplama | S4 |
+| `/kurum-puantaj` | KurumPuantaj | Mevcut |
+| `/puantaj/import` | KurumPuantajImport | Mevcut |
+
+### Toplam: 25+ dosya, 7 sprint, 7 commit, 0 breaking change
