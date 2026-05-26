@@ -970,6 +970,8 @@ await RunScopedSafeAsync(app, "ApplyMigrationsToTenantDatabases", async services
             // Bunun yerine schema değişiklikleri idempotent helper pattern ile uygulanır.
             // Yeni EF migration eklenirse: ilgili helper'ı buraya ekle, MigrateAsync kullanma.
 
+            await KOAFiloServis.Web.Data.Migrations.PuantajCarpaniMigrationHelper.ApplyAsync(tenantCtx, logger);
+
             // Tenant DB sequence reset
             var tenantTables = new[]
             {
