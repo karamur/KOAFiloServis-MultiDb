@@ -358,6 +358,16 @@
                 <div class="row">
                     <div class="col-md-4">
                         <div class="mb-3">
+                            <label class="form-label text-info fw-semibold">Puantaj Çarpanı</label>
+                            <InputNumber @bind-Value="guzergah.PuantajCarpani" class="form-control" min="0.1" max="10" step="0.1" />
+                            <small class="text-muted">1.0 = tam, 0.5 = yarım, max 10</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
                             <div class="form-check">
                                 <InputCheckbox @bind-Value="guzergah.Aktif" class="form-check-input" id="aktif" />
                                 <label class="form-check-label" for="aktif">Aktif</label>
@@ -1036,6 +1046,11 @@
         if (guzergah.GelirFiyat < 0 || guzergah.GiderFiyat < 0)
         {
             kayitHataMesaji = "Gelir/Gider fiyatı negatif olamaz.";
+            return;
+        }
+        if (guzergah.PuantajCarpani <= 0 || guzergah.PuantajCarpani > 10)
+        {
+            kayitHataMesaji = "Puantaj çarpanı 0'dan büyük ve 10'dan küçük veya eşit olmalıdır.";
             return;
         }
 

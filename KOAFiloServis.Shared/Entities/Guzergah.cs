@@ -37,6 +37,7 @@ public class Guzergah : BaseEntity, IKopyalanabilirTenant, IFirmaTenant
 
     public decimal BirimFiyat { get; set; }
     public decimal GiderFiyat { get; set; }
+    public decimal PuantajCarpani { get; set; } = 1.0m;
 
     // UI uyumluluğu: Gelir fiyatı, mevcut BirimFiyat alanını kullanır.
     [NotMapped]

@@ -14,6 +14,9 @@
     .ops-table input.form-select, .ops-table select.form-select { font-size: .80rem; padding: 2px 6px; }
     .ops-table input[type=number] { width: 56px; text-align: center; font-size: .80rem; }
     .satir-degisik { background: #e8f5e9 !important; }
+    .satir-yeni-eklendi { background: #d4edda !important; transition: background 2s ease; }
+    @@keyframes highlight-fade { from { background-color: #b7e4c7; } to { background-color: transparent; } }
+    .satir-yeni-eklendi { animation: highlight-fade 2s ease forwards; }
     .autocomplete-dropdown { z-index: 1050; max-height: 200px; overflow: auto; }
     .slot-btn { min-width: 60px; font-size: .78rem; padding: 2px 8px; }
     .slot-btn.active { box-shadow: 0 0 0 2px #0d6efd; }
@@ -146,6 +149,20 @@
             </div>
             <div class="card-body py-2">
                 <div class="row g-2 align-items-end">
+                    @* Güzergah Dropdown *@
+                    <div class="col-auto">
+                        <label class="form-label small mb-1">Güzergah *</label>
+                        <select class="form-select form-select-sm" style="min-width:180px"
+                                value="@yeniKayit.GuzergahId"
+                                @onchange="YeniGuzergahDegisti">
+                            <option value="0">— Seçiniz —</option>
+                            @foreach (var g in guzergahListesi.OrderBy(g => g.GuzergahAdi))
+                            {
+                                <option value="@g.Id" selected="@(yeniKayit.GuzergahId == g.Id)">@g.GuzergahAdi</option>
+                            }
+                        </select>
+                    </div>
+
                     @* Araç Autocomplete *@
                     <div class="col">
                         <label class="form-label small mb-1">Araç *</label>
@@ -211,6 +228,14 @@
                                @onchange="e => { if(int.TryParse(e?.Value?.ToString(), out var v)) yeniKayit.SeferSayisi = v; }" />
                     </div>
 
+                    @* Puantaj Çarpanı *@
+                    <div class="col-auto">
+                        <label class="form-label small mb-1">Çarpan</label>
+                        <input type="number" class="form-control form-control-sm" style="width:70px"
+                               min="0.1" max="10" step="0.1" value="@yeniKayit.PuantajCarpani"
+                               @onchange="e => { if(decimal.TryParse(e?.Value?.ToString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var v) && v > 0 && v <= 10) yeniKayit.PuantajCarpani = v; }" />
+                    </div>
+
                     @* Ekle Butonu *@
                     <div class="col-auto">
                         <button class="btn btn-primary btn-sm" @onclick="YeniKayitEkle">
@@ -243,44 +268,41 @@
                 <thead class="table-light sticky-top">
                     <tr>
                         <th style="width:40px">#</th>
+                        <th style="width:85px">Tarih</th>
+                        <th>Kurum</th>
+                        <th>Güzergah</th>
+                        <th style="width:75px">Slot</th>
                         <th>Araç</th>
                         <th>Şoför</th>
-                        <th style="width:100px">Slot</th>
-                        <th style="width:70px">Sefer</th>
-                        <th style="width:110px">Durum</th>
-                        <th style="width:80px">İşlem</th>
+                        <th style="width:60px">Sefer</th>
+                        <th style="width:65px">Çarpan</th>
+                        <th style="width:90px">Durum</th>
+                        <th style="width:50px"></th>
                     </tr>
                 </thead>
                 <tbody>
                     @{
                         int sira = 0;
                     }
-                    @foreach (var o in operasyonlar.OrderBy(o => o.GuzergahId).ThenBy(o => o.Slot).ThenBy(o => o.AracId))
+                    @foreach (var o in operasyonlar.OrderByDescending(o => o.CreatedAt).ThenBy(o => o.GuzergahId).ThenBy(o => o.Slot))
                     {
                         sira++;
-                        <tr class="@(degisikSatirlar.Contains(o) ? "satir-degisik" : "")">
+                        <tr class="@RowClass(o)">
                             <td class="text-muted small">@sira</td>
 
-                            @* Araç *@
-                            <td>
-                                <span class="fw-medium">@(o.Arac?.AktifPlaka ?? o.Arac?.Plaka ?? "-")</span>
-                                @if (o.Arac != null)
-                                {
-                                    @if (!string.IsNullOrEmpty(o.Arac.Marka))
-                                    {
-                                        <br /><small class="text-muted">@o.Arac.Marka @o.Arac.Model</small>
-                                    }
-                                }
-                            </td>
+                            @* Tarih *@
+                            <td><span class="fw-medium small">@o.Tarih.ToString("dd.MM.yyyy HH:mm")</span></td>
 
-                            @* Şoför *@
-                            <td>
-                                <span>@(o.Sofor != null ? $"{o.Sofor.Ad} {o.Sofor.Soyad}" : "-")</span>
-                            </td>
+                            @* Kurum *@
+                            <td><span class="small">@KurumAdi(o)</span></td>
+
+                            @* Güzergah *@
+                            <td><span class="small">@GuzergahAdi(o)</span></td>
 
                             @* Slot (inline edit) *@
                             <td>
-                                <select class="form-select form-select-sm" @onchange="e => SlotDegisti(o, e)">
+                                <select class="form-select form-select-sm py-0" style="font-size:.76rem"
+                                        @onchange="e => SlotDegisti(o, e)">
                                     @foreach (var sl in Enum.GetValues<SeferSlot>())
                                     {
                                         <option value="@sl" selected="@(o.Slot == sl)">@SlotAd(sl)</option>
@@ -288,16 +310,32 @@
                                 </select>
                             </td>
 
+                            @* Araç *@
+                            <td><span class="fw-medium small">@AracPlaka(o)</span></td>
+
+                            @* Şoför *@
+                            <td><span class="small">@SoforAdi(o)</span></td>
+
                             @* Sefer Sayısı (inline edit) *@
                             <td>
-                                <input type="number" class="form-control form-control-sm" min="0" max="10"
+                                <input type="number" class="form-control form-control-sm py-0" style="width:48px;font-size:.78rem"
+                                       min="0" max="10"
                                        value="@o.SeferSayisi"
                                        @onchange="e => SeferSayisiDegisti(o, e)" />
                             </td>
 
+                            @* Puantaj Çarpanı (inline edit) *@
+                            <td>
+                                <input type="number" class="form-control form-control-sm py-0" style="width:55px;font-size:.78rem"
+                                       min="0.1" max="10" step="0.1"
+                                       value="@o.PuantajCarpani"
+                                       @onchange="e => PuantajCarpaniDegisti(o, e)" />
+                            </td>
+
                             @* Durum (inline edit) *@
                             <td>
-                                <select class="form-select form-select-sm" @onchange="e => DurumDegisti(o, e)">
+                                <select class="form-select form-select-sm py-0" style="font-size:.76rem"
+                                        @onchange="e => DurumDegisti(o, e)">
                                     @foreach (var d in Enum.GetValues<OperasyonDurumu>())
                                     {
                                         <option value="@d" selected="@(o.OperasyonDurumu == d)">@DurumAd(d)</option>
@@ -307,14 +345,28 @@
 
                             @* Sil *@
                             <td>
-                                <button class="btn btn-outline-danger btn-sm" title="Sil"
+                                <button class="btn btn-outline-danger btn-sm py-0 px-1" title="Sil"
                                         @onclick="() => SatirSil(o)">
-                                    <i class="bi bi-trash"></i>
+                                    <i class="bi bi-trash small"></i>
                                 </button>
                             </td>
                         </tr>
                     }
                 </tbody>
+                <tfoot class="table-secondary fw-bold" style="font-size:.80rem">
+                    <tr>
+                        <td colspan="2" class="text-end">Toplam: @operasyonlar.Count kayıt</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td class="text-center">@operasyonlar.Sum(o => o.SeferSayisi)</td>
+                        <td class="text-center">@operasyonlar.Sum(o => o.SeferSayisi * o.PuantajCarpani).ToString("0.##")</td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
     }

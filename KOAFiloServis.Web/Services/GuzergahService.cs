@@ -125,6 +125,7 @@ public class GuzergahService : IGuzergahService
         existing.VarsayilanAracId = guzergah.VarsayilanAracId;
         existing.VarsayilanSoforId = guzergah.VarsayilanSoforId;
         existing.Notlar = guzergah.Notlar;
+        existing.PuantajCarpani = guzergah.PuantajCarpani;
         existing.Aktif = guzergah.Aktif;
         existing.IsDeleted = guzergah.IsDeleted;
         existing.UpdatedAt = DateTime.UtcNow;

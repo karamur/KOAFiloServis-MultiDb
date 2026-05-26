@@ -1065,7 +1065,7 @@ public class RaporService : IRaporService
             .Select(g =>
             {
                 var ilk = g.First();
-                var toplamSefer = g.Sum(o => o.SeferSayisi);
+                var toplamSefer = (int)g.Sum(o => o.SeferSayisi * o.PuantajCarpani);
                 var birimFiyat = ilk.Guzergah?.BirimFiyat ?? 0;
                 return new OperasyonKarRaporuSatir
                 {

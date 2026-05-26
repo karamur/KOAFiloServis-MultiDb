@@ -28,9 +28,11 @@ public sealed class OperasyonKaydiService : IOperasyonKaydiService
         await using var db = await _dbFactory.CreateDbContextAsync();
 
         var query = db.OperasyonKayitlari
+            .AsNoTracking()
             .Include(o => o.Guzergah)
             .Include(o => o.Arac)
             .Include(o => o.Sofor)
+            .Include(o => o.Kurum)
             .Where(o => !o.IsDeleted && o.Tarih >= baslangic && o.Tarih <= bitis);
 
         if (kurumId.HasValue && kurumId.Value > 0)
@@ -288,7 +290,7 @@ public sealed class OperasyonKaydiService : IOperasyonKaydiService
                                 : PuantajYon.SabahAksam,
                             KurumId = kurumId,
                             SeferSayisi = 1,
-                            PuantajCarpani = 1.0m,
+                            PuantajCarpani = guzergah.PuantajCarpani,
                             OperasyonDurumu = OperasyonDurumu.Gitti,
                             KaynakTipi = PlanlamaKaynakTipi.Kendi,
                             FinansYonu = PlanlamaFinansYonu.Giden,
@@ -327,6 +329,11 @@ public sealed class OperasyonKaydiService : IOperasyonKaydiService
             .Where(o => !o.IsDeleted && o.Tarih.Year == yil && o.Tarih.Month == ay)
             .ToListAsync();
 
+        var guzergahCarpanMap = await db.Guzergahlar
+            .Where(g => !g.IsDeleted)
+            .Select(g => new { g.Id, g.PuantajCarpani })
+            .ToDictionaryAsync(g => g.Id, g => g.PuantajCarpani);
+
         int eklenen = 0;
 
         foreach (var pk in puantajKayitlari)
@@ -357,7 +364,7 @@ public sealed class OperasyonKaydiService : IOperasyonKaydiService
                         KurumId = pk.KurumId ?? pk.KurumCariId,
                         IsverenFirmaId = pk.IsverenFirmaId,
                         SeferSayisi = gunDeger,
-                        PuantajCarpani = 1.0m,
+                        PuantajCarpani = guzergahCarpanMap.GetValueOrDefault(pk.GuzergahId!.Value, 1.0m),
                         OperasyonDurumu = OperasyonDurumu.Gitti,
                         KaynakTipi = pk.KaynakTipi,
                         FinansYonu = pk.FinansYonu,
@@ -523,7 +530,7 @@ public sealed class OperasyonKaydiService : IOperasyonKaydiService
                     Yon = slot == SeferSlot.Sabah ? PuantajYon.Sabah : slot == SeferSlot.Aksam ? PuantajYon.Aksam : PuantajYon.SabahAksam,
                     KurumId = kId ?? guzergah.KurumId,
                     SeferSayisi = sefer,
-                    PuantajCarpani = 1.0m,
+                    PuantajCarpani = guzergah.PuantajCarpani,
                     OperasyonDurumu = durum,
                     KaynakTipi = PlanlamaKaynakTipi.Kendi,
                     FinansYonu = PlanlamaFinansYonu.Giden,

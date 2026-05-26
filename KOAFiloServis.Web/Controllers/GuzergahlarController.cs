@@ -50,6 +50,7 @@ public class GuzergahlarController : ControllerBase
             VarsayilanSoforId = g.VarsayilanSoforId,
             FirmaId = g.FirmaId,
             CariId = g.CariId,
+            PuantajCarpani = g.PuantajCarpani,
             Notlar = g.Notlar
         });
 
@@ -83,6 +84,7 @@ public class GuzergahlarController : ControllerBase
             VarsayilanSoforId = guzergah.VarsayilanSoforId,
             FirmaId = guzergah.FirmaId,
             CariId = guzergah.CariId,
+            PuantajCarpani = guzergah.PuantajCarpani,
             Notlar = guzergah.Notlar
         });
     }
@@ -112,6 +114,7 @@ public class GuzergahlarController : ControllerBase
             VarsayilanSoforId = dto.VarsayilanSoforId,
             FirmaId = dto.FirmaId,
             CariId = dto.CariId,
+            PuantajCarpani = dto.PuantajCarpani,
             Notlar = dto.Notlar
         };
 
@@ -134,6 +137,7 @@ public class GuzergahlarController : ControllerBase
             VarsayilanSoforId = guzergah.VarsayilanSoforId,
             FirmaId = guzergah.FirmaId,
             CariId = guzergah.CariId,
+            PuantajCarpani = guzergah.PuantajCarpani,
             Notlar = guzergah.Notlar
         });
     }
@@ -193,6 +197,9 @@ public class GuzergahlarController : ControllerBase
         if (dto.Notlar != null)
             guzergah.Notlar = dto.Notlar;
 
+        if (dto.PuantajCarpani.HasValue)
+            guzergah.PuantajCarpani = dto.PuantajCarpani.Value;
+
         await _guzergahService.UpdateAsync(guzergah);
 
         return Ok(new GuzergahDto
@@ -212,6 +219,7 @@ public class GuzergahlarController : ControllerBase
             VarsayilanSoforId = guzergah.VarsayilanSoforId,
             FirmaId = guzergah.FirmaId,
             CariId = guzergah.CariId,
+            PuantajCarpani = guzergah.PuantajCarpani,
             Notlar = guzergah.Notlar
         });
     }
@@ -249,6 +257,7 @@ public class GuzergahDto
     public int? VarsayilanSoforId { get; set; }
     public int? FirmaId { get; set; }
     public int CariId { get; set; }
+    public decimal PuantajCarpani { get; set; }
     public string? Notlar { get; set; }
 }
 
@@ -267,6 +276,7 @@ public class GuzergahCreateDto
     public int? VarsayilanAracId { get; set; }
     public int? VarsayilanSoforId { get; set; }
     public int? FirmaId { get; set; }
+    public decimal PuantajCarpani { get; set; } = 1.0m;
     public int CariId { get; set; }
     public string? Notlar { get; set; }
 }
@@ -287,5 +297,6 @@ public class GuzergahUpdateDto
     public int? VarsayilanSoforId { get; set; }
     public int? FirmaId { get; set; }
     public int? CariId { get; set; }
+    public decimal? PuantajCarpani { get; set; }
     public string? Notlar { get; set; }
 }

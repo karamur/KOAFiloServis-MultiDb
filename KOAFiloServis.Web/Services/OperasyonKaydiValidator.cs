@@ -23,6 +23,8 @@ public static class OperasyonKaydiValidator
             errors.Add("Sefer sayısı negatif olamaz.");
         if (kayit.PuantajCarpani <= 0)
             errors.Add("Puantaj çarpanı sıfırdan büyük olmalıdır.");
+        if (kayit.PuantajCarpani > 10)
+            errors.Add("Puantaj çarpanı 10'dan büyük olamaz.");
         if (!Enum.IsDefined(typeof(SeferSlot), kayit.Slot))
             errors.Add("Geçersiz slot değeri.");
         if (!Enum.IsDefined(typeof(OperasyonDurumu), kayit.OperasyonDurumu))

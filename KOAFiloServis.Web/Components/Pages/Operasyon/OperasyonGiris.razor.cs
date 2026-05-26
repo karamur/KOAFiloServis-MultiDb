@@ -6,7 +6,7 @@ using Microsoft.JSInterop;
 
 namespace KOAFiloServis.Web.Components.Pages.Operasyon;
 
-public partial class OperasyonGiris : ComponentBase
+public partial class OperasyonGiris : ComponentBase, IDisposable
 {
     [Inject] private IOperasyonKaydiService OperasyonService { get; set; } = null!;
     [Inject] private IAracService AracService { get; set; } = null!;
@@ -44,6 +44,11 @@ public partial class OperasyonGiris : ComponentBase
     private List<Arac> yeniAracOnerileri = new();
     private string yeniSoforArama = "";
     private List<Sofor> yeniSoforOnerileri = new();
+
+    // ── Green highlight for newly added rows ────────────────────────────────
+    private int _sonEklenenKayitId;
+    private OperasyonKaydi? _sonEklenenKayit;
+    private CancellationTokenSource? _highlightCts;
 
     // ── Computed ───────────────────────────────────────────────────────────
     private bool degisiklikVar => degisikSatirlar.Count > 0;
@@ -138,7 +143,28 @@ public partial class OperasyonGiris : ComponentBase
             seciliGuzergahId = id;
         else
             seciliGuzergahId = null;
+
+        if (yeniKayitFormAcik && seciliGuzergahId.HasValue)
+        {
+            yeniKayit.GuzergahId = seciliGuzergahId.Value;
+            var g = guzergahListesi.FirstOrDefault(x => x.Id == seciliGuzergahId.Value);
+            if (g != null)
+                yeniKayit.PuantajCarpani = g.PuantajCarpani;
+        }
+
         await LoadOperasyonlar();
+    }
+
+    private void YeniGuzergahDegisti(ChangeEventArgs e)
+    {
+        if (yeniKayit == null) return;
+        if (int.TryParse(e?.Value?.ToString(), out var id) && id > 0)
+        {
+            yeniKayit.GuzergahId = id;
+            var g = guzergahListesi.FirstOrDefault(x => x.Id == id);
+            if (g != null)
+                yeniKayit.PuantajCarpani = g.PuantajCarpani;
+        }
     }
 
     // ── Veri Yükleme ──────────────────────────────────────────────────────
@@ -247,6 +273,14 @@ public partial class OperasyonGiris : ComponentBase
             Kaynak = PuantajKaynak.Manuel,
             CreatedAt = DateTime.UtcNow
         };
+
+        if (seciliGuzergahId.HasValue)
+        {
+            var seciliGuzergah = guzergahListesi.FirstOrDefault(g => g.Id == seciliGuzergahId.Value);
+            if (seciliGuzergah != null)
+                yeniKayit.PuantajCarpani = seciliGuzergah.PuantajCarpani;
+        }
+
         yeniAracArama = "";
         yeniAracOnerileri = new();
         yeniSoforArama = "";
@@ -340,12 +374,87 @@ public partial class OperasyonGiris : ComponentBase
             return;
         }
 
-        operasyonlar.Add(yeniKayit);
-        degisikSatirlar.Add(yeniKayit);
         yeniKayitFormAcik = false;
         hataMesaji = null;
-        StateHasChanged();
+
+        try
+        {
+            var saved = await OperasyonService.SaveAsync(yeniKayit);
+            await LoadOperasyonlar();
+
+            // Track the newly saved record for green highlight
+            if (saved.Id > 0)
+            {
+                _sonEklenenKayitId = saved.Id;
+            }
+            else if (operasyonlar.Count > 0)
+            {
+                _sonEklenenKayit = operasyonlar[0];
+            }
+
+            _highlightCts?.Cancel();
+            _highlightCts?.Dispose();
+            _highlightCts = new CancellationTokenSource();
+            _ = InvokeAsync(async () => await FadeHighlightAsync(_highlightCts.Token));
+        }
+        catch (Exception ex)
+        {
+            hataMesaji = ex.Message;
+        }
+
+        await InvokeAsync(StateHasChanged);
     }
+
+    private async Task FadeHighlightAsync(CancellationToken ct)
+    {
+        try
+        {
+            await Task.Delay(2000, ct);
+            if (!ct.IsCancellationRequested && (_sonEklenenKayit != null || _sonEklenenKayitId != 0))
+            {
+                _sonEklenenKayitId = 0;
+                _sonEklenenKayit = null;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (TaskCanceledException) { }
+    }
+
+    private string RowClass(OperasyonKaydi o)
+    {
+        var dirty = degisikSatirlar.Contains(o);
+        var highlight = (_sonEklenenKayitId != 0 && o.Id == _sonEklenenKayitId)
+                     || (_sonEklenenKayit != null && ReferenceEquals(o, _sonEklenenKayit));
+
+        if (dirty && highlight) return "satir-degisik satir-yeni-eklendi";
+        if (dirty) return "satir-degisik";
+        if (highlight) return "satir-yeni-eklendi";
+        return "";
+    }
+
+    private void PuantajCarpaniDegisti(OperasyonKaydi kayit, ChangeEventArgs e)
+    {
+        if (decimal.TryParse(e?.Value?.ToString(),
+                System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var v) && v > 0 && v <= 10)
+        {
+            kayit.PuantajCarpani = v;
+            MarkDirty(kayit);
+        }
+    }
+
+    private static string GuzergahAdi(OperasyonKaydi o)
+        => o.Guzergah?.GuzergahAdi ?? "-";
+
+    private static string KurumAdi(OperasyonKaydi o)
+        => o.Kurum?.KurumAdi ?? "-";
+
+    private static string SoforAdi(OperasyonKaydi o)
+        => o.Sofor != null ? $"{o.Sofor.Ad} {o.Sofor.Soyad}" : "-";
+
+    private static string AracPlaka(OperasyonKaydi o)
+        => o.Arac?.AktifPlaka ?? o.Arac?.Plaka ?? "-";
 
     // ── Toplu Kaydet ──────────────────────────────────────────────────────
 
@@ -474,5 +583,11 @@ public partial class OperasyonGiris : ComponentBase
         {
             yukleniyor = false;
         }
+    }
+
+    public void Dispose()
+    {
+        _highlightCts?.Cancel();
+        _highlightCts?.Dispose();
     }
 }

@@ -204,6 +204,7 @@
                                     <th class="text-center">Kapasite Adı</th>
                                     <th class="text-end" style="cursor:pointer" @onclick='() => SiralamaYap("Gelir")'>Gelir ₺ @SiralamaIkonu("Gelir")</th>
                                     <th class="text-end" style="cursor:pointer" @onclick='() => SiralamaYap("Gider")'>Gider ₺ @SiralamaIkonu("Gider")</th>
+                                    <th class="text-center" style="cursor:pointer" @onclick='() => SiralamaYap("Carpan")'>Carpan @SiralamaIkonu("Carpan")</th>
                                     <th class="text-center">Konum</th>
                                     <th class="text-center">Durum</th>
                                     <th style="width: 180px;">İşlemler</th>
@@ -220,6 +221,7 @@
                                         <td class="text-center">@(KapasiteAdiBul(guzergah) ?? guzergah.PersonelSayisi.ToString())</td>
                                         <td class="text-end"><strong class="text-success">@guzergah.GelirFiyat.ToString("N2")</strong></td>
                                         <td class="text-end"><strong class="text-danger">@guzergah.GiderFiyat.ToString("N2")</strong></td>
+                                        <td class="text-center"><span class="badge bg-info">@guzergah.PuantajCarpani.ToString("0.##")</span></td>
                                         <td class="text-center">
                                             @if (guzergah.BaslangicLatitude.HasValue && guzergah.BitisLatitude.HasValue)
                                             {
@@ -415,6 +417,7 @@
                 "Ad" => siralamaArtan ? q.OrderBy(g => g.GuzergahAdi) : q.OrderByDescending(g => g.GuzergahAdi),
                 "Gelir" => siralamaArtan ? q.OrderBy(g => g.GelirFiyat) : q.OrderByDescending(g => g.GelirFiyat),
                 "Gider" => siralamaArtan ? q.OrderBy(g => g.GiderFiyat) : q.OrderByDescending(g => g.GiderFiyat),
+                "Carpan" => siralamaArtan ? q.OrderBy(g => g.PuantajCarpani) : q.OrderByDescending(g => g.PuantajCarpani),
                 _ => q.OrderBy(g => g.GuzergahAdi)
             };
         }
@@ -441,11 +444,11 @@
     {
         var data = FiltrelenmisGuzergahlar.ToList();
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("Kod,Guzergah Adi,Kurum,Cari,Kapasite,Gelir,Gider,SeferTipi,Durum");
+        sb.AppendLine("Kod,Guzergah Adi,Kurum,Cari,Kapasite,Gelir,Gider,Carpan,SeferTipi,Durum");
         foreach (var g in data)
         {
             var kurum = g.Kurum?.KurumAdi ?? KurumAdiBul(g.CariId) ?? "";
-            sb.AppendLine($"\"{g.GuzergahKodu}\",\"{g.GuzergahAdi}\",\"{kurum}\",\"{g.Cari?.Unvan ?? ""}\",\"{KapasiteAdiBul(g) ?? ""}\",{g.GelirFiyat},{g.GiderFiyat},{g.SeferTipi},{(g.Aktif ? "Aktif" : "Pasif")}");
+            sb.AppendLine($"\"{g.GuzergahKodu}\",\"{g.GuzergahAdi}\",\"{kurum}\",\"{g.Cari?.Unvan ?? ""}\",\"{KapasiteAdiBul(g) ?? ""}\",{g.GelirFiyat},{g.GiderFiyat},{g.PuantajCarpani},{g.SeferTipi},{(g.Aktif ? "Aktif" : "Pasif")}");
         }
 
         var bytes = System.Text.Encoding.UTF8.GetPreamble().Concat(System.Text.Encoding.UTF8.GetBytes(sb.ToString())).ToArray();

@@ -576,6 +576,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.GuzergahAdi).HasMaxLength(200);
             entity.Property(e => e.BirimFiyat).HasPrecision(18, 2);
             entity.Property(e => e.GiderFiyat).HasPrecision(18, 2);
+            entity.Property(e => e.PuantajCarpani).HasPrecision(10, 2).HasDefaultValue(1.0m);
             entity.Property(e => e.Mesafe).HasPrecision(10, 2);
             entity.HasOne(e => e.Cari)
                 .WithMany(c => c.Guzergahlar)
