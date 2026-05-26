@@ -5,6 +5,7 @@
 @inject IRaporService RaporService
 @inject IAracService AracService
 @inject IGuzergahService GuzergahService
+@using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
 @rendermode InteractiveServer
 
@@ -122,11 +123,11 @@
                         {
                             currentSahiplik = s.SahiplikTipi;
                             currentAracId = null;
-                            var ozet = firmaTipiOzetleri.FirstOrDefault(o => o.SahiplikTipi == s.SahiplikTipi);
+                            var ozet = firmaTipiOzetleri.Where(o => o.SahiplikTipi == s.SahiplikTipi).FirstOrDefault();
                             <tr class="table-secondary fw-bold">
                                 <td colspan="8" class="py-1">
                                     <span class="badge @SahiplikHelper.GetBadgeClass(s.SahiplikTipi) me-2">@s.FirmaTipi</span>
-                                    @if (ozet != null)
+                                    @if (ozet.ToplamGelir > 0 || ozet.ToplamSefer > 0)
                                     {
                                         <span class="text-muted small">@ozet.AracSayisi araç · @ozet.ToplamSefer sefer · @ozet.ToplamGelir.ToString("N0") ₺</span>
                                     }
