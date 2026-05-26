@@ -436,6 +436,14 @@
                             </tr>
                         }
                     </tbody>
+                    <tfoot class="table-secondary fw-bold" style="font-size:.80rem">
+                        <tr>
+                            <td colspan="4" class="text-end">Toplam:</td>
+                            <td class="text-center">@kayitlar.Sum(k => k.SeferSayisi)</td>
+                            <td class="text-center">@kayitlar.Sum(k => k.SeferGunuToplami)</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         }
