@@ -601,10 +601,20 @@
         switch (seciliTip)
         {
             case HakedisTipi.Kurum:
-                var firmalar = await FirmaService.GetAllAsync();
+                // KurumFirmaId aslında Cari tablosuna (MusteriCari) işaret ediyor
+                var kurumCariler = await CariService.GetAllAsync();
                 kurumAdlari.Clear();
-                foreach (var f in firmalar.Where(f => referansIdler.Contains(f.Id)))
-                    kurumAdlari[f.Id] = f.FirmaAdi;
+                foreach (var c in kurumCariler.Where(c => referansIdler.Contains(c.Id)))
+                    kurumAdlari[c.Id] = c.Unvan;
+
+                // Cari'de bulunamayanlar için Firma tablosuna geri düş
+                var eksikIdler = referansIdler.Where(id => !kurumAdlari.ContainsKey(id)).ToList();
+                if (eksikIdler.Any())
+                {
+                    var firmalar = await FirmaService.GetAllAsync();
+                    foreach (var f in firmalar.Where(f => eksikIdler.Contains(f.Id)))
+                        kurumAdlari[f.Id] = f.FirmaAdi;
+                }
                 break;
 
             case HakedisTipi.Tedarikci:
