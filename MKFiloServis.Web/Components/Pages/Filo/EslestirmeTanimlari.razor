@@ -30,6 +30,70 @@
         </div>
     </div>
 
+    <div class="card shadow-sm mb-3">
+        <div class="card-body py-2">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Müşteri Kurum</label>
+                    <select class="form-select form-select-sm" @bind="filtreKurumId">
+                        <option value="0">Tümü</option>
+                        @foreach (var k in kurumFirmaListesi.OrderBy(x => x.Unvan))
+                        {
+                            <option value="@k.Id">@k.Unvan</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Güzergah</label>
+                    <select class="form-select form-select-sm" @bind="filtreGuzergahId">
+                        <option value="0">Tümü</option>
+                        @foreach (var g in guzergahListesi.OrderBy(x => x.GuzergahAdi))
+                        {
+                            <option value="@g.Id">@g.GuzergahAdi</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Araç</label>
+                    <select class="form-select form-select-sm" @bind="filtreAracId">
+                        <option value="0">Tümü</option>
+                        @foreach (var a in aracListesi.OrderBy(x => x.AktifPlaka))
+                        {
+                            <option value="@a.Id">@(a.AktifPlaka ?? a.AktifPlakaKaydi?.Plaka ?? $"#{a.Id}")</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Şoför</label>
+                    <select class="form-select form-select-sm" @bind="filtreSoforId">
+                        <option value="0">Tümü</option>
+                        @foreach (var s in soforListesi.OrderBy(x => x.TamAd))
+                        {
+                            <option value="@s.Id">@s.TamAd</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label small mb-1">Durum</label>
+                    <select class="form-select form-select-sm" @bind="filtreDurum">
+                        <option value="">Tümü</option>
+                        <option value="Aktif">Aktif</option>
+                        <option value="Pasif">Pasif</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Ara</label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control" placeholder="Kurum, plaka, şoför..." @bind="filtreArama" @bind:event="oninput" />
+                        <button class="btn btn-outline-secondary" title="Filtreleri temizle" @onclick="FiltreleriTemizle">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     @if (isLoading)
     {
         <div class="text-center py-5">
@@ -57,17 +121,17 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @if (!eslestirmeler.Any())
+                            @if (!FiltreliEslestirmeler.Any())
                             {
                                 <tr>
                                     <td colspan="9" class="text-center py-4 text-muted">
-                                        <em>Kayıtlı eşleştirme bulunamadı.</em>
+                                        <em>Filtreye uyan eşleştirme bulunamadı.</em>
                                     </td>
                                 </tr>
                             }
                             else
                             {
-                                foreach (var e in eslestirmeler)
+                                foreach (var e in FiltreliEslestirmeler)
                                 {
                                     <tr>
                                         <td>
@@ -461,6 +525,57 @@
     private int aktifFirmaId;
     private List<FiloGuzergahEslestirme> eslestirmeler = new();
     private Kullanici? aktifKullanici;
+
+    // Filtreler
+    private int filtreKurumId;
+    private int filtreGuzergahId;
+    private int filtreAracId;
+    private int filtreSoforId;
+    private string filtreDurum = string.Empty;
+    private string filtreArama = string.Empty;
+
+    private IEnumerable<FiloGuzergahEslestirme> FiltreliEslestirmeler
+    {
+        get
+        {
+            var sorgu = eslestirmeler.AsEnumerable();
+
+            if (filtreKurumId > 0)
+                sorgu = sorgu.Where(e => e.KurumFirmaId == filtreKurumId);
+            if (filtreGuzergahId > 0)
+                sorgu = sorgu.Where(e => e.GuzergahId == filtreGuzergahId);
+            if (filtreAracId > 0)
+                sorgu = sorgu.Where(e => e.AracId == filtreAracId);
+            if (filtreSoforId > 0)
+                sorgu = sorgu.Where(e => e.SoforId == filtreSoforId);
+            if (filtreDurum == "Aktif")
+                sorgu = sorgu.Where(e => e.IsActive);
+            else if (filtreDurum == "Pasif")
+                sorgu = sorgu.Where(e => !e.IsActive);
+
+            if (!string.IsNullOrWhiteSpace(filtreArama))
+            {
+                var arama = filtreArama.Trim();
+                sorgu = sorgu.Where(e =>
+                    (e.MusteriCari?.Unvan?.Contains(arama, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (e.Guzergah?.GuzergahAdi?.Contains(arama, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    ((e.Arac?.AktifPlaka ?? e.Arac?.AktifPlakaKaydi?.Plaka)?.Contains(arama, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (e.Sofor?.TamAd?.Contains(arama, StringComparison.OrdinalIgnoreCase) ?? false));
+            }
+
+            return sorgu;
+        }
+    }
+
+    private void FiltreleriTemizle()
+    {
+        filtreKurumId = 0;
+        filtreGuzergahId = 0;
+        filtreAracId = 0;
+        filtreSoforId = 0;
+        filtreDurum = string.Empty;
+        filtreArama = string.Empty;
+    }
 
     // Lookups
     private List<Cari> kurumFirmaListesi = new();   // KurumFirmaId -> Cari.Id (musteri cari)
