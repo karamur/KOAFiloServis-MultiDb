@@ -21,9 +21,14 @@
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h3><i class="bi bi-receipt-cutoff me-2"></i>Operasyonel Hakediş</h3>
-        <button class="btn btn-outline-secondary" @onclick="YukleAsync" disabled="@isBusy">
-            <i class="bi bi-arrow-clockwise me-1"></i>Yenile
-        </button>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-success" @onclick="ExceleAktarAsync" disabled="@(isBusy || !hakedisler.Any())">
+                <i class="bi bi-file-earmark-excel me-1"></i>Excel'e Aktar
+            </button>
+            <button class="btn btn-outline-secondary" @onclick="YukleAsync" disabled="@isBusy">
+                <i class="bi bi-arrow-clockwise me-1"></i>Yenile
+            </button>
+        </div>
     </div>
 
     @if (!string.IsNullOrWhiteSpace(hataMesaji))
@@ -296,6 +301,67 @@
             expandedGroups[groupKey] = true;
         else
             expandedGroups[groupKey] = !expandedGroups[groupKey];
+    }
+
+    private async Task ExceleAktarAsync()
+    {
+        try
+        {
+            if (!hakedisler.Any()) return;
+
+            using var workbook = new ClosedXML.Excel.XLWorkbook();
+            var ws = workbook.Worksheets.Add("Hakediş");
+
+            var basliklar = new[] { "#", "Tip", "Referans", "Güzergah", "Toplam Sefer", "Birim Fiyat", "Tutar", "KDV Oran %", "KDV Tutar", "Genel Toplam", "Durum" };
+            for (var i = 0; i < basliklar.Length; i++)
+            {
+                var hucre = ws.Cell(1, i + 1);
+                hucre.Value = basliklar[i];
+                hucre.Style.Font.Bold = true;
+                hucre.Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightGray;
+            }
+
+            var satir = 2;
+            foreach (var h in hakedisler.OrderBy(x => GetReferansAd(x)))
+            {
+                ws.Cell(satir, 1).Value = h.Id;
+                ws.Cell(satir, 2).Value = GetTipText(h.Tip);
+                ws.Cell(satir, 3).Value = GetReferansAd(h);
+                ws.Cell(satir, 4).Value = GetGuzergahOzet(h);
+                ws.Cell(satir, 5).Value = h.ToplamSeferSayisi;
+                ws.Cell(satir, 6).Value = h.BirimFiyat;
+                ws.Cell(satir, 7).Value = h.Tutar;
+                ws.Cell(satir, 8).Value = h.KdvOran;
+                ws.Cell(satir, 9).Value = h.KdvTutar;
+                ws.Cell(satir, 10).Value = h.GenelToplam;
+                ws.Cell(satir, 11).Value = h.Durum.ToString();
+                satir++;
+            }
+
+            // Toplam satırı
+            ws.Cell(satir, 4).Value = "TOPLAM";
+            ws.Cell(satir, 4).Style.Font.Bold = true;
+            foreach (var col in new[] { 5, 7, 9, 10 })
+            {
+                var hucre = ws.Cell(satir, col);
+                hucre.FormulaA1 = $"SUM({ws.Cell(2, col).Address}:{ws.Cell(satir - 1, col).Address})";
+                hucre.Style.Font.Bold = true;
+            }
+
+            ws.Range(2, 5, satir, 10).Style.NumberFormat.Format = "#,##0.00";
+            ws.Columns().AdjustToContents();
+            ws.SheetView.FreezeRows(1);
+
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            var dosyaAdi = $"OperasyonelHakedis_{yil}-{ay:D2}_{GetTipText(seciliTip)}.xlsx";
+            var base64 = Convert.ToBase64String(stream.ToArray());
+            await JS.InvokeVoidAsync("downloadFile", dosyaAdi, base64, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        }
+        catch (Exception ex)
+        {
+            hataMesaji = $"Excel oluşturulurken hata: {ex.Message}";
+        }
     }
 
     protected override async Task OnInitializedAsync()
