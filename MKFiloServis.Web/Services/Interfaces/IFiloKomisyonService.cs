@@ -31,6 +31,7 @@ public interface IFiloKomisyonService
     /// Belirli bir tarihteki puantaj satırlarını araç sahibi ve fatura toplam bilgileri ile birlikte getirir.
     /// </summary>
     Task<List<PuantajSatirDetayDto>> GetGunlukPuantajDetayliAsync(int firmaId, DateTime tarih);
+    Task<List<PuantajSatirDetayDto>> GetPuantajDetayliByTarihAraligiAsync(int firmaId, DateTime baslangic, DateTime bitis);
 
     /// <summary>
     /// İki tarih aralığındaki ve (opsiyonel) belirli bir kuruma / araca ait puantaj listesini getirir

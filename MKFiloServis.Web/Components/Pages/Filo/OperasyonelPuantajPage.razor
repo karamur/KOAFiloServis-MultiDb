@@ -380,7 +380,7 @@
             var aralik = await FiloKomisyonService.GetPuantajlarByTarihAraligiAsync(firmaId, ayBaslangic, ayBitis);
             gunlukPuantajlar = aralik;
 
-            var detaylar = await FiloKomisyonService.GetGunlukPuantajDetayliAsync(firmaId, seciliTarih);
+            var detaylar = await FiloKomisyonService.GetPuantajDetayliByTarihAraligiAsync(firmaId, ayBaslangic, ayBitis);
             puantajDetayMap = detaylar.ToDictionary(d => d.Puantaj.Id, d => d);
 
             seciliPuantajIds.IntersectWith(gunlukPuantajlar.Select(x => x.Id));

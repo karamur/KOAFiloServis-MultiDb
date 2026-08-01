@@ -215,7 +215,10 @@ public class FiloKomisyonService : IFiloKomisyonService
         return result;
     }
 
-    public async Task<List<PuantajSatirDetayDto>> GetGunlukPuantajDetayliAsync(int firmaId, DateTime tarih)
+    public Task<List<PuantajSatirDetayDto>> GetGunlukPuantajDetayliAsync(int firmaId, DateTime tarih)
+        => GetPuantajDetayliByTarihAraligiAsync(firmaId, tarih.Date, tarih.Date);
+
+    public async Task<List<PuantajSatirDetayDto>> GetPuantajDetayliByTarihAraligiAsync(int firmaId, DateTime baslangic, DateTime bitis)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
 
@@ -231,7 +234,7 @@ public class FiloKomisyonService : IFiloKomisyonService
             .Include(p => p.Arac)
                 .ThenInclude(a => a!.Firma)
             .Include(p => p.Sofor)
-            .Where(p => p.FirmaId == firmaId && p.Tarih.Date == tarih.Date && !p.IsDeleted)
+            .Where(p => p.FirmaId == firmaId && p.Tarih.Date >= baslangic.Date && p.Tarih.Date <= bitis.Date && !p.IsDeleted)
             .OrderBy(p => p.MusteriCari!.Unvan)
             .ThenBy(p => p.Guzergah!.GuzergahAdi)
             .ToListAsync();
