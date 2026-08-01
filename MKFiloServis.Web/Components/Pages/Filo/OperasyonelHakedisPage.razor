@@ -814,8 +814,12 @@
                 // KurumFirmaId aslında Cari tablosuna (MusteriCari) işaret ediyor
                 var kurumCariler = await CariService.GetAllAsync();
                 kurumAdlari.Clear();
+                cariDetaylari.Clear();
                 foreach (var c in kurumCariler.Where(c => referansIdler.Contains(c.Id)))
+                {
                     kurumAdlari[c.Id] = c.Unvan;
+                    cariDetaylari[c.Id] = c;
+                }
 
                 // Cari'de bulunamayanlar için Firma tablosuna geri düş
                 var eksikIdler = referansIdler.Where(id => !kurumAdlari.ContainsKey(id)).ToList();
@@ -895,10 +899,11 @@
 
     private string GetReferansAd(Hakedis h) => h.Tip switch
     {
-        HakedisTipi.Kurum => GetKurumMusteriAd(h)
-            ?? (kurumAdlari.TryGetValue(h.ReferansId, out var kurumAd)
-                ? kurumAd
-                : $"Kurum #{h.ReferansId}"),
+        // Kurum hakedişinde ReferansId, eşleştirmede seçilen müşteri cariye (Cari.Id) işaret eder.
+        // Öncelik seçili cari ünvanındadır; bulunamazsa güzergah kurum adına düşülür.
+        HakedisTipi.Kurum => kurumAdlari.TryGetValue(h.ReferansId, out var kurumAd)
+            ? kurumAd
+            : GetKurumMusteriAd(h) ?? $"Kurum #{h.ReferansId}",
         HakedisTipi.Tedarikci => tedarikciAdlari.TryGetValue(h.ReferansId, out var tedarikciAd)
             ? tedarikciAd
             : $"Tedarikçi #{h.ReferansId}",
@@ -912,7 +917,7 @@
     {
         Cari? cari = null;
 
-        if (h.Tip == HakedisTipi.Arac)
+        if (h.Tip is HakedisTipi.Arac or HakedisTipi.Kurum)
             cariDetaylari.TryGetValue(h.ReferansId, out cari);
 
         if (cari is null)

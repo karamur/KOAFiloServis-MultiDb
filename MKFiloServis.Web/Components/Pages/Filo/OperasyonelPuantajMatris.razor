@@ -115,7 +115,9 @@
                                     <th class="text-center @(haftaSonu ? "table-secondary" : "")" style="min-width:28px;" title="@tarih.ToString("dd.MM.yyyy ddd", TrKultur)">@gun</th>
                                 }
                                 <th class="text-center">GÜN</th>
-                                <th class="text-end">TOPLAM</th>
+                                <th class="text-center">SEFER</th>
+                                <th class="text-end">TOPLAM GELİR</th>
+                                <th class="text-end">TOPLAM GİDER</th>
                                 <th class="text-end">KDV/20</th>
                                 <th class="text-end">KDV/10</th>
                                 <th class="text-end">KESİNTİ</th>
@@ -128,7 +130,7 @@
                             }
                             @if (!filtreli.Any())
                             {
-                                <tr><td colspan="@(15 + AyGunSayisi)" class="text-center text-muted p-4">Filtreye uygun kayıt yok</td></tr>
+                                <tr><td colspan="@(17 + AyGunSayisi)" class="text-center text-muted p-4">Filtreye uygun kayıt yok</td></tr>
                             }
                             else
                             {
@@ -154,7 +156,9 @@
                                             <td class="text-center @(haftaSonu ? "table-secondary" : "")">@(deger > 0 ? deger.ToString("0.#") : "")</td>
                                         }
                                         <td class="text-center fw-semibold">@satir.GunSayisi</td>
-                                        <td class="text-end fw-semibold">@satir.Toplam.ToString("N2")</td>
+                                        <td class="text-center fw-semibold">@satir.SeferSayisi.ToString("0.#")</td>
+                                        <td class="text-end fw-semibold">@satir.ToplamGelir.ToString("N2")</td>
+                                        <td class="text-end fw-semibold">@satir.ToplamGider.ToString("N2")</td>
                                         <td class="text-end">@satir.Kdv20.ToString("N2")</td>
                                         <td class="text-end">@satir.Kdv10.ToString("N2")</td>
                                         <td class="text-end">@(satir.Kesinti != 0 ? satir.Kesinti.ToString("N2") : "")</td>
@@ -173,7 +177,9 @@
                                         <td class="text-center">@(gunToplam > 0 ? gunToplam.ToString("0.#") : "")</td>
                                     }
                                     <td class="text-center">@filtreli.Sum(x => x.GunSayisi)</td>
-                                    <td class="text-end">@filtreli.Sum(x => x.Toplam).ToString("N2")</td>
+                                    <td class="text-center">@filtreli.Sum(x => x.SeferSayisi).ToString("0.#")</td>
+                                    <td class="text-end">@filtreli.Sum(x => x.ToplamGelir).ToString("N2")</td>
+                                    <td class="text-end">@filtreli.Sum(x => x.ToplamGider).ToString("N2")</td>
                                     <td class="text-end">@filtreli.Sum(x => x.Kdv20).ToString("N2")</td>
                                     <td class="text-end">@filtreli.Sum(x => x.Kdv10).ToString("N2")</td>
                                     <td class="text-end">@filtreli.Sum(x => x.Kesinti).ToString("N2")</td>
@@ -246,26 +252,38 @@
                         .GroupBy(x => x.Puantaj.Tarih.Day)
                         .ToDictionary(g => g.Key, g => g.Sum(x => x.Puantaj.SeferSayisi));
 
-                    var toplam = grp.Sum(x => x.Puantaj.TahakkukEdenTaseronUcreti);
-                    var gelir = grp.Sum(x => x.Puantaj.TahakkukEdenKurumUcreti);
+                    // GELİR / GİDER birim fiyatları eşleştirme (şablon) kaydından gelir
+                    var eslestirme = grp.Select(x => x.Puantaj.EslestirmeSablonu).FirstOrDefault(e => e != null);
+                    var gelirBirim = eslestirme?.KurumaKesilecekUcret ?? 0m;
+                    var giderBirim = eslestirme?.TaseronaOdenenUcret ?? 0m;
+
+                    var seferSayisi = grp.Sum(x => x.Puantaj.SeferSayisi);
+                    var toplamGelir = Math.Round(seferSayisi * gelirBirim, 2, MidpointRounding.AwayFromZero);
+                    var toplamGider = Math.Round(seferSayisi * giderBirim, 2, MidpointRounding.AwayFromZero);
+                    var kdv20 = Math.Round(toplamGider * 0.20m, 2, MidpointRounding.AwayFromZero);
+                    var kdv10 = Math.Round(toplamGider * 0.10m, 2, MidpointRounding.AwayFromZero);
+                    var kesinti = 0m;
 
                     return new MatrisSatir
                     {
                         Kurum = ilk.Puantaj.MusteriCari?.Unvan ?? "-",
                         Guzergah = ilk.Puantaj.Guzergah?.GuzergahAdi ?? ilk.Puantaj.Guzergah?.GuzergahKodu ?? "-",
-                        Gelir = gelir,
-                        Gider = toplam,
+                        Gelir = gelirBirim,
+                        Gider = giderBirim,
                         Yon = ServisYonKodu(ilk.Puantaj.ServisTuru),
                         Plaka = ilk.Puantaj.Arac?.AktifPlaka ?? "-",
                         Sofor = $"{ilk.Puantaj.Sofor?.Ad} {ilk.Puantaj.Sofor?.Soyad}".Trim(),
                         FaturaFirma = ilk.AracSahibiAd,
                         GunlukSeferler = gunluk,
                         GunSayisi = gunluk.Count(x => x.Value > 0),
-                        Toplam = toplam,
-                        Kdv20 = Math.Round(toplam * 0.20m, 2, MidpointRounding.AwayFromZero),
-                        Kdv10 = Math.Round(toplam * 0.10m, 2, MidpointRounding.AwayFromZero),
-                        Kesinti = 0m,
-                        Odenecek = toplam
+                        SeferSayisi = seferSayisi,
+                        ToplamGelir = toplamGelir,
+                        ToplamGider = toplamGider,
+                        Kdv20 = kdv20,
+                        Kdv10 = kdv10,
+                        Kesinti = kesinti,
+                        // ÖDENECEK = TOPLAM GİDER + KDV/20 + KDV/10 - KESİNTİ
+                        Odenecek = toplamGider + kdv20 + kdv10 - kesinti
                     };
                 })
                 .OrderBy(x => x.Kurum)
@@ -356,7 +374,9 @@
         public string FaturaFirma { get; set; } = "-";
         public Dictionary<int, decimal> GunlukSeferler { get; set; } = new();
         public int GunSayisi { get; set; }
-        public decimal Toplam { get; set; }
+        public decimal SeferSayisi { get; set; }
+        public decimal ToplamGelir { get; set; }
+        public decimal ToplamGider { get; set; }
         public decimal Kdv20 { get; set; }
         public decimal Kdv10 { get; set; }
         public decimal Kesinti { get; set; }

@@ -253,6 +253,7 @@ public class FiloKomisyonService : IFiloKomisyonService
             .Include(p => p.Arac)
                 .ThenInclude(a => a!.Firma)
             .Include(p => p.Sofor)
+            .Include(p => p.EslestirmeSablonu)
             .Where(p => p.FirmaId == firmaId && p.Tarih.Date >= baslangic.Date && p.Tarih.Date <= bitis.Date && !p.IsDeleted)
             .OrderBy(p => p.MusteriCari!.Unvan)
             .ThenBy(p => p.Guzergah!.GuzergahAdi)
