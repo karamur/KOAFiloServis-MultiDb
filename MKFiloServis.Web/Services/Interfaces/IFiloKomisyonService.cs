@@ -34,6 +34,11 @@ public interface IFiloKomisyonService
     Task<List<PuantajSatirDetayDto>> GetPuantajDetayliByTarihAraligiAsync(int firmaId, DateTime baslangic, DateTime bitis);
 
     /// <summary>
+    /// Belirtilen dönem için operasyonel puantaj özetini döndürür (kayıt/sefer/gelir/gider).
+    /// </summary>
+    Task<PuantajDonemOzetDto> GetPuantajDonemOzetiAsync(int firmaId, int yil, int ay);
+
+    /// <summary>
     /// İki tarih aralığındaki ve (opsiyonel) belirli bir kuruma / araca ait puantaj listesini getirir
     /// </summary>
     Task<List<FiloGunlukPuantaj>> GetPuantajlarByTarihAraligiAsync(int? firmaId, DateTime baslangic, DateTime bitis, int? kurumId = null, int? aracId = null);
@@ -41,6 +46,7 @@ public interface IFiloKomisyonService
     Task<FiloGunlukPuantaj> CreatePuantajAsync(FiloGunlukPuantaj puantaj);
     Task<FiloGunlukPuantaj> UpdateGunlukPuantajAsync(FiloGunlukPuantaj puantaj);
     Task UpdateGunlukPuantajlarAsync(List<FiloGunlukPuantaj> puantajlar);
+    Task<int> TahakkuklariYenidenHesaplaAsync(int firmaId, int yil, int ay);
     Task<int> DeleteGunlukPuantajlarAsync(List<int> puantajIds);
 
     /// <summary>

@@ -1,4 +1,4 @@
-using ClosedXML.Excel;
+﻿using ClosedXML.Excel;
 using MKFiloServis.Shared.Entities;
 using MKFiloServis.Web.Data;
 using MKFiloServis.Web.Services.Interfaces;
@@ -118,7 +118,7 @@ public class GuzergahService : IGuzergahService
         if (!persisted)
             throw new InvalidOperationException("Güzergah kaydı doğrulanamadı. Kayıt veritabanına yansımadı.");
 
-        await _cache.RemoveByPrefixAsync(CacheKeys.GuzergahPrefix);
+        await InvalidateGuzergahCacheAsync();
         return guzergah;
     }
 
@@ -174,6 +174,8 @@ public class GuzergahService : IGuzergahService
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(x => x.CariId, hedefCariId ?? existing.CariId)
                 .SetProperty(x => x.KurumId, hedefKurumId ?? existing.KurumId)
+                .SetProperty(x => x.BirimFiyat, guzergah.GelirFiyat)
+                .SetProperty(x => x.GiderFiyat, guzergah.GiderFiyat)
                 .SetProperty(x => x.UpdatedAt, DateTime.UtcNow));
 
         if (updated != 1)
@@ -198,7 +200,13 @@ public class GuzergahService : IGuzergahService
             throw new InvalidOperationException(
                 $"Güzergah KurumId DB'ye yazılamadı. GuzergahId={guzergah.Id}, Beklenen={hedefKurumId}, DB={kontrol.KurumId}");
 
-        await _cache.RemoveByPrefixAsync(CacheKeys.GuzergahPrefix);
+        if (kontrol.BirimFiyat != guzergah.GelirFiyat || kontrol.GiderFiyat != guzergah.GiderFiyat)
+            throw new InvalidOperationException(
+                $"Güzergah fiyatları DB'ye yazılamadı. GuzergahId={guzergah.Id}, " +
+                $"Beklenen Gelir={guzergah.GelirFiyat} Gider={guzergah.GiderFiyat}, " +
+                $"DB Gelir={kontrol.BirimFiyat} Gider={kontrol.GiderFiyat}");
+
+        await InvalidateGuzergahCacheAsync();
         return kontrol;
     }
 
@@ -257,13 +265,15 @@ public class GuzergahService : IGuzergahService
 
                 await context.SaveChangesAsync();
 
-                // CariId / KurumId garantili direkt DB yazma (eski UpdateAsync pattern)
+                // CariId / KurumId / Fiyatlar garantili direkt DB yazma (eski UpdateAsync pattern)
                 await context.Guzergahlar
                     .IgnoreQueryFilters()
                     .Where(x => x.Id == guzergah.Id)
                     .ExecuteUpdateAsync(setters => setters
                         .SetProperty(x => x.CariId, hedefCariId ?? existing.CariId)
                         .SetProperty(x => x.KurumId, hedefKurumId ?? existing.KurumId)
+                        .SetProperty(x => x.BirimFiyat, guzergah.GelirFiyat)
+                        .SetProperty(x => x.GiderFiyat, guzergah.GiderFiyat)
                         .SetProperty(x => x.UpdatedAt, now));
 
                 // 2. Replace seferler (aynı context + transaction içinde)
@@ -278,7 +288,7 @@ public class GuzergahService : IGuzergahService
             }
         });
 
-        await _cache.RemoveByPrefixAsync(CacheKeys.GuzergahPrefix);
+        await InvalidateGuzergahCacheAsync();
     }
 
     public async Task DeleteAsync(int id)
@@ -290,7 +300,7 @@ public class GuzergahService : IGuzergahService
             guzergah.IsDeleted = true;
             guzergah.UpdatedAt = DateTime.UtcNow;
             await context.SaveChangesAsync();
-            await _cache.RemoveByPrefixAsync(CacheKeys.GuzergahPrefix);
+            await InvalidateGuzergahCacheAsync();
         }
     }
 
@@ -314,6 +324,13 @@ public class GuzergahService : IGuzergahService
         // Kural 15: FirmaId bazlı atomik numara
         var sayi = await _numaraSerisi.GenerateNextAsync(firmaKisaltma, firmaId, "GLOBAL");
         return $"{firmaKisaltma}-{sayi:D3}";
+    }
+
+    private async Task InvalidateGuzergahCacheAsync()
+    {
+        await _cache.RemoveByPrefixAsync(CacheKeys.GuzergahPrefix);
+        await _cache.RemoveAsync(CacheKeys.GuzergahListesi);
+        await _cache.RemoveAsync(CacheKeys.GuzergahAktif);
     }
 
     #region Doğrulama Metodları
@@ -521,7 +538,7 @@ public class GuzergahService : IGuzergahService
         }
 
         // Cache temizle
-        await _cache.RemoveByPrefixAsync(CacheKeys.GuzergahPrefix);
+        await InvalidateGuzergahCacheAsync();
 
         return new GuzergahImportSonuc
         {

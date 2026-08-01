@@ -41,7 +41,7 @@
                     <div class="col-md-4">
                         <div class="mb-3">
                             <label class="form-label">Güzergah Kodu *</label>
-                            <InputText @bind-Value="guzergah.GuzergahKodu" class="form-control" readonly="@IsEdit" />
+                            <InputText @bind-Value="guzergah.GuzergahKodu" class="form-control" />
                         </div>
                     </div>
                     <div class="col-md-8">
@@ -228,66 +228,6 @@
                     }
                 </div>
 
-                <div class="row">
-                    <div class="col-md-3">
-                        <div class="mb-3">
-                            <label class="form-label">Kapasite</label>
-                            <select class="form-select" value="@(guzergah.KapasiteAdi ?? "")" @onchange="KapasiteSecildi">
-                                <option value="">-- Seçiniz --</option>
-                                @foreach (var k in kapasiteSecenekleri)
-                                {
-                                    <option value="@k.Label">@k.Label</option>
-                                }
-                            </select>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="mb-3">
-                            <label class="form-label">Varsayılan Araç</label>
-                            <InputSelect @bind-Value="guzergah.VarsayilanAracId" @bind-Value:after="AracSecimiDegistiAsync" class="form-select">
-                                <option value="">-- Araç Seçiniz --</option>
-                                @foreach (var arac in araclar)
-                                {
-                                    <option value="@arac.Id">@arac.Plaka</option>
-                                }
-                            </InputSelect>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="mb-3">
-                            <label class="form-label">Varsayılan Şoför</label>
-                            <InputSelect @bind-Value="guzergah.VarsayilanSoforId" @bind-Value:after="SoforDegistiAsync" class="form-select">
-                                <option value="">-- Şoför Seçiniz --</option>
-                                @foreach (var sofor in soforler)
-                                {
-                                    <option value="@sofor.Id">@sofor.Ad @sofor.Soyad</option>
-                                }
-                            </InputSelect>
-                        </div>
-                    </div>
-                </div>
-
-                @if (!string.IsNullOrWhiteSpace(secilenSoforBilgisi) || !string.IsNullOrWhiteSpace(secilenAracTedarikci) || !string.IsNullOrWhiteSpace(secilenAracPlakaBilgi))
-                {
-                    <div class="alert alert-info py-2">
-                        @if (!string.IsNullOrWhiteSpace(secilenAracTedarikci))
-                        {
-                            <div class="row g-1 mb-1">
-                                <div class="col-md-4"><strong>Tedarikçi Araç (Plaka):</strong> @(string.IsNullOrWhiteSpace(secilenAracPlakaBilgi) ? "-" : secilenAracPlakaBilgi)</div>
-                                <div class="col-md-4"><strong>Tedarikçi Araç Sahibi:</strong> @secilenAracTedarikci</div>
-                                <div class="col-md-4"><strong>Sahibi Telefon:</strong> @(string.IsNullOrWhiteSpace(secilenAracTedarikciTelefon) ? "-" : secilenAracTedarikciTelefon)</div>
-                            </div>
-                        }
-                        @if (!string.IsNullOrWhiteSpace(secilenSoforBilgisi))
-                        {
-                            <div class="row g-1">
-                                <div class="col-md-4"><strong>@(string.IsNullOrWhiteSpace(secilenAracTedarikci) ? "Şoför" : "Tedarikçi Araç Şoförü"):</strong> @secilenSoforBilgisi</div>
-                                <div class="col-md-4"><strong>Şoför Telefon:</strong> @(string.IsNullOrWhiteSpace(secilenSoforTelefon) ? "-" : secilenSoforTelefon)</div>
-                                <div class="col-md-4"><strong>Firma:</strong> @(string.IsNullOrWhiteSpace(secilenSoforFirma) ? "-" : secilenSoforFirma)</div>
-                            </div>
-                        }
-                    </div>
-                }
 
                 <div class="row mb-3">
                     <div class="col-md-6">
@@ -368,9 +308,18 @@
                 }
 
                 <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-primary" disabled="@kaydediliyor">
-                        <i class="bi bi-check-lg me-1"></i>@(kaydediliyor ? "Kaydediliyor..." : "Kaydet")
-                    </button>
+                    @if (IsEdit)
+                    {
+                        <button type="submit" class="btn btn-primary" disabled="@(!DegisiklikVar || kaydediliyor)">
+                            <i class="bi bi-check-lg me-1"></i>@(kaydediliyor ? "Güncelleniyor..." : "Güncelle")
+                        </button>
+                    }
+                    else
+                    {
+                        <button type="submit" class="btn btn-primary" disabled="@kaydediliyor">
+                            <i class="bi bi-check-lg me-1"></i>@(kaydediliyor ? "Kaydediliyor..." : "Kaydet")
+                        </button>
+                    }
                     <button type="button" class="btn btn-secondary" @onclick="Geri" disabled="@kaydediliyor">
                         <i class="bi bi-x-lg me-1"></i>İptal
                     </button>
@@ -454,6 +403,7 @@
     private Dictionary<int, PersonelAracInfo> aktifAracSoforMap = new();
     private string? kayitHataMesaji;
     private bool kaydediliyor;
+    private string? ilkDurumImzasi;
     private int? orijinalFirmaId;
     private bool showFirmaDegisiklikModal;
     private List<TransferableItem>? transferItems;
@@ -609,9 +559,6 @@
                     SeferTipi = s.SeferTipi,
                     Slot = s.Slot,
                     KapasiteAdi = s.KapasiteAdi,
-                    AracId = s.AracId,
-                    SoforAd = s.SoforAd,
-                    SoforTelefon = s.SoforTelefon,
                     Firma = s.FirmaAdiSerbest
                 }).ToList();
 
@@ -625,20 +572,7 @@
                     var secim = kapasiteSecenekleri.FirstOrDefault(x => x.Label == ilkSefer.KapasiteAdi);
                     if (secim.Value > 0) guzergah.PersonelSayisi = secim.Value;
                 }
-                if (!guzergah.VarsayilanAracId.HasValue && ilkSefer.AracId.HasValue)
-                {
-                    guzergah.VarsayilanAracId = ilkSefer.AracId.Value;
-                }
-                if (!guzergah.VarsayilanSoforId.HasValue && !string.IsNullOrWhiteSpace(ilkSefer.SoforAd))
-                {
-                    // Şoför adına göre eşleştir
-                    var eslesenSofor = soforler.FirstOrDefault(s =>
-                        string.Equals(s.TamAd, ilkSefer.SoforAd, StringComparison.OrdinalIgnoreCase));
-                    if (eslesenSofor != null)
-                    {
-                        guzergah.VarsayilanSoforId = eslesenSofor.Id;
-                    }
-                }
+
             }
             else
             {
@@ -698,6 +632,8 @@
                     }
                 }
             }
+
+            ilkDurumImzasi = OlusturDurumImzasi();
         }
     }
 
@@ -927,6 +863,48 @@
     }
 
     private bool _kaydetGuard;
+    private bool DegisiklikVar => IsEdit
+        ? !string.Equals(ilkDurumImzasi, OlusturDurumImzasi(), StringComparison.Ordinal)
+        : true;
+
+    private string OlusturDurumImzasi()
+    {
+        var seferImza = string.Join("|", seferKalemleri.Select((s, i) =>
+            $"{i}:{s.SeferTipi}:{s.Slot}:{s.KapasiteAdi}:{s.Firma}"));
+
+        return string.Join("§", new[]
+        {
+            guzergah.GuzergahKodu ?? string.Empty,
+            guzergah.GuzergahAdi ?? string.Empty,
+            guzergah.BaslangicNoktasi ?? string.Empty,
+            guzergah.BitisNoktasi ?? string.Empty,
+            guzergah.BaslangicLatitude?.ToString() ?? string.Empty,
+            guzergah.BaslangicLongitude?.ToString() ?? string.Empty,
+            guzergah.BitisLatitude?.ToString() ?? string.Empty,
+            guzergah.BitisLongitude?.ToString() ?? string.Empty,
+            guzergah.RotaRengi ?? string.Empty,
+            guzergah.Mesafe?.ToString() ?? string.Empty,
+            guzergah.TahminiSure?.ToString() ?? string.Empty,
+            guzergah.GelirFiyat.ToString(),
+            guzergah.GiderFiyat.ToString(),
+            guzergah.SeferTipi.ToString(),
+            guzergah.PersonelSayisi.ToString(),
+            guzergah.KapasiteAdi ?? string.Empty,
+            (guzergah.FirmaId?.ToString() ?? string.Empty),
+            (guzergah.VarsayilanAracId?.ToString() ?? string.Empty),
+            (guzergah.VarsayilanSoforId?.ToString() ?? string.Empty),
+            guzergah.Notlar ?? string.Empty,
+            guzergah.PuantajCarpani.ToString(),
+            guzergah.Aktif.ToString(),
+            guzergah.IsDeleted.ToString(),
+            guzergah.CariId.ToString(),
+            (guzergah.KurumId?.ToString() ?? string.Empty),
+            secilenKurumId.ToString(),
+            kurumArama ?? string.Empty,
+            cariArama ?? string.Empty,
+            seferImza
+        });
+    }
 
     private async Task Kaydet()
     {
@@ -1043,15 +1021,13 @@
                 SeferTipi = k.SeferTipi,
                 Slot = k.Slot,
                 KapasiteAdi = k.KapasiteAdi,
-                AracId = k.AracId,
-                SoforAd = k.SoforAd,
-                SoforTelefon = k.SoforTelefon,
                 FirmaAdiSerbest = k.Firma
             }).ToList();
 
             if (IsEdit)
             {
-                // TEK TRANSACTION: ana kayıt + seferler birlikte
+                // Ana güzergah kaydı + seferler TEK transaction içinde güncellenir.
+                // Aksi halde formdaki sefer düzenlemeleri kaydedilmeden kayboluyordu.
                 await GuzergahService.UpdateWithSeferlerAsync(guzergah, seferEntities);
             }
             else
@@ -1063,7 +1039,13 @@
             // Degisiklik uyarisi: Planlama ve Puantaj modullerinde guncelleme hatirlatmasi
             DegisiklikUyari.DegisiklikKaydet(guzergah.Id);
 
-            Navigation.NavigateTo("/guzergahlar");
+            if (IsEdit)
+            {
+                ilkDurumImzasi = OlusturDurumImzasi();
+            }
+
+            // forceLoad: liste sayfasının taze veriyle (cache bypass) yüklenmesini garanti eder.
+            Navigation.NavigateTo("/guzergahlar", forceLoad: true);
         }
         catch (Exception ex)
         {
@@ -1130,9 +1112,6 @@
                 SeferTipi = k.SeferTipi,
                 Slot = k.Slot,
                 KapasiteAdi = k.KapasiteAdi,
-                AracId = k.AracId,
-                SoforAd = k.SoforAd,
-                SoforTelefon = k.SoforTelefon,
                 FirmaAdiSerbest = k.Firma
             }).ToList();
             await GuzergahSeferService.ReplaceAllAsync(guzergah.Id, seferEntities);
@@ -1252,10 +1231,7 @@
         {
             SeferTipi = guzergah.SeferTipi,
             Slot = HesaplaSlot(guzergah.SeferTipi, siraNo),
-            KapasiteAdi = kapasiteSecenekleri.FirstOrDefault(k => k.Value == guzergah.PersonelSayisi).Label,
-            AracId = guzergah.VarsayilanAracId,
-            SoforAd = guzergah.VarsayilanSofor?.TamAd,
-            SoforTelefon = guzergah.VarsayilanSofor?.Telefon
+            KapasiteAdi = kapasiteSecenekleri.FirstOrDefault(k => k.Value == guzergah.PersonelSayisi).Label
         };
     }
 
@@ -1299,9 +1275,6 @@
             {
                 SeferTipi = ilk.SeferTipi,
                 KapasiteAdi = ilk.KapasiteAdi,
-                AracId = ilk.AracId,
-                SoforAd = ilk.SoforAd,
-                SoforTelefon = ilk.SoforTelefon,
                 Firma = ilk.Firma
             };
         }
@@ -1309,53 +1282,12 @@
         SeferSlotlariGuncelle();
     }
 
-    private async Task SeferAracDegisti(SeferKalem kalem, int? aracId)
-    {
-        kalem.AracId = aracId;
-        kalem.SoforAd = null;
-        kalem.SoforTelefon = null;
-        kalem.Firma = null;
-        if (!aracId.HasValue) return;
-        try
-        {
-            await using var ctx = await DbContextFactory.CreateDbContextAsync();
-            var arac = await ctx.Araclar.AsNoTracking()
-                .Include(a => a.KiralikCari)
-                .Include(a => a.KomisyoncuCari)
-                .FirstOrDefaultAsync(a => a.Id == aracId.Value);
-            if (arac == null) return;
-            if (arac.SahiplikTipi == AracSahiplikTipi.Tedarikci)
-            {
-                kalem.Firma = arac.KiralikCari?.Unvan ?? arac.KomisyoncuCari?.Unvan;
-                var eslesme = await ctx.Set<FiloGuzergahEslestirme>()
-                    .AsNoTracking()
-                    .Where(e => e.AracId == aracId.Value && !e.IsDeleted)
-                    .OrderByDescending(e => e.Id)
-                    .FirstOrDefaultAsync();
-                if (eslesme != null)
-                {
-                    var sofor = await ctx.Soforler.AsNoTracking().FirstOrDefaultAsync(s => s.Id == eslesme.SoforId);
-                    if (sofor != null) { kalem.SoforAd = sofor.TamAd; kalem.SoforTelefon = sofor.Telefon; }
-                }
-            }
-            else if (aktifAracSoforMap.TryGetValue(aracId.Value, out var info))
-            {
-                kalem.SoforAd = info.AdSoyad;
-                kalem.SoforTelefon = info.Telefon;
-            }
-        }
-        catch { }
-        StateHasChanged();
-    }
 
     private class SeferKalem
     {
         public SeferTipi SeferTipi { get; set; } = SeferTipi.SabahAksam;
         public SeferSlot Slot { get; set; } = SeferSlot.Sabah;
         public string? KapasiteAdi { get; set; }
-        public int? AracId { get; set; }
-        public string? SoforAd { get; set; }
-        public string? SoforTelefon { get; set; }
         public string? Firma { get; set; }
     }
 }

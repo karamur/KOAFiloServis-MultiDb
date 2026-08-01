@@ -1,0 +1,365 @@
+﻿@page "/operasyon/puantaj-matris"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using MKFiloServis.Shared.Entities
+@using MKFiloServis.Web.Services
+@using MKFiloServis.Web.Services.Interfaces
+@using MKFiloServis.Web.Models
+@inject IFiloKomisyonService FiloKomisyonService
+@inject IAktifFirmaProvider AktifFirmaProvider
+@rendermode InteractiveServer
+
+<PageTitle>Aylık Puantaj Tablosu</PageTitle>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3><i class="bi bi-table me-2"></i>Aylık Puantaj Tablosu (@AyAdi @seciliYil)</h3>
+        <button class="btn btn-outline-secondary" @onclick="YukleAsync" disabled="@isBusy">
+            <i class="bi bi-arrow-clockwise me-1"></i>Yenile
+        </button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(hataMesaji))
+    {
+        <div class="alert alert-danger">@hataMesaji</div>
+    }
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-body py-2">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-1">
+                    <label class="form-label small mb-1">Ay</label>
+                    <select class="form-select form-select-sm" @bind="seciliAy" @bind:after="YukleAsync">
+                        @for (var ay = 1; ay <= 12; ay++)
+                        {
+                            <option value="@ay">@(new DateTime(2000, ay, 1).ToString("MMMM", TrKultur))</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label small mb-1">Yıl</label>
+                    <select class="form-select form-select-sm" @bind="seciliYil" @bind:after="YukleAsync">
+                        @for (var yil = DateTime.Today.Year + 1; yil >= DateTime.Today.Year - 3; yil--)
+                        {
+                            <option value="@yil">@yil</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Kurum</label>
+                    <input class="form-control form-control-sm" @bind="filtreKurum" @bind:event="oninput" placeholder="Kurum ara..." />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Güzergah</label>
+                    <input class="form-control form-control-sm" @bind="filtreGuzergah" @bind:event="oninput" placeholder="Güzergah ara..." />
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label small mb-1">Yön</label>
+                    <select class="form-select form-select-sm" @bind="filtreYon">
+                        <option value="">Tümü</option>
+                        <option value="S">S (Sabah)</option>
+                        <option value="A">A (Akşam)</option>
+                        <option value="S-A">S-A (Sabah-Akşam)</option>
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label small mb-1">Plaka</label>
+                    <input class="form-control form-control-sm" @bind="filtrePlaka" @bind:event="oninput" placeholder="Plaka..." />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Şoför</label>
+                    <input class="form-control form-control-sm" @bind="filtreSofor" @bind:event="oninput" placeholder="Şoför ara..." />
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label small mb-1">Fatura Firma</label>
+                    <input class="form-control form-control-sm" @bind="filtreFaturaFirma" @bind:event="oninput" placeholder="Firma..." />
+                </div>
+                <div class="col-md-1 text-end">
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="FiltreleriTemizle" disabled="@isBusy">
+                        <i class="bi bi-funnel me-1"></i>Temizle
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (isBusy)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">Yükleniyor...</p>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height:70vh;">
+                    <table class="table table-bordered table-sm mb-0 align-middle" style="font-size:.75rem; white-space:nowrap;">
+                        <thead class="table-light" style="position:sticky; top:0; z-index:2;">
+                            <tr>
+                                <th class="text-center">S.NO</th>
+                                <th>KURUM</th>
+                                <th>GÜZERGAH</th>
+                                <th class="text-end">GELİR</th>
+                                <th class="text-end">GİDER</th>
+                                <th class="text-center">YÖN</th>
+                                <th>PLAKA</th>
+                                <th>tedarikçi/personel ŞOFÖR</th>
+                                <th>tedarikçi/firma FATURA</th>
+                                @for (var g = 1; g <= AyGunSayisi; g++)
+                                {
+                                    var gun = g;
+                                    var tarih = new DateTime(seciliYil, seciliAy, gun);
+                                    var haftaSonu = tarih.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
+                                    <th class="text-center @(haftaSonu ? "table-secondary" : "")" style="min-width:28px;" title="@tarih.ToString("dd.MM.yyyy ddd", TrKultur)">@gun</th>
+                                }
+                                <th class="text-center">GÜN</th>
+                                <th class="text-end">TOPLAM</th>
+                                <th class="text-end">KDV/20</th>
+                                <th class="text-end">KDV/10</th>
+                                <th class="text-end">KESİNTİ</th>
+                                <th class="text-end">ÖDENECEK</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                var filtreli = FiltreliSatirlar;
+                            }
+                            @if (!filtreli.Any())
+                            {
+                                <tr><td colspan="@(15 + AyGunSayisi)" class="text-center text-muted p-4">Filtreye uygun kayıt yok</td></tr>
+                            }
+                            else
+                            {
+                                var sira = 0;
+                                @foreach (var satir in filtreli)
+                                {
+                                    sira++;
+                                    <tr>
+                                        <td class="text-center">@sira</td>
+                                        <td class="fw-semibold">@satir.Kurum</td>
+                                        <td>@satir.Guzergah</td>
+                                        <td class="text-end">@(satir.Gelir > 0 ? satir.Gelir.ToString("N2") : "")</td>
+                                        <td class="text-end">@(satir.Gider > 0 ? satir.Gider.ToString("N2") : "")</td>
+                                        <td class="text-center fw-semibold @(satir.Yon == "S" ? "table-warning" : satir.Yon == "A" ? "table-warning" : "")">@satir.Yon</td>
+                                        <td>@satir.Plaka</td>
+                                        <td>@satir.Sofor</td>
+                                        <td class="text-danger">@satir.FaturaFirma</td>
+                                        @for (var g = 1; g <= AyGunSayisi; g++)
+                                        {
+                                            var tarih = new DateTime(seciliYil, seciliAy, g);
+                                            var haftaSonu = tarih.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
+                                            var deger = satir.GunlukSeferler.TryGetValue(g, out var v) ? v : 0m;
+                                            <td class="text-center @(haftaSonu ? "table-secondary" : "")">@(deger > 0 ? deger.ToString("0.#") : "")</td>
+                                        }
+                                        <td class="text-center fw-semibold">@satir.GunSayisi</td>
+                                        <td class="text-end fw-semibold">@satir.Toplam.ToString("N2")</td>
+                                        <td class="text-end">@satir.Kdv20.ToString("N2")</td>
+                                        <td class="text-end">@satir.Kdv10.ToString("N2")</td>
+                                        <td class="text-end">@(satir.Kesinti != 0 ? satir.Kesinti.ToString("N2") : "")</td>
+                                        <td class="text-end fw-bold">@satir.Odenecek.ToString("N2")</td>
+                                    </tr>
+                                }
+                                <tr class="table-light fw-bold">
+                                    <td colspan="3" class="text-end">TOPLAM</td>
+                                    <td class="text-end">@filtreli.Sum(x => x.Gelir).ToString("N2")</td>
+                                    <td class="text-end">@filtreli.Sum(x => x.Gider).ToString("N2")</td>
+                                    <td colspan="4"></td>
+                                    @for (var g = 1; g <= AyGunSayisi; g++)
+                                    {
+                                        var gun = g;
+                                        var gunToplam = filtreli.Sum(x => x.GunlukSeferler.TryGetValue(gun, out var v) ? v : 0m);
+                                        <td class="text-center">@(gunToplam > 0 ? gunToplam.ToString("0.#") : "")</td>
+                                    }
+                                    <td class="text-center">@filtreli.Sum(x => x.GunSayisi)</td>
+                                    <td class="text-end">@filtreli.Sum(x => x.Toplam).ToString("N2")</td>
+                                    <td class="text-end">@filtreli.Sum(x => x.Kdv20).ToString("N2")</td>
+                                    <td class="text-end">@filtreli.Sum(x => x.Kdv10).ToString("N2")</td>
+                                    <td class="text-end">@filtreli.Sum(x => x.Kesinti).ToString("N2")</td>
+                                    <td class="text-end">@filtreli.Sum(x => x.Odenecek).ToString("N2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="small text-muted mt-2">
+            Toplam satır: <strong>@matrisSatirlari.Count</strong> | Filtreli: <strong>@FiltreliSatirlar.Count</strong>
+        </div>
+    }
+</div>
+
+@code {
+    private static readonly System.Globalization.CultureInfo TrKultur = new("tr-TR");
+
+    private bool isBusy;
+    private string? hataMesaji;
+    private int seciliAy = DateTime.Today.Month;
+    private int seciliYil = DateTime.Today.Year;
+
+    private string filtreKurum = string.Empty;
+    private string filtreGuzergah = string.Empty;
+    private string filtreYon = string.Empty;
+    private string filtrePlaka = string.Empty;
+    private string filtreSofor = string.Empty;
+    private string filtreFaturaFirma = string.Empty;
+
+    private List<MatrisSatir> matrisSatirlari = new();
+
+    private string AyAdi => new DateTime(2000, seciliAy, 1).ToString("MMMM", TrKultur);
+    private int AyGunSayisi => DateTime.DaysInMonth(seciliYil, seciliAy);
+
+    private List<MatrisSatir> FiltreliSatirlar => matrisSatirlari.Where(FiltreyeUyar).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await YukleAsync();
+    }
+
+    private async Task YukleAsync()
+    {
+        hataMesaji = null;
+        isBusy = true;
+        try
+        {
+            var firmaId = GetFirmaId();
+            var baslangic = new DateTime(seciliYil, seciliAy, 1);
+            var bitis = baslangic.AddMonths(1).AddDays(-1);
+
+            var detaylar = await FiloKomisyonService.GetPuantajDetayliByTarihAraligiAsync(firmaId, baslangic, bitis);
+
+            matrisSatirlari = detaylar
+                .Where(d => d.Puantaj != null)
+                .GroupBy(d => new
+                {
+                    d.Puantaj.KurumFirmaId,
+                    d.Puantaj.GuzergahId,
+                    d.Puantaj.AracId,
+                    d.Puantaj.SoforId
+                })
+                .Select(grp =>
+                {
+                    var ilk = grp.First();
+                    var gunluk = grp
+                        .GroupBy(x => x.Puantaj.Tarih.Day)
+                        .ToDictionary(g => g.Key, g => g.Sum(x => x.Puantaj.SeferSayisi));
+
+                    var toplam = grp.Sum(x => x.Puantaj.TahakkukEdenTaseronUcreti);
+                    var gelir = grp.Sum(x => x.Puantaj.TahakkukEdenKurumUcreti);
+
+                    return new MatrisSatir
+                    {
+                        Kurum = ilk.Puantaj.MusteriCari?.Unvan ?? "-",
+                        Guzergah = ilk.Puantaj.Guzergah?.GuzergahAdi ?? ilk.Puantaj.Guzergah?.GuzergahKodu ?? "-",
+                        Gelir = gelir,
+                        Gider = toplam,
+                        Yon = ServisYonKodu(ilk.Puantaj.ServisTuru),
+                        Plaka = ilk.Puantaj.Arac?.AktifPlaka ?? "-",
+                        Sofor = $"{ilk.Puantaj.Sofor?.Ad} {ilk.Puantaj.Sofor?.Soyad}".Trim(),
+                        FaturaFirma = ilk.AracSahibiAd,
+                        GunlukSeferler = gunluk,
+                        GunSayisi = gunluk.Count(x => x.Value > 0),
+                        Toplam = toplam,
+                        Kdv20 = Math.Round(toplam * 0.20m, 2, MidpointRounding.AwayFromZero),
+                        Kdv10 = Math.Round(toplam * 0.10m, 2, MidpointRounding.AwayFromZero),
+                        Kesinti = 0m,
+                        Odenecek = toplam
+                    };
+                })
+                .OrderBy(x => x.Kurum)
+                .ThenBy(x => x.Guzergah)
+                .ThenBy(x => x.Yon)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            hataMesaji = ex.Message;
+            matrisSatirlari = new();
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private static string ServisYonKodu(ServisTuru tur) => tur switch
+    {
+        ServisTuru.Sabah => "S",
+        ServisTuru.Aksam => "A",
+        ServisTuru.SabahAksam => "S-A",
+        ServisTuru.YardaMesai => "YM",
+        ServisTuru.Ozel => "Ö",
+        _ => "-"
+    };
+
+    private bool FiltreyeUyar(MatrisSatir satir)
+    {
+        if (!string.IsNullOrWhiteSpace(filtreKurum)
+            && !satir.Kurum.Contains(filtreKurum, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (!string.IsNullOrWhiteSpace(filtreGuzergah)
+            && !satir.Guzergah.Contains(filtreGuzergah, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (!string.IsNullOrWhiteSpace(filtreYon)
+            && !string.Equals(satir.Yon, filtreYon, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (!string.IsNullOrWhiteSpace(filtrePlaka)
+            && !satir.Plaka.Contains(filtrePlaka, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (!string.IsNullOrWhiteSpace(filtreSofor)
+            && !satir.Sofor.Contains(filtreSofor, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (!string.IsNullOrWhiteSpace(filtreFaturaFirma)
+            && !satir.FaturaFirma.Contains(filtreFaturaFirma, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        return true;
+    }
+
+    private void FiltreleriTemizle()
+    {
+        filtreKurum = string.Empty;
+        filtreGuzergah = string.Empty;
+        filtreYon = string.Empty;
+        filtrePlaka = string.Empty;
+        filtreSofor = string.Empty;
+        filtreFaturaFirma = string.Empty;
+    }
+
+    private int GetFirmaId()
+    {
+        if (AktifFirmaProvider.AktifFirmaId.HasValue && AktifFirmaProvider.AktifFirmaId.Value > 0)
+            return AktifFirmaProvider.AktifFirmaId.Value;
+
+        if (AktifFirmaProvider.Mevcut?.FirmaId > 0)
+            return AktifFirmaProvider.Mevcut.FirmaId;
+
+        return 0;
+    }
+
+    private sealed class MatrisSatir
+    {
+        public string Kurum { get; set; } = "-";
+        public string Guzergah { get; set; } = "-";
+        public decimal Gelir { get; set; }
+        public decimal Gider { get; set; }
+        public string Yon { get; set; } = "-";
+        public string Plaka { get; set; } = "-";
+        public string Sofor { get; set; } = "-";
+        public string FaturaFirma { get; set; } = "-";
+        public Dictionary<int, decimal> GunlukSeferler { get; set; } = new();
+        public int GunSayisi { get; set; }
+        public decimal Toplam { get; set; }
+        public decimal Kdv20 { get; set; }
+        public decimal Kdv10 { get; set; }
+        public decimal Kesinti { get; set; }
+        public decimal Odenecek { get; set; }
+    }
+}

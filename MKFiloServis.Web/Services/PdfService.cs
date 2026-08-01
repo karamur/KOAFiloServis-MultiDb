@@ -1,4 +1,4 @@
-using MKFiloServis.Shared.Entities;
+﻿using MKFiloServis.Shared.Entities;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -92,7 +92,7 @@ public class PdfService : IPdfService
 
     private void ComposeHeader(IContainer container, string title)
     {
-        container.Row(row =>
+        container.PaddingBottom(15).Row(row =>
         {
             row.RelativeItem().Column(col =>
             {
@@ -106,8 +106,6 @@ public class PdfService : IPdfService
                 col.Item().Text($"Tarih: {DateTime.Now:dd.MM.yyyy HH:mm}").FontSize(9).AlignRight();
             });
         });
-
-        container.PaddingBottom(15);
     }
 
     private void ComposeFooter(IContainer container)

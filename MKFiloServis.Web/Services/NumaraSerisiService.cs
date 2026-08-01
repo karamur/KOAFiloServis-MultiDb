@@ -1,4 +1,4 @@
-using MKFiloServis.Web.Data;
+﻿using MKFiloServis.Web.Data;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -53,9 +53,28 @@ public class NumaraSerisiService
             DO UPDATE SET ""SonNo"" = ""FisNoCounters"".""SonNo"" + 1
             RETURNING ""SonNo"";";
 
-        cmd.Parameters.Add(new NpgsqlParameter<string>("prefix", prefix));
-        cmd.Parameters.Add(new NpgsqlParameter<int>("firmaId", firmaId));
-        cmd.Parameters.Add(new NpgsqlParameter<string>("yilAy", yilAy));
+        //cmd.Parameters.Add(new NpgsqlParameter<string>("prefix", prefix));
+        //cmd.Parameters.Add(new NpgsqlParameter<int>("firmaId", firmaId));
+        //cmd.Parameters.Add(new NpgsqlParameter<string>("yilAy", yilAy));
+
+        // create provider-agnostic parameters
+        var p1 = cmd.CreateParameter();
+        p1.ParameterName = "@prefix";
+        p1.DbType = System.Data.DbType.String;
+        p1.Value = prefix;
+        cmd.Parameters.Add(p1);
+
+        var p2 = cmd.CreateParameter();
+        p2.ParameterName = "@firmaId";
+        p2.DbType = System.Data.DbType.Int32;
+        p2.Value = firmaId;
+        cmd.Parameters.Add(p2);
+
+        var p3 = cmd.CreateParameter();
+        p3.ParameterName = "@yilAy";
+        p3.DbType = System.Data.DbType.String;
+        p3.Value = yilAy;
+        cmd.Parameters.Add(p3);
 
         var result = await cmd.ExecuteScalarAsync();
         return Convert.ToInt32(result);

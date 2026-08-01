@@ -341,6 +341,7 @@ builder.Services.AddScoped<MKFiloServis.Web.Services.Interfaces.IPuantajEngineSe
 builder.Services.AddScoped<MKFiloServis.Web.Services.Interfaces.IPuantajWorkflowService, PuantajWorkflowService>();
 builder.Services.AddScoped<MKFiloServis.Web.Services.Interfaces.IPuantajFinansService, PuantajFinansService>();
 builder.Services.AddScoped(typeof(MKFiloServis.Web.Services.Interfaces.IFiloKomisyonService), typeof(FiloKomisyonService));
+builder.Services.AddScoped<MKFiloServis.Web.Services.Interfaces.IOperasyonPlanService, OperasyonPlanService>(); // İzole operasyonel puantaj çekirdeği
 builder.Services.AddScoped<IPiyasaKaynakService, PiyasaKaynakService>(); // Piyasa Kaynak Yonetimi (once kaydet)
 builder.Services.AddScoped<IHttpScraperService, HttpScraperService>(); // HTTP Scraper (en hizli)
 builder.Services.AddScoped<IPlaywrightScraperService, PlaywrightScraperService>(); // Playwright Web Scraper (yedek)

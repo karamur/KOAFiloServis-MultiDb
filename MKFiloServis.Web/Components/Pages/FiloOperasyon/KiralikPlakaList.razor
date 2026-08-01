@@ -1140,37 +1140,7 @@
         {
             await using var db = await DbFactory.CreateDbContextAsync();
 
-            // GuzergahSefer'den araca bağlı güzergahları bul
-            var seferler = await db.GuzergahSeferleri
-                .Include(s => s.Guzergah)
-                .Where(s => s.AracId == arac.Id && s.Guzergah != null && !s.Guzergah.IsDeleted)
-                .OrderBy(s => s.Guzergah!.GuzergahAdi).ThenBy(s => s.Sira)
-                .ToListAsync();
-
-            foreach (var s in seferler)
-            {
-                var slotAdi = s.Slot switch
-                {
-                    SeferSlot.Sabah => "Sabah",
-                    SeferSlot.Aksam => "Akşam",
-                    SeferSlot.Mesai => "Mesai",
-                    SeferSlot.Diger1 => "Diğer 1",
-                    SeferSlot.Diger2 => "Diğer 2",
-                    SeferSlot.Diger3 => "Diğer 3",
-                    SeferSlot.Diger4 => "Diğer 4",
-                    SeferSlot.Diger5 => "Diğer 5",
-                    _ => s.Slot.ToString()
-                };
-                seciliGuzergahBilgisi.Add(new GuzergahBilgisi
-                {
-                    GuzergahId = s.GuzergahId,
-                    GuzergahAdi = s.Guzergah?.GuzergahAdi ?? "?",
-                    SoforAdi = s.SoforAd,
-                    SlotAdi = $"Slot: {slotAdi} (Sefer {s.Sira})"
-                });
-            }
-
-            // Ayrıca varsayılan araç olarak atandığı güzergahları da bul
+            // Varsayılan araç olarak atandığı güzergahları bul
             var guzergahlar = await db.Guzergahlar
                 .Include(g => g.VarsayilanSofor)
                 .Where(g => g.VarsayilanAracId == arac.Id && g.Aktif && !g.IsDeleted)

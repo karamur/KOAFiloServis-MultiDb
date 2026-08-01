@@ -1,15 +1,9 @@
 ﻿@page "/personel/puantaj-grid"
-@using MKFiloServis.Shared.Entities
-@using MKFiloServis.Web.Data
-@using MKFiloServis.Web.Services
-@using MKFiloServis.Web.Services.Calculation
-@using MKFiloServis.Web.Models
 @using Microsoft.EntityFrameworkCore
 @using System.Globalization
 @inject IDbContextFactory<ApplicationDbContext> DbFactory
 @inject IJSRuntime JS
 @inject MKFiloServis.Web.Services.Interfaces.IPuantajHakedisSyncService SyncService
-@inject MKFiloServis.Web.Services.AI.AnomalyDetectionService AIService
 @inject PuantajExcelService PuantajExcelSvc
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @rendermode InteractiveServer

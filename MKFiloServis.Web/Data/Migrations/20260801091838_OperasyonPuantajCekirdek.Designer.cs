@@ -3,6 +3,7 @@ using System;
 using MKFiloServis.Web.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MKFiloServis.Web.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260801091838_OperasyonPuantajCekirdek")]
+    partial class OperasyonPuantajCekirdek
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.9");
@@ -6785,6 +6788,9 @@ namespace MKFiloServis.Web.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("AracId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
@@ -6819,10 +6825,18 @@ namespace MKFiloServis.Web.Data.Migrations
                     b.Property<int>("Slot")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("SoforAd")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SoforTelefon")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AracId");
 
                     b.HasIndex("FirmaId");
 
@@ -17460,6 +17474,10 @@ namespace MKFiloServis.Web.Data.Migrations
 
             modelBuilder.Entity("MKFiloServis.Shared.Entities.GuzergahSefer", b =>
                 {
+                    b.HasOne("MKFiloServis.Shared.Entities.Arac", "Arac")
+                        .WithMany()
+                        .HasForeignKey("AracId");
+
                     b.HasOne("MKFiloServis.Shared.Entities.Firma", "Firma")
                         .WithMany()
                         .HasForeignKey("FirmaId")
@@ -17471,6 +17489,8 @@ namespace MKFiloServis.Web.Data.Migrations
                         .HasForeignKey("GuzergahId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Arac");
 
                     b.Navigation("Firma");
 

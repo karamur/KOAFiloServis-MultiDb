@@ -1,0 +1,202 @@
+﻿@page "/operasyon/plan"
+@rendermode InteractiveServer
+@using MKFiloServis.Shared.Entities
+@using MKFiloServis.Web.Services.Interfaces
+@inject IOperasyonPlanService PlanService
+@inject IGuzergahService GuzergahService
+@inject IAracService AracService
+@inject ISoforService SoforService
+@inject IToastService Toast
+
+<PageTitle>Operasyon Plan - Günlük Puantaj Planı</PageTitle>
+
+<div class="container-fluid">
+    <div class="d-flex align-items-center gap-3 mb-3">
+        <h4 class="mb-0">📋 Günlük Operasyon Planı</h4>
+        <input type="date" class="form-control" style="width:180px"
+               value="@SeciliTarih.ToString("yyyy-MM-dd")"
+               @onchange="TarihDegisti" />
+        <button class="btn btn-primary" @onclick="PlanUretAsync" disabled="@Yukleniyor">
+            Plan Üret
+        </button>
+        <button class="btn btn-success" @onclick="TeyitEtAsync"
+                disabled="@(Yukleniyor || !SecilenIdler.Any())">
+            Seçilenleri Teyit Et (@SecilenIdler.Count)
+        </button>
+    </div>
+
+    @if (TakvimGunu is not null)
+    {
+        <div class="alert alert-info py-1">
+            Gün tipi: @TakvimGunu.GunTipi — Çarpan: @TakvimGunu.PuantajCarpani
+        </div>
+    }
+
+    @if (Yukleniyor)
+    {
+        <div class="spinner-border"></div>
+    }
+    else if (Planlar.Count == 0)
+    {
+        <div class="alert alert-warning">Bu tarih için plan yok. "Plan Üret" ile oluşturabilirsiniz.</div>
+    }
+    else
+    {
+        <table class="table table-sm table-hover">
+            <thead>
+                <tr>
+                    <th style="width:36px">
+                        <input type="checkbox" checked="@TumuSecili" @onchange="TumunuSec" />
+                    </th>
+                    <th>Güzergah</th>
+                    <th>Araç</th>
+                    <th>Şoför</th>
+                    <th>Servis</th>
+                    <th class="text-end">Sefer</th>
+                    <th class="text-end">Çarpan</th>
+                    <th class="text-end">Kurum ₺</th>
+                    <th class="text-end">Taşeron ₺</th>
+                    <th>Durum</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in Planlar)
+                {
+                    <tr class="@(p.Durum == OperasyonPlanDurumu.TeyitEdildi ? "table-success" : "")">
+                        <td>
+                            @if (p.Durum == OperasyonPlanDurumu.Planlandi)
+                            {
+                                <input type="checkbox" checked="@SecilenIdler.Contains(p.Id)"
+                                       @onchange="e => SecimDegisti(p.Id, (bool)e.Value!)" />
+                            }
+                        </td>
+                        <td>@GetGuzergahAd(p.GuzergahId)</td>
+                        <td>@GetAracAd(p.AracId)</td>
+                        <td>@GetSoforAd(p.SoforId)</td>
+                        <td>@p.ServisTuru</td>
+                        <td class="text-end">@p.PlanlananSefer</td>
+                        <td class="text-end">@p.PuantajCarpani</td>
+                        <td class="text-end">@p.KurumSeferUcretiSnapshot.ToString("N2")</td>
+                        <td class="text-end">@p.TaseronSeferUcretiSnapshot.ToString("N2")</td>
+                        <td>@p.Durum</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private DateTime SeciliTarih = DateTime.Today;
+    private List<OperasyonPlanSatiri> Planlar = new();
+    private OperasyonTakvimGunu? TakvimGunu;
+    private HashSet<int> SecilenIdler = new();
+    private bool Yukleniyor;
+    private Dictionary<int, string> guzergahAdlari = new();
+    private Dictionary<int, string> aracAdlari = new();
+    private Dictionary<int, string> soforAdlari = new();
+    private bool TumuSecili =>
+        Planlar.Any(p => p.Durum == OperasyonPlanDurumu.Planlandi) &&
+        Planlar.Where(p => p.Durum == OperasyonPlanDurumu.Planlandi).All(p => SecilenIdler.Contains(p.Id));
+
+    protected override async Task OnInitializedAsync() => await YukleAsync();
+
+    private async Task TarihDegisti(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var t))
+        {
+            SeciliTarih = t;
+            await YukleAsync();
+        }
+    }
+
+    private async Task YukleAsync()
+    {
+        Yukleniyor = true;
+        SecilenIdler.Clear();
+        try
+        {
+            Planlar = await PlanService.GetPlanlarAsync(SeciliTarih);
+            TakvimGunu = await PlanService.GetTakvimGunuAsync(SeciliTarih);
+            await AdlariYukleAsync();
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Yükleme hatası: {ex.Message}");
+        }
+        finally { Yukleniyor = false; }
+    }
+
+    private async Task PlanUretAsync()
+    {
+        Yukleniyor = true;
+        try
+        {
+            var (olusan, atlanan) = await PlanService.PlanUretAsync(SeciliTarih);
+            if (olusan == 0 && atlanan == 0)
+                Toast.ShowWarning("Plan üretilmedi (tatil günü veya aktif eşleştirme yok).");
+            else
+                Toast.ShowSuccess($"{olusan} plan oluşturuldu, {atlanan} zaten mevcuttu.");
+            await YukleAsync();
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Plan üretim hatası: {ex.Message}");
+            Yukleniyor = false;
+        }
+    }
+
+    private async Task TeyitEtAsync()
+    {
+        Yukleniyor = true;
+        try
+        {
+            var adet = await PlanService.PlanTeyitEtAsync(SecilenIdler.ToList());
+            Toast.ShowSuccess($"{adet} plan teyit edilip günlük puantaja aktarıldı.");
+            await YukleAsync();
+        }
+        catch (Exception ex)
+        {
+            Toast.ShowError($"Teyit hatası: {ex.Message}");
+            Yukleniyor = false;
+        }
+    }
+
+    private void SecimDegisti(int id, bool secili)
+    {
+        if (secili) SecilenIdler.Add(id); else SecilenIdler.Remove(id);
+    }
+
+    private void TumunuSec(ChangeEventArgs e)
+    {
+        var secili = (bool)e.Value!;
+        SecilenIdler = secili
+            ? Planlar.Where(p => p.Durum == OperasyonPlanDurumu.Planlandi).Select(p => p.Id).ToHashSet()
+            : new();
+    }
+
+    private async Task AdlariYukleAsync()
+    {
+        if (Planlar.Count == 0)
+            return;
+
+        var guzergahIdler = Planlar.Select(p => p.GuzergahId).Distinct().ToHashSet();
+        var aracIdler = Planlar.Select(p => p.AracId).Distinct().ToHashSet();
+        var soforIdler = Planlar.Select(p => p.SoforId).Distinct().ToHashSet();
+
+        var guzergahlar = await GuzergahService.GetAllAsync();
+        var araclar = await AracService.GetAllAsync();
+        var soforler = await SoforService.GetAllAsync();
+
+        guzergahAdlari = guzergahlar.Where(g => guzergahIdler.Contains(g.Id))
+            .ToDictionary(g => g.Id, g => g.GuzergahAdi);
+        aracAdlari = araclar.Where(a => aracIdler.Contains(a.Id))
+            .ToDictionary(a => a.Id, a => !string.IsNullOrWhiteSpace(a.AktifPlaka) ? a.AktifPlaka : a.Plaka);
+        soforAdlari = soforler.Where(s => soforIdler.Contains(s.Id))
+            .ToDictionary(s => s.Id, s => s.TamAd);
+    }
+
+    private string GetGuzergahAd(int id) => guzergahAdlari.TryGetValue(id, out var ad) ? ad : $"#{id}";
+    private string GetAracAd(int id) => aracAdlari.TryGetValue(id, out var ad) ? ad : $"#{id}";
+    private string GetSoforAd(int id) => soforAdlari.TryGetValue(id, out var ad) ? ad : $"#{id}";
+}

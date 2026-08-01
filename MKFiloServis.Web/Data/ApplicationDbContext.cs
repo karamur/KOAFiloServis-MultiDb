@@ -1,4 +1,4 @@
-using MKFiloServis.Shared.Entities;
+﻿using MKFiloServis.Shared.Entities;
 using MKFiloServis.Web.Services;
 using MKFiloServis.Web.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -194,6 +194,12 @@ public class ApplicationDbContext : DbContext
     // Filo Komisyon ve Araç Operasyon Puantaj Modülü
     public DbSet<FiloGuzergahEslestirme> FiloGuzergahEslestirmeleri { get; set; }
     public DbSet<FiloGunlukPuantaj> FiloGunlukPuantajlar { get; set; }
+
+    // İzole Operasyonel Puantaj Çekirdeği
+    public DbSet<OperasyonKontrat> OperasyonKontratlar { get; set; }
+    public DbSet<OperasyonKontratFiyat> OperasyonKontratFiyatlar { get; set; }
+    public DbSet<OperasyonTakvimGunu> OperasyonTakvimGunleri { get; set; }
+    public DbSet<OperasyonPlanSatiri> OperasyonPlanSatirlari { get; set; }
 
     // Puantaj Kalıcı Eşleştirme Modülü (Firma+Araç+Şoför ve Firma+Güzergah)
     public DbSet<FirmaAracSoforEslestirme> FirmaAracSoforEslestirmeleri { get; set; }
@@ -2240,6 +2246,16 @@ public class ApplicationDbContext : DbContext
 
             entity.HasQueryFilter(e => !e.IsDeleted && (e.Arac == null || !e.Arac.IsDeleted));
         });
+
+        // İzole Operasyonel Puantaj Çekirdeği
+        modelBuilder.Entity<OperasyonPlanSatiri>()
+            .HasIndex(x => new { x.FirmaId, x.Tarih, x.FiloGuzergahEslestirmeId, x.IsDeleted });
+
+        modelBuilder.Entity<OperasyonTakvimGunu>()
+            .HasIndex(x => new { x.FirmaId, x.Tarih, x.IsDeleted });
+
+        modelBuilder.Entity<OperasyonKontratFiyat>()
+            .HasIndex(x => new { x.OperasyonKontratId, x.GuzergahId });
 
         // FirmaAracSoforEslestirme - Kurum+Araç+Şoför kalıcı eşleştirme
         modelBuilder.Entity<FirmaAracSoforEslestirme>(entity =>

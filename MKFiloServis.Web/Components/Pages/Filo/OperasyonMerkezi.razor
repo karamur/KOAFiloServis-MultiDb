@@ -25,6 +25,12 @@
                 <i class="bi bi-clipboard-check me-1 text-warning"></i>3. Operasyonel Hakediş
             </a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link @(aktifSekme == Sekme.Matris ? "active" : "")" href="javascript:void(0)"
+               @onclick="() => SekmeDegistir(Sekme.Matris)" @onclick:preventDefault>
+                <i class="bi bi-table me-1 text-primary"></i>4. Aylık Puantaj Tablosu
+            </a>
+        </li>
     </ul>
 
     @switch (aktifSekme)
@@ -38,11 +44,14 @@
         case Sekme.Hakedis:
             <OperasyonelHakedisPage />
             break;
+        case Sekme.Matris:
+            <OperasyonelPuantajMatris />
+            break;
     }
 </div>
 
 @code {
-    private enum Sekme { Eslestirme, Puantaj, Hakedis }
+    private enum Sekme { Eslestirme, Puantaj, Hakedis, Matris }
 
     private Sekme aktifSekme = Sekme.Eslestirme;
 

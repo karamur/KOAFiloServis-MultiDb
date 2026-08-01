@@ -574,55 +574,12 @@ public partial class PuantajExcelGrid
             }
             await context.SaveChangesAsync();
 
-            // 🔴 AI Anomaly check: anormal sefer/mesai pattern'i var mı?
-            int anomaliCount = 0;
-            foreach (var satir in satirlar)
-            {
-                var (isAnomaly, score, reason) = AIService.Predict(
-                    satir.ToplamSefer, satir.Hucreler.Sum(h => h.Mesai),
-                    satir.Hucreler.Sum(h => h.EkSefer), satir.BirimFiyat);
-                if (isAnomaly) anomaliCount++;
-            }
-            if (anomaliCount > 0)
-                _mesaj = $"AI uyarısı: {anomaliCount} satırda anormal pattern tespit edildi. Lütfen kontrol edin.";
-            // AI block etmez, sadece uyarır
-
-            // Faz 4: Grid → Hakedis (yeni model) senkronizasyonu
-            try
-            {
-                await SyncService.SyncFromGridAsync(_firmaId, _yil, _ay, satirlar);
-
-                // 🔴 Backend validation: Grid toplamı == HakedisDetay toplamı mı?
-                var gridToplam = satirlar.Sum(s => s.ToplamSefer);
-                var hakedisToplam = await context.HakedisDetaylari
-                    .Where(d => d.FirmaId == _firmaId
-                        && d.Hakedis != null
-                        && d.Hakedis.Yil == _yil
-                        && d.Hakedis.Ay == _ay
-                        && d.Hakedis.Tip == HakedisTipi.Kurum
-                        && !d.IsDeleted
-                        && !d.Hakedis.IsDeleted)
-                    .SumAsync(d => d.SeferSayisi);
-                if (gridToplam != hakedisToplam)
-                {
-                    _mesaj = $"UYARI: Grid toplamı ({gridToplam}) ≠ HakedisDetay toplamı ({hakedisToplam}). Lütfen denetim çalıştırın.";
-                    _mesajHata = true;
-                }
-            }
-            catch { /* Non-critical */ }
-
-            _degisiklikVar = false;
-            _undoStack.Clear();
-            _redoStack.Clear();
-            var changedCount = satirlar.Count(s => s.IsDirty);
-            var changedCells = satirlar.Sum(s => s.Hucreler.Count(h => h.IsDirty));
-            _mesaj = $"{changedCount} satır ({changedCells} hücre) kaydedildi.";
-            _mesajHata = false;
         }
         catch (Exception ex)
         {
             _mesaj = $"Kaydetme hatası: {ex.Message}";
             _mesajHata = true;
+            return;
         }
         finally
         {
@@ -630,7 +587,6 @@ public partial class PuantajExcelGrid
             StateHasChanged();
         }
     }
-
     // ── Engine Hesapla ─────────────────────────────────────────────
     private async Task EngineHesapla()
     {

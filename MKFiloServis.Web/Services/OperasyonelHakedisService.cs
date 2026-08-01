@@ -22,7 +22,9 @@ public class OperasyonelHakedisService : IOperasyonelHakedisService
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         var q = context.Hakedisler
-            .Include(h => h.Detaylar).ThenInclude(d => d.Guzergah)
+            .Include(h => h.Detaylar)
+                .ThenInclude(d => d.Guzergah)
+                .ThenInclude(g => g!.Kurum)
             .Include(h => h.Fatura)
             .AsQueryable();
 
@@ -44,7 +46,9 @@ public class OperasyonelHakedisService : IOperasyonelHakedisService
         return await context.Hakedisler
             .Include(h => h.Detaylar).ThenInclude(d => d.Arac)
             .Include(h => h.Detaylar).ThenInclude(d => d.Sofor)
-            .Include(h => h.Detaylar).ThenInclude(d => d.Guzergah)
+            .Include(h => h.Detaylar)
+                .ThenInclude(d => d.Guzergah)
+                .ThenInclude(g => g!.Kurum)
             .FirstOrDefaultAsync(h => h.Id == id);
     }
 
@@ -127,22 +131,23 @@ public class OperasyonelHakedisService : IOperasyonelHakedisService
 
         foreach (var p in puantajlar)
         {
+            var gelirBirim = p.Guzergah?.GelirFiyat ?? 0m;
+            var giderBirim = p.Guzergah?.GiderFiyat ?? 0m;
+
             decimal birim = tip switch
             {
-                HakedisTipi.Kurum => p.TahakkukEdenKurumUcreti > 0 && p.SeferSayisi > 0
-                                        ? Math.Round(p.TahakkukEdenKurumUcreti / p.SeferSayisi, 2)
-                                        : p.TahakkukEdenKurumUcreti,
-                HakedisTipi.Tedarikci => p.TahakkukEdenTaseronUcreti > 0 && p.SeferSayisi > 0
-                                        ? Math.Round(p.TahakkukEdenTaseronUcreti / p.SeferSayisi, 2)
-                                        : p.TahakkukEdenTaseronUcreti,
+                // Kurum/Tedarikçi hakedişinde birim fiyat doğrudan güzergah kartından alınır.
+                HakedisTipi.Kurum => gelirBirim,
+                HakedisTipi.Tedarikci => giderBirim,
                 HakedisTipi.Arac => p.MaliyetOzmalKiralik ?? 0m,
                 _ => 0m
             };
 
             decimal tutar = tip switch
             {
-                HakedisTipi.Kurum => p.TahakkukEdenKurumUcreti,
-                HakedisTipi.Tedarikci => p.TahakkukEdenTaseronUcreti,
+                // Tutar = Sefer × Güzergah Fiyatı (çarpanlı tahakkuk alanı değil)
+                HakedisTipi.Kurum => gelirBirim * p.SeferSayisi,
+                HakedisTipi.Tedarikci => giderBirim * p.SeferSayisi,
                 HakedisTipi.Arac => (p.MaliyetOzmalKiralik ?? 0m) * p.SeferSayisi,
                 _ => 0m
             };

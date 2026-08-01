@@ -67,7 +67,6 @@ public class FiloKomisyonService : IFiloKomisyonService
     public async Task<FiloGuzergahEslestirme> CreateEslestirmeAsync(FiloGuzergahEslestirme eslestirme)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        await UygulaSahiplikKurallariAsync(context, eslestirme);
         context.FiloGuzergahEslestirmeleri.Add(eslestirme);
         await context.SaveChangesAsync();
         return eslestirme;
@@ -76,24 +75,44 @@ public class FiloKomisyonService : IFiloKomisyonService
     public async Task<FiloGuzergahEslestirme> UpdateEslestirmeAsync(FiloGuzergahEslestirme eslestirme)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        await UygulaSahiplikKurallariAsync(context, eslestirme);
-        var existing = await context.FiloGuzergahEslestirmeleri.FindAsync(eslestirme.Id);
-        if (existing != null)
-        {
-            existing.KurumFirmaId = eslestirme.KurumFirmaId;
-            existing.GuzergahId = eslestirme.GuzergahId;
-            existing.AracId = eslestirme.AracId;
-            existing.SoforId = eslestirme.SoforId;
-            existing.KullaniciId = eslestirme.KullaniciId;
-            existing.ServisTuru = eslestirme.ServisTuru;
-            existing.KurumaKesilecekUcret = eslestirme.KurumaKesilecekUcret;
-            existing.TaseronaOdenenUcret = eslestirme.TaseronaOdenenUcret;
-            existing.IsActive = eslestirme.IsActive;
-            existing.UpdatedAt = DateTime.UtcNow;
 
-            await context.SaveChangesAsync();
+        // Garanti DB yazımı: doğrudan SQL UPDATE (tracking/audit akışını atlar).
+        // IgnoreQueryFilters: global filtre Arac/Firma join'i içerdiğinden SQLite UPDATE'te
+        // "no such column" hatasına yol açıyor; soft-delete kontrolü açıkça yapılıyor.
+        var etkilenen = await context.FiloGuzergahEslestirmeleri
+            .IgnoreQueryFilters()
+            .Where(e => e.Id == eslestirme.Id && !e.IsDeleted)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(e => e.KurumFirmaId, eslestirme.KurumFirmaId)
+                .SetProperty(e => e.GuzergahId, eslestirme.GuzergahId)
+                .SetProperty(e => e.AracId, eslestirme.AracId)
+                .SetProperty(e => e.SoforId, eslestirme.SoforId)
+                .SetProperty(e => e.KullaniciId, eslestirme.KullaniciId)
+                .SetProperty(e => e.ServisTuru, eslestirme.ServisTuru)
+                .SetProperty(e => e.KurumaKesilecekUcret, eslestirme.KurumaKesilecekUcret)
+                .SetProperty(e => e.TaseronaOdenenUcret, eslestirme.TaseronaOdenenUcret)
+                .SetProperty(e => e.IsActive, eslestirme.IsActive)
+                .SetProperty(e => e.UpdatedAt, DateTime.UtcNow));
+
+        if (etkilenen == 0)
+            throw new InvalidOperationException($"Eşleştirme (Id={eslestirme.Id}) veritabanında bulunamadı; güncelleme yapılamadı.");
+
+        // Doğrulama: yazılan değerleri geri oku
+        var guncel = await context.FiloGuzergahEslestirmeleri
+            .AsNoTracking()
+            .FirstOrDefaultAsync(e => e.Id == eslestirme.Id);
+
+        if (guncel == null ||
+            guncel.KurumaKesilecekUcret != eslestirme.KurumaKesilecekUcret ||
+            guncel.TaseronaOdenenUcret != eslestirme.TaseronaOdenenUcret ||
+            guncel.AracId != eslestirme.AracId ||
+            guncel.SoforId != eslestirme.SoforId ||
+            guncel.GuzergahId != eslestirme.GuzergahId)
+        {
+            throw new InvalidOperationException("Eşleştirme değişiklikleri veritabanına yazılamadı (doğrulama başarısız).");
         }
-        return existing ?? eslestirme;
+
+        return guncel;
     }
 
     public async Task<bool> DeleteEslestirmeAsync(int id)
@@ -275,6 +294,29 @@ public class FiloKomisyonService : IFiloKomisyonService
         }).ToList();
     }
 
+    public async Task<PuantajDonemOzetDto> GetPuantajDonemOzetiAsync(int firmaId, int yil, int ay)
+    {
+        var baslangic = new DateTime(yil, ay, 1);
+        var bitis = baslangic.AddMonths(1);
+
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        var query = context.FiloGunlukPuantajlar
+            .AsNoTracking()
+            .Where(p => p.FirmaId == firmaId && p.Tarih >= baslangic && p.Tarih < bitis && !p.IsDeleted);
+
+        return new PuantajDonemOzetDto
+        {
+            KayitSayisi = await query.CountAsync(),
+            ToplamSefer = await query.SumAsync(p => p.SeferSayisi),
+            // Gelir/Gider güzergah kartındaki güncel fiyattan hesaplanır (Sefer × Fiyat).
+            // Eski kayıtlarda kalan çarpanlı tahakkuk değerleri mutabakatı bozmasın diye
+            // TahakkukEden* alanları yerine güzergah fiyatı kullanılır.
+            ToplamGelir = await query.SumAsync(p => p.SeferSayisi * (p.Guzergah != null ? p.Guzergah.BirimFiyat : 0m)),
+            ToplamGider = await query.SumAsync(p => p.SeferSayisi * (p.Guzergah != null ? p.Guzergah.GiderFiyat : 0m))
+        };
+    }
+
     public async Task<List<FiloGunlukPuantaj>> GetPuantajlarByTarihAraligiAsync(int? firmaId, DateTime baslangic, DateTime bitis, int? kurumId = null, int? aracId = null)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
@@ -320,18 +362,24 @@ public class FiloKomisyonService : IFiloKomisyonService
     public async Task<FiloGunlukPuantaj> UpdateGunlukPuantajAsync(FiloGunlukPuantaj puantaj)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        var existing = await context.FiloGunlukPuantajlar.FindAsync(puantaj.Id);
-        if(existing != null)
-        {
-            await MapAndApplyRulesAsync(context, existing, puantaj);
-            // ChangeTracker'ı manuel set et
-            context.Entry(existing).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+        var existing = await context.FiloGunlukPuantajlar
+            .FirstOrDefaultAsync(p => p.Id == puantaj.Id && !p.IsDeleted);
 
-            Console.WriteLine($"UpdateGunlukPuantajAsync: {existing.Id} kayıt güncellenecek");
-            var etkilenen = await context.SaveChangesAsync();
-            Console.WriteLine($"UpdateGunlukPuantajAsync: SaveChangesAsync {etkilenen} satır etkiledi.");
-        }
-        return existing ?? puantaj;
+        if (existing == null)
+            throw new InvalidOperationException($"Puantaj kaydı bulunamadı (Id={puantaj.Id}). Sayfayı yenileyip tekrar deneyin.");
+
+        await MapAndApplyRulesAsync(context, existing, puantaj);
+        // ChangeTracker'ı manuel set et
+        context.Entry(existing).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+
+        Console.WriteLine($"UpdateGunlukPuantajAsync: {existing.Id} kayıt güncellenecek, SeferSayisi={existing.SeferSayisi}");
+        var etkilenen = await context.SaveChangesAsync();
+        Console.WriteLine($"UpdateGunlukPuantajAsync: SaveChangesAsync {etkilenen} satır etkiledi.");
+
+        if (etkilenen == 0)
+            throw new InvalidOperationException("Puantaj güncellemesi veritabanına yazılamadı.");
+
+        return existing;
     }
 
     public async Task UpdateGunlukPuantajlarAsync(List<FiloGunlukPuantaj> puantajlar)
@@ -381,6 +429,32 @@ public class FiloKomisyonService : IFiloKomisyonService
             Console.WriteLine($"UpdateGunlukPuantajlarAsync hatası: {ex.Message}");
             throw;
         }
+    }
+
+    /// <summary>
+    /// Dönemdeki tüm puantaj kayıtlarının tahakkuk tutarlarını güncel kurallara göre yeniden hesaplar.
+    /// Eski çarpanlı (2x) tahakkuk değerlerini temizlemek için kullanılır.
+    /// </summary>
+    public async Task<int> TahakkuklariYenidenHesaplaAsync(int firmaId, int yil, int ay)
+    {
+        var baslangic = new DateTime(yil, ay, 1);
+        var bitis = baslangic.AddMonths(1);
+
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var kayitlar = await context.FiloGunlukPuantajlar
+            .Where(p => p.FirmaId == firmaId && p.Tarih >= baslangic && p.Tarih < bitis && !p.IsDeleted)
+            .ToListAsync();
+
+        foreach (var p in kayitlar)
+        {
+            await UygulaPuantajKurallariAsync(context, p);
+            p.UpdatedAt = DateTime.UtcNow;
+            context.Entry(p).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+        }
+
+        var etkilenen = await context.SaveChangesAsync();
+        Console.WriteLine($"TahakkuklariYenidenHesaplaAsync: {etkilenen} satır güncellendi ({yil}/{ay}).");
+        return kayitlar.Count;
     }
 
     public async Task<int> DeleteGunlukPuantajlarAsync(List<int> puantajIds)
@@ -548,26 +622,12 @@ public class FiloKomisyonService : IFiloKomisyonService
         existing.UpdatedAt = DateTime.UtcNow;
     }
 
-    private async Task UygulaSahiplikKurallariAsync(ApplicationDbContext context, FiloGuzergahEslestirme eslestirme)
-    {
-        var arac = await context.Araclar
-            .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.Id == eslestirme.AracId);
-
-        if (arac == null)
-            return;
-
-        if (arac.SahiplikTipi is AracSahiplikTipi.Ozmal or AracSahiplikTipi.Kiralik)
-        {
-            eslestirme.TaseronaOdenenUcret = 0;
-        }
-    }
-
     private async Task UygulaPuantajKurallariAsync(ApplicationDbContext context, FiloGunlukPuantaj puantaj, FiloGuzergahEslestirme? eslestirme = null)
     {
         eslestirme ??= puantaj.FiloGuzergahEslestirmeId.HasValue
             ? await context.FiloGuzergahEslestirmeleri
                 .Include(e => e.Arac)
+                .Include(e => e.Guzergah)
                 .FirstOrDefaultAsync(e => e.Id == puantaj.FiloGuzergahEslestirmeId.Value && !e.IsDeleted)
             : null;
 
@@ -585,13 +645,25 @@ public class FiloKomisyonService : IFiloKomisyonService
         var seferSayisi = puantaj.SeferSayisi < 0 ? 0 : puantaj.SeferSayisi;
         var servisCarpani = GetServisTuruCarpani(puantaj.ServisTuru);
 
+        // Öncelik: güzergah üzerinde güncel gelir/gider fiyatı. Yoksa eşleştirme fiyatına geri düş.
+        var gelirBirim = eslestirme.Guzergah?.GelirFiyat > 0
+            ? eslestirme.Guzergah.GelirFiyat
+            : eslestirme.KurumaKesilecekUcret;
+
+        var giderBirim = eslestirme.Guzergah?.GiderFiyat > 0
+            ? eslestirme.Guzergah.GiderFiyat
+            : eslestirme.TaseronaOdenenUcret;
+
+        if (gelirBirim < 0) gelirBirim = 0;
+        if (giderBirim < 0) giderBirim = 0;
+
         puantaj.TahakkukEdenKurumUcreti = Math.Round(
-            eslestirme.KurumaKesilecekUcret * seferSayisi * puantajCarpani * servisCarpani,
+            gelirBirim * seferSayisi * puantajCarpani * servisCarpani,
             2,
             MidpointRounding.AwayFromZero);
 
         puantaj.TahakkukEdenTaseronUcreti = eslestirme.Arac.SahiplikTipi is AracSahiplikTipi.Komisyon or AracSahiplikTipi.Tedarikci
-            ? Math.Round(eslestirme.TaseronaOdenenUcret * seferSayisi * puantajCarpani * servisCarpani, 2, MidpointRounding.AwayFromZero)
+            ? Math.Round(giderBirim * seferSayisi * puantajCarpani * servisCarpani, 2, MidpointRounding.AwayFromZero)
             : 0;
 
         // Özmal / Kiralık araçlarda, ilgili dönem snapshot varsa sefer başı maliyeti puantaja yansıt.
@@ -615,15 +687,9 @@ public class FiloKomisyonService : IFiloKomisyonService
 
     private static decimal GetServisTuruCarpani(ServisTuru servisTuru)
     {
-        return servisTuru switch
-        {
-            ServisTuru.Sabah => 1m,
-            ServisTuru.Aksam => 1m,
-            ServisTuru.SabahAksam => 2m,
-            ServisTuru.Ozel => 1.25m,
-            ServisTuru.YardaMesai => 1.5m,
-            _ => 1m
-        };
+        // Tutar = Sefer × Güzergah Fiyatı olmalı; servis türü kaynaklı ek çarpan uygulanmaz.
+        // (SabahAksam için 2x çarpan, tutarların 2 kat fazla çıkmasına neden oluyordu.)
+        return 1m;
     }
 
     private static string GetAracSahibiAd(Arac? arac)

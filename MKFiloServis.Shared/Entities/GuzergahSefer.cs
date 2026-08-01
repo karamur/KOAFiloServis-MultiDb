@@ -1,4 +1,4 @@
-namespace MKFiloServis.Shared.Entities;
+﻿namespace MKFiloServis.Shared.Entities;
 
 /// <summary>
 /// Bir güzergaha bağlı sefer detay satırı.
@@ -27,11 +27,6 @@ public class GuzergahSefer : BaseEntity, IFirmaTenant
     /// <summary>Kapasite tablosundan gelen ad ("16+1" gibi)</summary>
     public string? KapasiteAdi { get; set; }
 
-    public int? AracId { get; set; }
-    public virtual Arac? Arac { get; set; }
-
-    public string? SoforAd { get; set; }
-    public string? SoforTelefon { get; set; }
 
     /// <summary>
     /// Tedarikçi/firma adı (serbest metin). Eskiden <c>Firma</c> olarak adlandırılıyordu;

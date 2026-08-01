@@ -1,4 +1,4 @@
-using MKFiloServis.Shared.Entities;
+﻿using MKFiloServis.Shared.Entities;
 using MKFiloServis.Web.Data;
 using Microsoft.EntityFrameworkCore;
 using MKFiloServis.Web.Services.Interfaces;
@@ -106,7 +106,6 @@ public class GuzergahSeferService : IGuzergahSeferService
         {
             GuzergahId = guzergahId, FirmaId = parentFirmaId, Sira = sira++,
             Slot = s.Slot, SeferTipi = s.SeferTipi, KapasiteAdi = s.KapasiteAdi,
-            AracId = s.AracId, SoforAd = s.SoforAd, SoforTelefon = s.SoforTelefon,
             FirmaAdiSerbest = s.FirmaAdiSerbest,
             IsDeleted = false, CreatedAt = now, UpdatedAt = now
         }).ToList();
