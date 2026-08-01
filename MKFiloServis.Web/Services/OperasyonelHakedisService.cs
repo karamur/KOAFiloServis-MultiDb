@@ -22,7 +22,7 @@ public class OperasyonelHakedisService : IOperasyonelHakedisService
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         var q = context.Hakedisler
-            .Include(h => h.Detaylar)
+            .Include(h => h.Detaylar).ThenInclude(d => d.Guzergah)
             .Include(h => h.Fatura)
             .AsQueryable();
 

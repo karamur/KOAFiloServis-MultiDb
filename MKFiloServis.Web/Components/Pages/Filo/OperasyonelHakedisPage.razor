@@ -149,6 +149,7 @@
                                 <th>#</th>
                                 <th>Tip</th>
                                 <th>Referans</th>
+                                <th>Güzergah</th>
                                 <th class="text-end">Toplam Sefer</th>
                                 <th class="text-end">Tutar</th>
                                 <th class="text-end">KDV</th>
@@ -160,7 +161,7 @@
                         <tbody>
                             @if (!hakedisler.Any())
                             {
-                                <tr><td colspan="10" class="text-center text-muted p-4">Kayıt bulunamadı</td></tr>
+                                <tr><td colspan="11" class="text-center text-muted p-4">Kayıt bulunamadı</td></tr>
                             }
                             else
                             {
@@ -168,7 +169,7 @@
                                 {
                                     var isExpanded = expandedGroups.ContainsKey(group.Key) && expandedGroups[group.Key];
                                     <tr style="background-color: #f8f9fa; cursor: pointer;" @onclick="() => ToggleGroup(group.Key)">
-                                        <td colspan="10">
+                                        <td colspan="11">
                                             <div class="d-flex align-items-center gap-2">
                                                 <i class="bi @(isExpanded ? "bi-chevron-down" : "bi-chevron-right")"></i>
                                                 <strong>@group.Key</strong>
@@ -191,6 +192,7 @@
                                                 <td>@h.Id</td>
                                                 <td><span class="badge @GetTipBadge(h.Tip)">@GetTipText(h.Tip)</span></td>
                                                 <td title="@GetCariTooltip(h)">@GetReferansAd(h)</td>
+                                                <td class="small" title="@GetGuzergahOzet(h)">@GetGuzergahOzet(h, kisalt: true)</td>
                                                 <td class="text-end">@h.ToplamSeferSayisi.ToString("N2")</td>
                                                 <td class="text-end">@h.Tutar.ToString("N2")</td>
                                                 <td class="text-end">@h.KdvTutar.ToString("N2")</td>
@@ -708,6 +710,24 @@
             return GetReferansAd(h);
 
         return $"Cari: {cari.Unvan} | VergiNo: {cari.VergiNo ?? "-"} | Telefon: {cari.Telefon ?? "-"} | İl/İlçe: {cari.Il ?? "-"}/{cari.Ilce ?? "-"}";
+    }
+
+    private static string GetGuzergahOzet(Hakedis h, bool kisalt = false)
+    {
+        var guzergahlar = h.Detaylar
+            .Where(d => d.Guzergah != null)
+            .Select(d => d.Guzergah!.GuzergahAdi)
+            .Where(ad => !string.IsNullOrWhiteSpace(ad))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(ad => ad)
+            .ToList();
+
+        if (!guzergahlar.Any()) return "-";
+
+        if (kisalt && guzergahlar.Count > 2)
+            return $"{guzergahlar[0]}, {guzergahlar[1]} (+{guzergahlar.Count - 2})";
+
+        return string.Join(", ", guzergahlar);
     }
 
     private static string GetTipText(HakedisTipi tip) => tip switch
