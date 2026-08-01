@@ -36,6 +36,33 @@
         <div class="alert alert-success">@bilgiMesaji</div>
     }
 
+    @if (!isBusy && aktifEslestirmeSayisi == 0)
+    {
+        <div class="alert alert-warning d-flex align-items-center gap-2">
+            <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+            <div>
+                <strong>Aktif eşleştirme bulunamadı.</strong> Puantaj üretebilmek için önce araç, şoför ve güzergah eşleştirmesi tanımlamalısınız.
+                <a href="/filo/komisyon-eslestirme" class="alert-link">Eşleştirme Havuzu'na git →</a>
+            </div>
+        </div>
+    }
+
+    <div class="alert alert-light border small mb-3">
+        <a class="text-decoration-none" href="javascript:void(0)" @onclick="() => yardimAcik = !yardimAcik" @onclick:preventDefault>
+            <i class="bi @(yardimAcik ? "bi-chevron-down" : "bi-chevron-right") me-1"></i>
+            <i class="bi bi-question-circle me-1"></i><strong>Puantaj nasıl yapılır?</strong>
+        </a>
+        @if (yardimAcik)
+        {
+            <ol class="mb-0 mt-2">
+                <li><strong>Eşleştirme:</strong> <a href="/filo/komisyon-eslestirme">Eşleştirme Havuzu</a>'nda kurum + güzergah + araç + şoför eşleşmesini tanımlayın (Aktif olmalı).</li>
+                <li><strong>Satır üretme:</strong> Tarihi seçip <em>"Bugün için satırları oluştur"</em> deyin — aktif eşleştirmelerden ayın tüm günleri için otomatik satır üretilir (hafta içi: Gitti, hafta sonu: Gitmedi-Mazeretli).</li>
+                <li><strong>Düzeltme:</strong> Sadece istisnaları düzeltin (gitmedi, yarım gün, ek sefer). Tutarlar servis kurallarına göre otomatik hesaplanır.</li>
+                <li><strong>Hakediş:</strong> Ay sonunda <a href="/operasyonel-hakedis">Operasyonel Hakediş</a> sayfasından <em>"Toplu Hakediş Üret"</em> ile faturalamaya geçin.</li>
+            </ol>
+        }
+    </div>
+
     <div class="card shadow-sm mb-3">
         <div class="card-body">
             <div class="row g-2 align-items-end">
@@ -276,6 +303,7 @@
     private string? hataMesaji;
     private string? bilgiMesaji;
     private int aktifEslestirmeSayisi;
+    private bool yardimAcik;
     private decimal? topluSeferSayisi;
     private readonly HashSet<int> seciliPuantajIds = new();
     private List<FiloGunlukPuantaj> gunlukPuantajlar = new();
