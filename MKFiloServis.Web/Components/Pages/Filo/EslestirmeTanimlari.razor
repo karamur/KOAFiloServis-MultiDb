@@ -45,13 +45,7 @@
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small mb-1">Güzergah</label>
-                    <select class="form-select form-select-sm" @bind="filtreGuzergahId">
-                        <option value="0">Tümü</option>
-                        @foreach (var g in guzergahListesi.OrderBy(x => x.GuzergahAdi))
-                        {
-                            <option value="@g.Id">@g.GuzergahAdi</option>
-                        }
-                    </select>
+                    <input type="text" class="form-control form-control-sm" placeholder="Güzergah adında ara..." @bind="filtreGuzergahAd" @bind:event="oninput" />
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small mb-1">Araç</label>
@@ -79,6 +73,26 @@
                         <option value="">Tümü</option>
                         <option value="Aktif">Aktif</option>
                         <option value="Pasif">Pasif</option>
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label small mb-1">Ay</label>
+                    <select class="form-select form-select-sm" @bind="filtreAy">
+                        <option value="0">Tümü</option>
+                        @for (var ay = 1; ay <= 12; ay++)
+                        {
+                            <option value="@ay">@(new DateTime(2000, ay, 1).ToString("MMMM", new System.Globalization.CultureInfo("tr-TR")))</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label small mb-1">Yıl</label>
+                    <select class="form-select form-select-sm" @bind="filtreYil">
+                        <option value="0">Tümü</option>
+                        @for (var yil = DateTime.Today.Year + 1; yil >= DateTime.Today.Year - 3; yil--)
+                        {
+                            <option value="@yil">@yil</option>
+                        }
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -171,7 +185,7 @@
                                                     </button>
                                                 </div>
 
-                                                @foreach (var aylik in BuildAylikGrid(olusanPuantajlar))
+                                                @foreach (var aylik in BuildAylikGrid(DonemFiltresiUygula(olusanPuantajlar)))
                                                 {
                                                     <div class="small fw-semibold text-primary mb-1">@aylik.AyEtiket</div>
                                                     <div class="table-responsive mb-2">
@@ -528,11 +542,13 @@
 
     // Filtreler
     private int filtreKurumId;
-    private int filtreGuzergahId;
+    private string filtreGuzergahAd = string.Empty;
     private int filtreAracId;
     private int filtreSoforId;
     private string filtreDurum = string.Empty;
     private string filtreArama = string.Empty;
+    private int filtreAy;
+    private int filtreYil;
 
     private IEnumerable<FiloGuzergahEslestirme> FiltreliEslestirmeler
     {
@@ -542,8 +558,13 @@
 
             if (filtreKurumId > 0)
                 sorgu = sorgu.Where(e => e.KurumFirmaId == filtreKurumId);
-            if (filtreGuzergahId > 0)
-                sorgu = sorgu.Where(e => e.GuzergahId == filtreGuzergahId);
+            if (!string.IsNullOrWhiteSpace(filtreGuzergahAd))
+            {
+                var guzergahArama = filtreGuzergahAd.Trim();
+                sorgu = sorgu.Where(e =>
+                    (e.Guzergah?.GuzergahAdi?.Contains(guzergahArama, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (e.Guzergah?.GuzergahKodu?.Contains(guzergahArama, StringComparison.OrdinalIgnoreCase) ?? false));
+            }
             if (filtreAracId > 0)
                 sorgu = sorgu.Where(e => e.AracId == filtreAracId);
             if (filtreSoforId > 0)
@@ -563,18 +584,40 @@
                     (e.Sofor?.TamAd?.Contains(arama, StringComparison.OrdinalIgnoreCase) ?? false));
             }
 
+            // Dönem (Ay/Yıl) filtresi: seçili dönemde puantajı olan eşleştirmeleri göster
+            if (filtreAy > 0 || filtreYil > 0)
+            {
+                sorgu = sorgu.Where(e =>
+                    olusanPuantajlarByEslestirme.TryGetValue(e.Id, out var puantajlar) &&
+                    puantajlar.Any(p =>
+                        (filtreAy == 0 || p.Tarih.Month == filtreAy) &&
+                        (filtreYil == 0 || p.Tarih.Year == filtreYil)));
+            }
+
             return sorgu;
         }
+    }
+
+    private List<FiloGunlukPuantaj> DonemFiltresiUygula(List<FiloGunlukPuantaj> puantajlar)
+    {
+        if (filtreAy == 0 && filtreYil == 0) return puantajlar;
+        return puantajlar
+            .Where(p =>
+                (filtreAy == 0 || p.Tarih.Month == filtreAy) &&
+                (filtreYil == 0 || p.Tarih.Year == filtreYil))
+            .ToList();
     }
 
     private void FiltreleriTemizle()
     {
         filtreKurumId = 0;
-        filtreGuzergahId = 0;
+        filtreGuzergahAd = string.Empty;
         filtreAracId = 0;
         filtreSoforId = 0;
         filtreDurum = string.Empty;
         filtreArama = string.Empty;
+        filtreAy = 0;
+        filtreYil = 0;
     }
 
     // Lookups
