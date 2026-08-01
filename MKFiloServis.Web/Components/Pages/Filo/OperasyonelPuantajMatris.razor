@@ -7,6 +7,7 @@
 @using MKFiloServis.Web.Models
 @inject IFiloKomisyonService FiloKomisyonService
 @inject IAktifFirmaProvider AktifFirmaProvider
+@inject IJSRuntime JS
 @rendermode InteractiveServer
 
 <PageTitle>Aylık Puantaj Tablosu</PageTitle>
@@ -14,9 +15,14 @@
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h3><i class="bi bi-table me-2"></i>Aylık Puantaj Tablosu (@AyAdi @seciliYil)</h3>
-        <button class="btn btn-outline-secondary" @onclick="YukleAsync" disabled="@isBusy">
-            <i class="bi bi-arrow-clockwise me-1"></i>Yenile
-        </button>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-success" @onclick="ExceleAktarAsync" disabled="@(isBusy || !FiltreliSatirlar.Any())">
+                <i class="bi bi-file-earmark-excel me-1"></i>Excel'e Aktar
+            </button>
+            <button class="btn btn-outline-secondary" @onclick="YukleAsync" disabled="@isBusy">
+                <i class="bi bi-arrow-clockwise me-1"></i>Yenile
+            </button>
+        </div>
     </div>
 
     @if (!string.IsNullOrWhiteSpace(hataMesaji))
@@ -140,14 +146,14 @@
                                     sira++;
                                     <tr>
                                         <td class="text-center">@sira</td>
-                                        <td class="fw-semibold">@satir.Kurum</td>
+                                        <td class="fw-semibold"><a href="javascript:void(0)" class="text-decoration-none text-dark" @onclick="() => KurumDetayAc(satir)">@satir.Kurum</a></td>
                                         <td>@satir.Guzergah</td>
                                         <td class="text-end">@(satir.Gelir > 0 ? satir.Gelir.ToString("N2") : "")</td>
                                         <td class="text-end">@(satir.Gider > 0 ? satir.Gider.ToString("N2") : "")</td>
                                         <td class="text-center fw-semibold @(satir.Yon == "S" ? "table-warning" : satir.Yon == "A" ? "table-warning" : "")">@satir.Yon</td>
-                                        <td>@satir.Plaka</td>
-                                        <td>@satir.Sofor</td>
-                                        <td class="text-danger">@satir.FaturaFirma</td>
+                                        <td><a href="javascript:void(0)" class="text-decoration-none" @onclick="() => AracDetayAc(satir)">@satir.Plaka</a></td>
+                                        <td><a href="javascript:void(0)" class="text-decoration-none" @onclick="() => SoforDetayAc(satir)">@satir.Sofor</a></td>
+                                        <td><a href="javascript:void(0)" class="text-danger text-decoration-none" @onclick="() => FaturaFirmaDetayAc(satir)">@satir.FaturaFirma</a></td>
                                         @for (var g = 1; g <= AyGunSayisi; g++)
                                         {
                                             var tarih = new DateTime(seciliYil, seciliAy, g);
@@ -193,6 +199,43 @@
         </div>
         <div class="small text-muted mt-2">
             Toplam satır: <strong>@matrisSatirlari.Count</strong> | Filtreli: <strong>@FiltreliSatirlar.Count</strong>
+        </div>
+    }
+
+    @if (detayModalAcik)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.4);" @onclick="DetayKapat">
+            <div class="modal-dialog modal-dialog-centered" @onclick:stopPropagation="true">
+                <div class="modal-content">
+                    <div class="modal-header py-2">
+                        <h6 class="modal-title"><i class="bi @detayIkon me-2"></i>@detayBaslik</h6>
+                        <button type="button" class="btn-close" @onclick="DetayKapat"></button>
+                    </div>
+                    <div class="modal-body py-2">
+                        @if (!detaySatirlari.Any())
+                        {
+                            <p class="text-muted mb-0">Detay bilgisi bulunamadı.</p>
+                        }
+                        else
+                        {
+                            <table class="table table-sm table-striped mb-0" style="font-size:.85rem;">
+                                <tbody>
+                                    @foreach (var (etiket, deger) in detaySatirlari)
+                                    {
+                                        <tr>
+                                            <th style="width:40%; white-space:nowrap;">@etiket</th>
+                                            <td>@deger</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                    </div>
+                    <div class="modal-footer py-1">
+                        <button class="btn btn-sm btn-secondary" @onclick="DetayKapat">Kapat</button>
+                    </div>
+                </div>
+            </div>
         </div>
     }
 </div>
@@ -274,6 +317,10 @@
                         Plaka = ilk.Puantaj.Arac?.AktifPlaka ?? "-",
                         Sofor = $"{ilk.Puantaj.Sofor?.Ad} {ilk.Puantaj.Sofor?.Soyad}".Trim(),
                         FaturaFirma = ilk.AracSahibiAd,
+                        AracRef = ilk.Puantaj.Arac,
+                        SoforRef = ilk.Puantaj.Sofor,
+                        MusteriCariRef = ilk.Puantaj.MusteriCari,
+                        AracSahibiTip = ilk.AracSahibiTip,
                         GunlukSeferler = gunluk,
                         GunSayisi = gunluk.Count(x => x.Value > 0),
                         SeferSayisi = seferSayisi,
@@ -351,6 +398,237 @@
         filtreFaturaFirma = string.Empty;
     }
 
+    private async Task ExceleAktarAsync()
+    {
+        try
+        {
+            var filtreli = FiltreliSatirlar;
+            if (!filtreli.Any()) return;
+
+            using var workbook = new ClosedXML.Excel.XLWorkbook();
+            var ws = workbook.Worksheets.Add("Aylık Puantaj");
+
+            var gunSayisi = AyGunSayisi;
+            var sabitBasliklar = new[] { "S.NO", "KURUM", "GÜZERGAH", "GELİR", "GİDER", "YÖN", "PLAKA", "tedarikçi/personel ŞOFÖR", "tedarikçi/firma FATURA" };
+            var sonBasliklar = new[] { "GÜN", "SEFER", "TOPLAM GELİR", "TOPLAM GİDER", "KDV/20", "KDV/10", "KESİNTİ", "ÖDENECEK" };
+
+            var kolon = 1;
+            foreach (var b in sabitBasliklar)
+                ws.Cell(1, kolon++).Value = b;
+            for (var g = 1; g <= gunSayisi; g++)
+                ws.Cell(1, kolon++).Value = g;
+            foreach (var b in sonBasliklar)
+                ws.Cell(1, kolon++).Value = b;
+
+            var sonKolon = kolon - 1;
+            var baslikAralik = ws.Range(1, 1, 1, sonKolon);
+            baslikAralik.Style.Font.Bold = true;
+            baslikAralik.Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightGray;
+
+            // Hafta sonu gün başlıklarını gölgele
+            for (var g = 1; g <= gunSayisi; g++)
+            {
+                var tarih = new DateTime(seciliYil, seciliAy, g);
+                if (tarih.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+                    ws.Column(sabitBasliklar.Length + g).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.FromArgb(0xEE, 0xEE, 0xEE);
+            }
+            baslikAralik.Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightGray;
+
+            var satirNo = 2;
+            var sira = 0;
+            foreach (var satir in filtreli)
+            {
+                sira++;
+                var c = 1;
+                ws.Cell(satirNo, c++).Value = sira;
+                ws.Cell(satirNo, c++).Value = satir.Kurum;
+                ws.Cell(satirNo, c++).Value = satir.Guzergah;
+                if (satir.Gelir > 0) ws.Cell(satirNo, 4).Value = satir.Gelir;
+                c++;
+                if (satir.Gider > 0) ws.Cell(satirNo, 5).Value = satir.Gider;
+                c++;
+                ws.Cell(satirNo, c++).Value = satir.Yon;
+                ws.Cell(satirNo, c++).Value = satir.Plaka;
+                ws.Cell(satirNo, c++).Value = satir.Sofor;
+                var faturaHucre = ws.Cell(satirNo, c++);
+                faturaHucre.Value = satir.FaturaFirma;
+                faturaHucre.Style.Font.FontColor = ClosedXML.Excel.XLColor.Red;
+
+                for (var g = 1; g <= gunSayisi; g++)
+                {
+                    var deger = satir.GunlukSeferler.TryGetValue(g, out var v) ? v : 0m;
+                    if (deger > 0)
+                        ws.Cell(satirNo, c).Value = deger;
+                    c++;
+                }
+
+                ws.Cell(satirNo, c++).Value = satir.GunSayisi;
+                ws.Cell(satirNo, c++).Value = satir.SeferSayisi;
+                ws.Cell(satirNo, c++).Value = satir.ToplamGelir;
+                ws.Cell(satirNo, c++).Value = satir.ToplamGider;
+                ws.Cell(satirNo, c++).Value = satir.Kdv20;
+                ws.Cell(satirNo, c++).Value = satir.Kdv10;
+                if (satir.Kesinti != 0) ws.Cell(satirNo, c).Value = satir.Kesinti;
+                c++;
+                ws.Cell(satirNo, c).Value = satir.Odenecek;
+                satirNo++;
+            }
+
+            // TOPLAM satırı
+            ws.Cell(satirNo, 3).Value = "TOPLAM";
+            ws.Cell(satirNo, 3).Style.Alignment.Horizontal = ClosedXML.Excel.XLAlignmentHorizontalValues.Right;
+            var toplamKolonlar = new List<int> { 4, 5 };
+            for (var g = 1; g <= gunSayisi; g++)
+                toplamKolonlar.Add(sabitBasliklar.Length + g);
+            var sonBaslangic = sabitBasliklar.Length + gunSayisi;
+            for (var i = 1; i <= sonBasliklar.Length; i++)
+                toplamKolonlar.Add(sonBaslangic + i);
+
+            foreach (var col in toplamKolonlar)
+            {
+                var hucre = ws.Cell(satirNo, col);
+                hucre.FormulaA1 = $"SUM({ws.Cell(2, col).Address}:{ws.Cell(satirNo - 1, col).Address})";
+            }
+            ws.Range(satirNo, 1, satirNo, sonKolon).Style.Font.Bold = true;
+            ws.Range(satirNo, 1, satirNo, sonKolon).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.FromArgb(0xF8, 0xF9, 0xFA);
+
+            // Sayı formatları
+            ws.Range(2, 4, satirNo, 5).Style.NumberFormat.Format = "#,##0.00";
+            ws.Range(2, sonBaslangic + 3, satirNo, sonKolon).Style.NumberFormat.Format = "#,##0.00";
+
+            ws.Columns().AdjustToContents();
+            ws.SheetView.FreezeRows(1);
+            ws.SheetView.FreezeColumns(sabitBasliklar.Length);
+
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            var dosyaAdi = $"AylikPuantajTablosu_{seciliYil}-{seciliAy:D2}.xlsx";
+            var base64 = Convert.ToBase64String(stream.ToArray());
+            await JS.InvokeVoidAsync("downloadFile", dosyaAdi, base64, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        }
+        catch (Exception ex)
+        {
+            hataMesaji = $"Excel oluşturulurken hata: {ex.Message}";
+        }
+    }
+
+    private bool detayModalAcik;
+    private string detayBaslik = string.Empty;
+    private string detayIkon = "bi-info-circle";
+    private List<(string Etiket, string Deger)> detaySatirlari = new();
+
+    private void DetayKapat() => detayModalAcik = false;
+
+    private void KurumDetayAc(MatrisSatir satir)
+    {
+        var c = satir.MusteriCariRef;
+        detayBaslik = $"Kurum Detayı – {satir.Kurum}";
+        detayIkon = "bi-building";
+        detaySatirlari = new();
+        if (c != null)
+        {
+            detaySatirlari.Add(("Ünvan", c.Unvan));
+            if (!string.IsNullOrWhiteSpace(c.CariKodu)) detaySatirlari.Add(("Cari Kodu", c.CariKodu));
+            detaySatirlari.Add(("Cari Tipi", c.CariTipi.ToString()));
+            if (!string.IsNullOrWhiteSpace(c.VergiDairesi)) detaySatirlari.Add(("Vergi Dairesi", c.VergiDairesi));
+            if (!string.IsNullOrWhiteSpace(c.VergiNo)) detaySatirlari.Add(("Vergi No", c.VergiNo));
+            if (!string.IsNullOrWhiteSpace(c.Telefon)) detaySatirlari.Add(("Telefon", c.Telefon));
+            if (!string.IsNullOrWhiteSpace(c.Email)) detaySatirlari.Add(("E-posta", c.Email));
+            if (!string.IsNullOrWhiteSpace(c.YetkiliKisi)) detaySatirlari.Add(("Yetkili Kişi", c.YetkiliKisi));
+            if (!string.IsNullOrWhiteSpace(c.Il) || !string.IsNullOrWhiteSpace(c.Ilce)) detaySatirlari.Add(("İl / İlçe", $"{c.Il} / {c.Ilce}"));
+            if (!string.IsNullOrWhiteSpace(c.Adres)) detaySatirlari.Add(("Adres", c.Adres));
+            if (!string.IsNullOrWhiteSpace(c.SozlesmeNo)) detaySatirlari.Add(("Sözleşme No", c.SozlesmeNo));
+            if (c.SozlesmeBaslangicTarihi.HasValue) detaySatirlari.Add(("Sözleşme Başlangıç", c.SozlesmeBaslangicTarihi.Value.ToString("dd.MM.yyyy")));
+            if (c.SozlesmeBitisTarihi.HasValue) detaySatirlari.Add(("Sözleşme Bitiş", c.SozlesmeBitisTarihi.Value.ToString("dd.MM.yyyy")));
+            detaySatirlari.Add(("Durum", c.Aktif ? "Aktif" : "Pasif"));
+            if (!string.IsNullOrWhiteSpace(c.Notlar)) detaySatirlari.Add(("Notlar", c.Notlar));
+        }
+        detayModalAcik = true;
+    }
+
+    private void AracDetayAc(MatrisSatir satir)
+    {
+        var a = satir.AracRef;
+        detayBaslik = $"Araç Detayı – {satir.Plaka}";
+        detayIkon = "bi-truck";
+        detaySatirlari = new();
+        if (a != null)
+        {
+            detaySatirlari.Add(("Plaka", a.AktifPlaka ?? a.Plaka));
+            detaySatirlari.Add(("Marka / Model", $"{a.Marka} {a.Model}".Trim()));
+            if (a.ModelYili.HasValue) detaySatirlari.Add(("Model Yılı", a.ModelYili.Value.ToString()));
+            detaySatirlari.Add(("Koltuk Sayısı", a.KoltukSayisi.ToString()));
+            detaySatirlari.Add(("Sahiplik", a.SahiplikTipi.ToString()));
+            if (!string.IsNullOrWhiteSpace(a.Renk)) detaySatirlari.Add(("Renk", a.Renk));
+            if (a.MuayeneBitisTarihi.HasValue) detaySatirlari.Add(("Muayene Bitiş", a.MuayeneBitisTarihi.Value.ToString("dd.MM.yyyy")));
+            if (a.TrafikSigortaBitisTarihi.HasValue) detaySatirlari.Add(("Trafik Sigortası Bitiş", a.TrafikSigortaBitisTarihi.Value.ToString("dd.MM.yyyy")));
+            if (a.KaskoBitisTarihi.HasValue) detaySatirlari.Add(("Kasko Bitiş", a.KaskoBitisTarihi.Value.ToString("dd.MM.yyyy")));
+            if (a.KmDurumu.HasValue) detaySatirlari.Add(("Km Durumu", a.KmDurumu.Value.ToString("N0")));
+            if (!string.IsNullOrWhiteSpace(a.Notlar)) detaySatirlari.Add(("Notlar", a.Notlar));
+        }
+        detayModalAcik = true;
+    }
+
+    private void SoforDetayAc(MatrisSatir satir)
+    {
+        var s = satir.SoforRef;
+        detayBaslik = $"Şoför Detayı – {satir.Sofor}";
+        detayIkon = "bi-person-badge";
+        detaySatirlari = new();
+        if (s != null)
+        {
+            detaySatirlari.Add(("Ad Soyad", $"{s.Ad} {s.Soyad}".Trim()));
+            if (!string.IsNullOrWhiteSpace(s.SoforKodu)) detaySatirlari.Add(("Şoför Kodu", s.SoforKodu));
+            if (!string.IsNullOrWhiteSpace(s.Telefon)) detaySatirlari.Add(("Telefon", s.Telefon));
+            if (!string.IsNullOrWhiteSpace(s.Email)) detaySatirlari.Add(("E-posta", s.Email));
+            if (!string.IsNullOrWhiteSpace(s.EhliyetNo)) detaySatirlari.Add(("Ehliyet No", s.EhliyetNo));
+            if (s.EhliyetGecerlilikTarihi.HasValue) detaySatirlari.Add(("Ehliyet Geçerlilik", s.EhliyetGecerlilikTarihi.Value.ToString("dd.MM.yyyy")));
+            if (s.SrcBelgesiGecerlilikTarihi.HasValue) detaySatirlari.Add(("SRC Geçerlilik", s.SrcBelgesiGecerlilikTarihi.Value.ToString("dd.MM.yyyy")));
+            if (s.PsikoteknikGecerlilikTarihi.HasValue) detaySatirlari.Add(("Psikoteknik Geçerlilik", s.PsikoteknikGecerlilikTarihi.Value.ToString("dd.MM.yyyy")));
+            if (s.TasimaTedarikci != null) detaySatirlari.Add(("Tedarikçi", s.TasimaTedarikci.Unvan));
+            detaySatirlari.Add(("Durum", s.Aktif ? "Aktif" : "Pasif"));
+        }
+        detayModalAcik = true;
+    }
+
+    private void FaturaFirmaDetayAc(MatrisSatir satir)
+    {
+        var a = satir.AracRef;
+        detayBaslik = $"Fatura Firma Detayı – {satir.FaturaFirma}";
+        detayIkon = "bi-receipt";
+        detaySatirlari = new();
+        detaySatirlari.Add(("Firma / Cari", satir.FaturaFirma));
+        if (!string.IsNullOrWhiteSpace(satir.AracSahibiTip)) detaySatirlari.Add(("Sahiplik Tipi", satir.AracSahibiTip));
+        if (a != null)
+        {
+            Cari? cari = a.SahiplikTipi switch
+            {
+                AracSahiplikTipi.Kiralik => a.KiralikCari,
+                AracSahiplikTipi.Komisyon => a.KomisyoncuCari,
+                _ => null
+            };
+
+            if (cari != null)
+            {
+                if (!string.IsNullOrWhiteSpace(cari.VergiNo)) detaySatirlari.Add(("Vergi No", cari.VergiNo));
+                if (!string.IsNullOrWhiteSpace(cari.Telefon)) detaySatirlari.Add(("Telefon", cari.Telefon));
+                if (!string.IsNullOrWhiteSpace(cari.Email)) detaySatirlari.Add(("E-posta", cari.Email));
+                if (!string.IsNullOrWhiteSpace(cari.Il) || !string.IsNullOrWhiteSpace(cari.Ilce)) detaySatirlari.Add(("İl / İlçe", $"{cari.Il} / {cari.Ilce}"));
+            }
+            else if (a.TasimaTedarikci != null)
+            {
+                var t = a.TasimaTedarikci;
+                detaySatirlari.Add(("Tedarikçi Ünvan", t.Unvan));
+                if (!string.IsNullOrWhiteSpace(t.Telefon)) detaySatirlari.Add(("Telefon", t.Telefon));
+            }
+            else if (a.Firma != null)
+            {
+                detaySatirlari.Add(("Firma", a.Firma.FirmaAdi));
+            }
+        }
+        detayModalAcik = true;
+    }
+
     private int GetFirmaId()
     {
         if (AktifFirmaProvider.AktifFirmaId.HasValue && AktifFirmaProvider.AktifFirmaId.Value > 0)
@@ -372,6 +650,10 @@
         public string Plaka { get; set; } = "-";
         public string Sofor { get; set; } = "-";
         public string FaturaFirma { get; set; } = "-";
+        public Arac? AracRef { get; set; }
+        public Sofor? SoforRef { get; set; }
+        public Cari? MusteriCariRef { get; set; }
+        public string AracSahibiTip { get; set; } = string.Empty;
         public Dictionary<int, decimal> GunlukSeferler { get; set; } = new();
         public int GunSayisi { get; set; }
         public decimal SeferSayisi { get; set; }
