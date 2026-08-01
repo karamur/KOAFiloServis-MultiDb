@@ -374,23 +374,39 @@
                                     </NavLink>
                                 </div>
                             }
-                            @if (HasAnyYetki("toplucalisma.oku", "serviscalisma.oku", "tedarikciservis.oku", "raporlar.oku"))
-                            {
-                                <div class="nav-item px-3">
-                                    <NavLink class="nav-link" href="filo/komisyon-eslestirme">
-                                        <i class="bi bi-list-check me-2 text-info"></i> Toplu Puantaj
-                                    </NavLink>
+                            <div class="nav-subsection">
+                                <div class="nav-subsection-header" @onclick="() => ToggleSection(NavSection.PuantajIslemleri)" style="cursor: pointer;">
+                                    <span><i class="bi bi-calendar2-check me-2"></i>Puantaj &amp; Hakediş</span>
+                                    <i class="bi @(IsExpanded(NavSection.PuantajIslemleri) ? "bi-chevron-up" : "bi-chevron-down")"></i>
                                 </div>
-                            }
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="operasyon/puantaj">
-                                    <i class="bi bi-calendar2-check me-2 text-success"></i> Operasyonel Puantaj
-                                </NavLink>
-                            </div>
-                            <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="operasyonel-hakedis">
-                                    <i class="bi bi-clipboard-check me-2 text-warning"></i> Operasyonel Hakediş
-                                </NavLink>
+                                @if (IsExpanded(NavSection.PuantajIslemleri))
+                                {
+                                    <div class="nav-subsection-content">
+                                        <div class="nav-item px-3">
+                                            <NavLink class="nav-link" href="operasyon/plan">
+                                                <i class="bi bi-calendar3 me-2 text-primary"></i> Operasyon Planı
+                                            </NavLink>
+                                        </div>
+                                        @if (HasAnyYetki("toplucalisma.oku", "serviscalisma.oku", "tedarikciservis.oku", "raporlar.oku"))
+                                        {
+                                            <div class="nav-item px-3">
+                                                <NavLink class="nav-link" href="filo/komisyon-eslestirme">
+                                                    <i class="bi bi-list-check me-2 text-info"></i> Toplu Puantaj
+                                                </NavLink>
+                                            </div>
+                                        }
+                                        <div class="nav-item px-3">
+                                            <NavLink class="nav-link" href="operasyon/puantaj">
+                                                <i class="bi bi-calendar2-check me-2 text-success"></i> Operasyonel Puantaj
+                                            </NavLink>
+                                        </div>
+                                        <div class="nav-item px-3">
+                                            <NavLink class="nav-link" href="operasyonel-hakedis">
+                                                <i class="bi bi-clipboard-check me-2 text-warning"></i> Operasyonel Hakediş
+                                            </NavLink>
+                                        </div>
+                                    </div>
+                                }
                             </div>
                         }
 
