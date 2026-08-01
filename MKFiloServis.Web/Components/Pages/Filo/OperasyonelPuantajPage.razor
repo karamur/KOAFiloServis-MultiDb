@@ -8,6 +8,7 @@
 @inject IFiloKomisyonService FiloKomisyonService
 @inject IAktifFirmaProvider AktifFirmaProvider
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 @rendermode InteractiveServer
 
 <PageTitle>Operasyonel Puantaj</PageTitle>
@@ -15,9 +16,14 @@
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h3><i class="bi bi-calendar2-check me-2"></i>Operasyonel Puantaj</h3>
-        <button class="btn btn-outline-secondary" @onclick="YenileAsync" disabled="@isBusy">
-            <i class="bi bi-arrow-clockwise me-1"></i>Yenile
-        </button>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-success" @onclick="ExceleAktarAsync" disabled="@(isBusy || !FiltreliGunlukPuantajlar.Any())">
+                <i class="bi bi-file-earmark-excel me-1"></i>Excel'e Aktar
+            </button>
+            <button class="btn btn-outline-secondary" @onclick="YenileAsync" disabled="@isBusy">
+                <i class="bi bi-arrow-clockwise me-1"></i>Yenile
+            </button>
+        </div>
     </div>
 
     @if (!string.IsNullOrWhiteSpace(hataMesaji))
@@ -318,6 +324,72 @@
             expandedGroups[groupKey] = true;
         else
             expandedGroups[groupKey] = !expandedGroups[groupKey];
+    }
+
+    private async Task ExceleAktarAsync()
+    {
+        try
+        {
+            var veriler = FiltreliGunlukPuantajlar;
+            if (!veriler.Any()) return;
+
+            using var workbook = new ClosedXML.Excel.XLWorkbook();
+            var ws = workbook.Worksheets.Add("Puantaj");
+
+            var basliklar = new[] { "Tarih", "Güzergah Kodu", "Güzergah", "Kurum", "Araç Plaka", "Araç Sahibi", "Sahiplik", "Şoför", "Servis Türü", "Sefer", "Gelir", "Gider", "Giden Fatura", "Gelen Fatura" };
+            for (var i = 0; i < basliklar.Length; i++)
+            {
+                var hucre = ws.Cell(1, i + 1);
+                hucre.Value = basliklar[i];
+                hucre.Style.Font.Bold = true;
+                hucre.Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightGray;
+            }
+
+            var satir = 2;
+            foreach (var item in veriler.OrderBy(x => x.Tarih).ThenBy(x => x.MusteriCari?.Unvan))
+            {
+                ws.Cell(satir, 1).Value = item.Tarih;
+                ws.Cell(satir, 1).Style.DateFormat.Format = "dd.MM.yyyy";
+                ws.Cell(satir, 2).Value = item.Guzergah?.GuzergahKodu ?? "";
+                ws.Cell(satir, 3).Value = item.Guzergah?.GuzergahAdi ?? "";
+                ws.Cell(satir, 4).Value = item.MusteriCari?.Unvan ?? "";
+                ws.Cell(satir, 5).Value = item.Arac?.AktifPlaka ?? "";
+                ws.Cell(satir, 6).Value = GetAracSahibiAd(item.Id);
+                ws.Cell(satir, 7).Value = GetAracSahibiTip(item.Id);
+                ws.Cell(satir, 8).Value = $"{item.Sofor?.Ad} {item.Sofor?.Soyad}".Trim();
+                ws.Cell(satir, 9).Value = item.ServisTuru.ToString();
+                ws.Cell(satir, 10).Value = item.SeferSayisi;
+                ws.Cell(satir, 11).Value = item.TahakkukEdenKurumUcreti;
+                ws.Cell(satir, 12).Value = item.TahakkukEdenTaseronUcreti;
+                ws.Cell(satir, 13).Value = GetGidenFaturaTutari(item.Id);
+                ws.Cell(satir, 14).Value = GetGelenFaturaTutari(item.Id);
+                satir++;
+            }
+
+            // Toplam satırı
+            ws.Cell(satir, 9).Value = "TOPLAM";
+            ws.Cell(satir, 9).Style.Font.Bold = true;
+            for (var col = 10; col <= 14; col++)
+            {
+                var hucre = ws.Cell(satir, col);
+                hucre.FormulaA1 = $"SUM({ws.Cell(2, col).Address}:{ws.Cell(satir - 1, col).Address})";
+                hucre.Style.Font.Bold = true;
+            }
+
+            ws.Range(2, 10, satir, 14).Style.NumberFormat.Format = "#,##0.00";
+            ws.Columns().AdjustToContents();
+            ws.SheetView.FreezeRows(1);
+
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            var dosyaAdi = $"OperasyonelPuantaj_{seciliTarih:yyyy-MM}.xlsx";
+            var base64 = Convert.ToBase64String(stream.ToArray());
+            await JS.InvokeVoidAsync("downloadFile", dosyaAdi, base64, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        }
+        catch (Exception ex)
+        {
+            hataMesaji = $"Excel oluşturulurken hata: {ex.Message}";
+        }
     }
 
     protected override async Task OnInitializedAsync()
