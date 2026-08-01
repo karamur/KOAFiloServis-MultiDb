@@ -1,0 +1,53 @@
+﻿@page "/operasyon-merkezi"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@rendermode InteractiveServer
+
+<PageTitle>Operasyon Merkezi</PageTitle>
+
+<div class="container-fluid">
+    <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+            <a class="nav-link @(aktifSekme == Sekme.Eslestirme ? "active" : "")" href="javascript:void(0)"
+               @onclick="() => SekmeDegistir(Sekme.Eslestirme)" @onclick:preventDefault>
+                <i class="bi bi-list-check me-1 text-info"></i>1. Eşleştirme &amp; Toplu Puantaj
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(aktifSekme == Sekme.Puantaj ? "active" : "")" href="javascript:void(0)"
+               @onclick="() => SekmeDegistir(Sekme.Puantaj)" @onclick:preventDefault>
+                <i class="bi bi-calendar2-check me-1 text-success"></i>2. Operasyonel Puantaj
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(aktifSekme == Sekme.Hakedis ? "active" : "")" href="javascript:void(0)"
+               @onclick="() => SekmeDegistir(Sekme.Hakedis)" @onclick:preventDefault>
+                <i class="bi bi-clipboard-check me-1 text-warning"></i>3. Operasyonel Hakediş
+            </a>
+        </li>
+    </ul>
+
+    @switch (aktifSekme)
+    {
+        case Sekme.Eslestirme:
+            <EslestirmeTanimlari />
+            break;
+        case Sekme.Puantaj:
+            <OperasyonelPuantajPage />
+            break;
+        case Sekme.Hakedis:
+            <OperasyonelHakedisPage />
+            break;
+    }
+</div>
+
+@code {
+    private enum Sekme { Eslestirme, Puantaj, Hakedis }
+
+    private Sekme aktifSekme = Sekme.Eslestirme;
+
+    private void SekmeDegistir(Sekme sekme)
+    {
+        aktifSekme = sekme;
+    }
+}
