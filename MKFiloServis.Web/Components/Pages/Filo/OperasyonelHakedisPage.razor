@@ -76,6 +76,30 @@
                     </button>
                 </div>
             </div>
+            <div class="row g-2 align-items-end mt-1">
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Durum</label>
+                    <select class="form-select form-select-sm" @bind="durumFiltre">
+                        <option value="">Tümü</option>
+                        @foreach (var d in Enum.GetValues<HakedisDurum>())
+                        {
+                            <option value="@d">@d</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label small mb-1">Arama (referans / güzergah)</label>
+                    <input class="form-control form-control-sm" placeholder="Kelime yazın..." @bind="aramaMetni" @bind:event="oninput" />
+                </div>
+                <div class="col-md-4 d-flex justify-content-end">
+                    @if (!string.IsNullOrWhiteSpace(aramaMetni) || !string.IsNullOrWhiteSpace(durumFiltre))
+                    {
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="FiltreleriTemizle">
+                            <i class="bi bi-x-lg me-1"></i>Filtreleri Temizle
+                        </button>
+                    }
+                </div>
+            </div>
         </div>
     </div>
 
@@ -164,7 +188,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @if (!hakedisler.Any())
+                            @if (!FiltreliHakedisler.Any())
                             {
                                 <tr><td colspan="11" class="text-center text-muted p-4">Kayıt bulunamadı</td></tr>
                             }
@@ -272,7 +296,40 @@
     private readonly HashSet<int> seciliHakedisIds = new();
 
     private List<Hakedis> hakedisler = new();
-    private bool TumSeciliMi => hakedisler.Any() && hakedisler.All(h => seciliHakedisIds.Contains(h.Id));
+
+    private string durumFiltre = "";
+    private string aramaMetni = "";
+
+    private List<Hakedis> FiltreliHakedisler
+    {
+        get
+        {
+            IEnumerable<Hakedis> sonuc = hakedisler;
+
+            if (!string.IsNullOrWhiteSpace(durumFiltre) && Enum.TryParse<HakedisDurum>(durumFiltre, out var durum))
+                sonuc = sonuc.Where(h => h.Durum == durum);
+
+            if (!string.IsNullOrWhiteSpace(aramaMetni))
+            {
+                var kelimeler = aramaMetni.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                sonuc = sonuc.Where(h =>
+                {
+                    var metin = $"{GetReferansAd(h)} {GetGuzergahOzet(h)}";
+                    return kelimeler.All(k => metin.Contains(k, StringComparison.OrdinalIgnoreCase));
+                });
+            }
+
+            return sonuc.ToList();
+        }
+    }
+
+    private void FiltreleriTemizle()
+    {
+        durumFiltre = "";
+        aramaMetni = "";
+    }
+
+    private bool TumSeciliMi => FiltreliHakedisler.Any() && FiltreliHakedisler.All(h => seciliHakedisIds.Contains(h.Id));
     private List<int> SeciliTaslakIdler => hakedisler.Where(h => seciliHakedisIds.Contains(h.Id) && h.Durum == HakedisDurum.Taslak).Select(h => h.Id).ToList();
     private List<int> SeciliFaturalanabilirIdler => hakedisler.Where(h => seciliHakedisIds.Contains(h.Id) && h.Durum == HakedisDurum.Onaylandi && h.Tip != HakedisTipi.Arac).Select(h => h.Id).ToList();
     private List<int> SeciliSilinebilirIdler => hakedisler.Where(h => seciliHakedisIds.Contains(h.Id) && h.Durum is not (HakedisDurum.Faturalandi or HakedisDurum.TahsilEdildi or HakedisDurum.Odendi)).Select(h => h.Id).ToList();
@@ -280,15 +337,16 @@
     // Gruplama sonuçları
     private Dictionary<string, List<Hakedis>> GetGroupedData()
     {
+        var kaynak = FiltreliHakedisler;
         return selectedGrouping switch
         {
-            "referans" => hakedisler
+            "referans" => kaynak
                 .GroupBy(h => h.ReferansId.ToString())
                 .OrderBy(g => g.Key)
                 .ToDictionary(g => g.Key, g => g.ToList()),
 
             _ => // "cari" (default)
-                hakedisler
+                kaynak
                     .GroupBy(GetCariGrupAnahtari)
                     .OrderBy(g => g.Key)
                     .ToDictionary(g => g.Key, g => g.ToList()),
@@ -307,7 +365,7 @@
     {
         try
         {
-            if (!hakedisler.Any()) return;
+            if (!FiltreliHakedisler.Any()) return;
 
             using var workbook = new ClosedXML.Excel.XLWorkbook();
             var ws = workbook.Worksheets.Add("Hakediş");
@@ -322,7 +380,7 @@
             }
 
             var satir = 2;
-            foreach (var h in hakedisler.OrderBy(x => GetReferansAd(x)))
+            foreach (var h in FiltreliHakedisler.OrderBy(x => GetReferansAd(x)))
             {
                 ws.Cell(satir, 1).Value = h.Id;
                 ws.Cell(satir, 2).Value = GetTipText(h.Tip);
@@ -562,7 +620,7 @@
         if (TumSeciliMi)
             seciliHakedisIds.Clear();
         else
-            seciliHakedisIds.UnionWith(hakedisler.Select(h => h.Id));
+            seciliHakedisIds.UnionWith(FiltreliHakedisler.Select(h => h.Id));
     }
 
     private async Task TopluOnaylaSecilenAsync()
