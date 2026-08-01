@@ -72,7 +72,7 @@ public class OperasyonelHakedisService : IOperasyonelHakedisService
             .Include(p => p.Arac)
             .Include(p => p.Sofor)
             .Include(p => p.Guzergah)
-            .Where(p => p.Tarih >= donemBas && p.Tarih < donemSon);
+            .Where(p => p.Tarih >= donemBas && p.Tarih < donemSon && !p.IsDeleted);
 
         switch (tip)
         {
@@ -302,7 +302,7 @@ public class OperasyonelHakedisService : IOperasyonelHakedisService
         var donemSon = donemBas.AddMonths(1);
 
         IQueryable<FiloGunlukPuantaj> q = context.FiloGunlukPuantajlar
-            .Where(p => p.Tarih >= donemBas && p.Tarih < donemSon);
+            .Where(p => p.Tarih >= donemBas && p.Tarih < donemSon && !p.IsDeleted && p.SeferSayisi > 0);
 
         switch (tip)
         {
@@ -372,7 +372,7 @@ public class OperasyonelHakedisService : IOperasyonelHakedisService
             {
                 case HakedisTipi.Kurum:
                     referansIds = await ctx.FiloGunlukPuantajlar
-                        .Where(p => p.Tarih >= donemBas && p.Tarih < donemSon)
+                        .Where(p => p.Tarih >= donemBas && p.Tarih < donemSon && !p.IsDeleted && p.SeferSayisi > 0)
                         .Select(p => p.KurumFirmaId)
                         .Distinct()
                         .ToListAsync();
@@ -383,7 +383,7 @@ public class OperasyonelHakedisService : IOperasyonelHakedisService
 
                 case HakedisTipi.Tedarikci:
                     referansIds = await ctx.FiloGunlukPuantajlar
-                        .Where(p => p.Tarih >= donemBas && p.Tarih < donemSon
+                        .Where(p => p.Tarih >= donemBas && p.Tarih < donemSon && !p.IsDeleted && p.SeferSayisi > 0
                                     && p.Arac != null
                                     && p.Arac.SahiplikTipi == AracSahiplikTipi.Tedarikci
                                     && p.Arac.TasimaTedarikciId != null)
@@ -397,7 +397,7 @@ public class OperasyonelHakedisService : IOperasyonelHakedisService
 
                 case HakedisTipi.Arac:
                     referansIds = await ctx.FiloGunlukPuantajlar
-                        .Where(p => p.Tarih >= donemBas && p.Tarih < donemSon)
+                        .Where(p => p.Tarih >= donemBas && p.Tarih < donemSon && !p.IsDeleted && p.SeferSayisi > 0)
                         .Select(p => p.AracId)
                         .Distinct()
                         .ToListAsync();
