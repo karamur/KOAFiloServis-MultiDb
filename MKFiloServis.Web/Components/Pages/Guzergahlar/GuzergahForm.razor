@@ -231,21 +231,6 @@
                 <div class="row">
                     <div class="col-md-3">
                         <div class="mb-3">
-                            <label class="form-label">Sefer Tipi</label>
-                            <InputSelect @bind-Value="guzergah.SeferTipi" @bind-Value:after="SeferTipiDegistiAsync" class="form-select">
-                                @foreach (var tip in Enum.GetValues<SeferTipi>())
-                                {
-                                    <option value="@tip">@tip</option>
-                                }
-                            </InputSelect>
-                            @if (seferTipiDegistiUyarisi)
-                            {
-                                <small class="text-info d-block"><i class="bi bi-info-circle me-1"></i>Sefer tipi değişti. Birim fiyatları manuel güncellemelisiniz.</small>
-                            }
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="mb-3">
                             <label class="form-label">Kapasite</label>
                             <select class="form-select" value="@(guzergah.KapasiteAdi ?? "")" @onchange="KapasiteSecildi">
                                 <option value="">-- Seçiniz --</option>
@@ -374,109 +359,6 @@
                     <label class="form-label">Notlar</label>
                     <InputTextArea @bind-Value="guzergah.Notlar" class="form-control" rows="2" />
                 </div>
-
-                @* ── Seferler ── *@
-                <hr class="my-3" />
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="mb-0"><i class="bi bi-calendar2-week me-1"></i>Seferler</h6>
-                </div>
-
-                <div class="row g-2 align-items-end mb-2">
-                    <div class="col-md-2">
-                        <label class="form-label small mb-1">Sefer Sayısı</label>
-                        <input type="number" min="1" max="50" class="form-control form-control-sm"
-                               value="@seferKalemleri.Count"
-                               @onchange="e => { if (int.TryParse(e.Value?.ToString(), out var n)) SeferSayisiDegistir(n); }" />
-                    </div>
-                    <div class="col-md-4">
-                        <button type="button" class="btn btn-sm btn-outline-primary"
-                                @onclick="TumSeferlereUygula">
-                            <i class="bi bi-arrow-down-square me-1"></i>1. Seferi Tum Seferlere Uygula
-                        </button>
-                    </div>
-                </div>
-
-                @if (seferKalemleri.Count > 0)
-                {
-                    <div class="table-responsive">
-                        <table class="table table-sm table-bordered align-middle mb-2">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>#</th>
-                                    <th>Sefer Tipi</th>
-                                    <th>Slot</th>
-                                    <th>Kapasite</th>
-                                    <th>Arac Plakasi</th>
-                                    <th>Sofor Ad</th>
-                                    <th>Sofor Telefon</th>
-                                    <th>Firma / Tedarikci</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @for (int si = 0; si < seferKalemleri.Count; si++)
-                                {
-                                    var kalem = seferKalemleri[si];
-                                    var siraNo = si + 1;
-                                    <tr>
-                                        <td class="text-center">@siraNo</td>
-                                        <td>
-                                            <select class="form-select form-select-sm" value="@kalem.SeferTipi.ToString()"
-                                                    @onchange="e => kalem.SeferTipi = Enum.Parse<SeferTipi>(e.Value!.ToString()!)">
-                                                @foreach (var tip in Enum.GetValues<SeferTipi>())
-                                                {
-                                                    <option value="@tip">@tip</option>
-                                                }
-                                            </select>
-                                        </td>
-                                        <td>
-                                            <select class="form-select form-select-sm" value="@kalem.Slot.ToString()"
-                                                    @onchange="e => kalem.Slot = Enum.Parse<SeferSlot>(e.Value!.ToString()!)">
-                                                @foreach (var s in Enum.GetValues<SeferSlot>())
-                                                { <option value="@s">@s</option> }
-                                            </select>
-                                        </td>
-                                        <td>
-                                            <select class="form-select form-select-sm" value="@(kalem.KapasiteAdi ?? "")"
-                                                    @onchange="e => kalem.KapasiteAdi = string.IsNullOrWhiteSpace(e.Value?.ToString()) ? null : e.Value.ToString()">
-                                                <option value="">-- Seciniz --</option>
-                                                @foreach (var k in kapasiteSecenekleri)
-                                                {
-                                                    <option value="@k.Label">@k.Label</option>
-                                                }
-                                            </select>
-                                        </td>
-                                        <td>
-                                            <select class="form-select form-select-sm" value="@(kalem.AracId?.ToString() ?? "")"
-                                                    @onchange="async e => await SeferAracDegisti(kalem, int.TryParse(e.Value?.ToString(), out var aid) ? aid : (int?)null)">
-                                                <option value="">-- Seciniz --</option>
-                                                @foreach (var arac in araclar.OrderBy(a => a.AktifPlaka))
-                                                {
-                                                    if (!string.IsNullOrWhiteSpace(arac.AktifPlaka))
-                                                    {
-                                                        var ek = arac.SahiplikTipi == AracSahiplikTipi.Tedarikci ? " [T]" : "";
-                                                        <option value="@arac.Id">@(arac.AktifPlaka)@ek</option>
-                                                    }
-                                                }
-                                            </select>
-                                        </td>
-                                        <td>
-                                            <input type="text" class="form-control form-control-sm" value="@kalem.SoforAd"
-                                                   @onchange="e => kalem.SoforAd = e.Value?.ToString()" />
-                                        </td>
-                                        <td>
-                                            <input type="text" class="form-control form-control-sm" value="@kalem.SoforTelefon"
-                                                   @onchange="e => kalem.SoforTelefon = e.Value?.ToString()" />
-                                        </td>
-                                        <td>
-                                            <input type="text" class="form-control form-control-sm" value="@kalem.Firma"
-                                                   @onchange="e => kalem.Firma = e.Value?.ToString()" />
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                }
 
                 @if (!string.IsNullOrWhiteSpace(kayitHataMesaji))
                 {
