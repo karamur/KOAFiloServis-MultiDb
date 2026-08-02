@@ -1311,6 +1311,23 @@
                 .Where(p => p.Id > 0 && (hedefIdSet == null || hedefIdSet.Contains(p.Id)))
                 .ToList();
 
+            // Ayn\u0131 g\u00FCne ait birden fazla kay\u0131t varsa grid yaln\u0131zca en g\u00FCncel kayd\u0131 g\u00F6sterir.
+            // Girilen de\u011Ferin toplamlara do\u011Fru yans\u0131mas\u0131 i\u00E7in ayn\u0131 g\u00FCn\u00FCn di\u011Fer (gizli) kay\u0131tlar\u0131 da g\u00FCncellenir.
+            var duzenlenenTarihler = guncellenecekler
+                .ToDictionary(p => p.Tarih.Date, p => p.SeferSayisi);
+
+            var ekKayitlar = puantajlar
+                .Where(p => p.Id > 0
+                    && !guncellenecekler.Any(g => g.Id == p.Id)
+                    && duzenlenenTarihler.ContainsKey(p.Tarih.Date))
+                .ToList();
+
+            foreach (var ek in ekKayitlar)
+            {
+                ek.SeferSayisi = duzenlenenTarihler[ek.Tarih.Date];
+                guncellenecekler.Add(ek);
+            }
+
             if (!guncellenecekler.Any())
             {
                 ToastService.ShowWarning("Kaydedilecek kayıt bulunamadı.");
