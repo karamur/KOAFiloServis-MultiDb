@@ -1,429 +1,207 @@
-﻿# 🚍 MKFiloServis
-
 <div align="center">
-
-**Tek PostgreSQL + FirmId İzolasyonu ile Kurumsal Filo Yönetim Platformu**
-
-[![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com)
-[![Blazor](https://img.shields.io/badge/Blazor-Interactive%20Server-512BD4?style=flat-square&logo=blazor&logoColor=white)](https://learn.microsoft.com/aspnet/core/blazor/)
-[![EF Core](https://img.shields.io/badge/EF%20Core-10.0-68217A?style=flat-square&logo=microsoft&logoColor=white)](https://learn.microsoft.com/ef/core/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14%2B-336791?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org)
-[![Quartz.NET](https://img.shields.io/badge/Quartz.NET-3.x-FB7A24?style=flat-square)](https://www.quartz-scheduler.net)
-[![Build](https://img.shields.io/badge/Build-Passing-success?style=flat-square)]()
-[![Version](https://img.shields.io/badge/Version-2.0.0-blue?style=flat-square)]()
-
+  <img src="MKFiloServis.Web/wwwroot/images/logo.png" alt="MK Filo Servis" width="104" />
+  <h1>MK Filo Servis</h1>
+  <p><strong>Personel taşımacılığı operasyonlarını, filodan muhasebeye kadar tek merkezde yöneten kurumsal platform.</strong></p>
+  <p>
+    <a href="https://dotnet.microsoft.com/"><img src="https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&amp;logoColor=white" alt=".NET 10" /></a>
+    <a href="https://learn.microsoft.com/aspnet/core/blazor/"><img src="https://img.shields.io/badge/Blazor-Interactive%20Server-512BD4?logo=blazor&amp;logoColor=white" alt="Blazor Interactive Server" /></a>
+    <a href="https://learn.microsoft.com/ef/core/"><img src="https://img.shields.io/badge/EF%20Core-10.0-68217A" alt="EF Core 10" /></a>
+    <a href="https://www.postgresql.org/"><img src="https://img.shields.io/badge/PostgreSQL-Primary-4169E1?logo=postgresql&amp;logoColor=white" alt="PostgreSQL" /></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-Proprietary-red" alt="Proprietary License" /></a>
+  </p>
+  <p>
+    <a href="#öne-çıkan-yetenekler">Özellikler</a> ·
+    <a href="#mimari">Mimari</a> ·
+    <a href="#hızlı-başlangıç">Kurulum</a> ·
+    <a href="#dokümantasyon">Dokümantasyon</a> ·
+    <a href="#katkı">Katkı</a>
+  </p>
 </div>
 
 ---
 
-## ⚡ Nihai Mimari (Haziran 2026)
+## Genel Bakış
 
-**MKFiloServis artık Tenant Database (Database-per-Tenant) mimarisi kullanmamaktadır.**
+MK Filo Servis; personel taşımacılığı yapan işletmelerin araç, sürücü, güzergâh, puantaj, hakediş, fatura ve muhasebe süreçlerini bütünleşik biçimde yönetmesi için geliştirilmiştir.
 
-> 🔄 **32 commit'lik dönüşüm** ile tek PostgreSQL veritabanı + FirmId bazlı satır seviyesi izolasyona geçilmiştir.
+Platform, operasyonel veriyi finansal çıktıya kadar aynı akışta taşır:
 
-### Mimari
-
-```
-Tek PostgreSQL: MKFiloServis
-        ↓
-Organizasyon (Üstün Holding)
-    ├── Üstün Grup
-    ├── Üstün Filo
-    └── Recep Üstün
-        ↓
-Firma → Global Query Filter (HasQueryFilter(x => x.FirmaId == CurrentFirmaId))
-        ↓
-Şube (opsiyonel, SubeId INT NULL)
+```text
+Araç & Şoför → Güzergâh → Operasyonel Puantaj → Hakediş → Fatura → Muhasebe & Raporlama
 ```
 
-### Kaldırılan Yapılar
+Tek veritabanı üzerinde `FirmaId` tabanlı veri izolasyonu, rol/yetki kontrolleri, audit kayıtları ve soft-delete yaklaşımıyla çok firmalı yapılara uyum sağlar.
 
-- ❌ TenantConnectionStringProvider
-- ❌ TenantDbContextFactory
-- ❌ MasterDbContext
-- ❌ HoldingDbContext
-- ❌ Firma bazlı ayrı PostgreSQL veritabanları
+## Öne Çıkan Yetenekler
 
-### Yeni Yapılar
+| Alan | Kapsam |
+|---|---|
+| **Filo yönetimi** | Araç kartları, sahiplik türleri, plaka geçmişi, bakım, masraf ve evrak takibi |
+| **Personel ve şoför** | Özlük dosyaları, izinler, bordro, maaş, belge süreleri ve araç atamaları |
+| **Güzergâh ve operasyon** | Güzergâh planlama, sefer tanımları, günlük/aylık puantaj ve operasyon merkezi |
+| **İhale ve teklif** | Hat maliyetleri, araç/şoför giderleri, teklif versiyonları ve kârlılık analizi |
+| **Hakediş ve fatura** | Puantajdan hakedişe ve faturaya izlenebilir iş akışı, revizyon ve onay süreçleri |
+| **Finans ve muhasebe** | Cari, banka/kasa, masraf, tahsilat, hesap planı ve finansal raporlar |
+| **EBYS ve belgeler** | Gelen/giden evrak, güvenli dosya saklama, belge sınıflandırma ve süre uyarıları |
+| **Raporlama** | Operasyon, maliyet, kârlılık, bordro ve yönetim raporları; Excel/PDF çıktıları |
+| **AI destekli işlemler** | Ollama ve yapılandırılabilir sağlayıcılarla tahmin, sınıflandırma ve analiz özellikleri |
+| **Kurumsal yönetim** | Organizasyon–firma–şube yapısı, rol bazlı yetki, JWT API ve denetim izi |
 
-- ✅ Tek `ApplicationDbContext`
-- ✅ `FirmaBaseEntity` — tüm iş tabloları için ortak temel sınıf
-- ✅ `Organizasyon` → `Firma` → `Şube` hiyerarşisi
-- ✅ `NumaraSerisiService` — atomik, FirmaId bazlı belge numaraları
-- ✅ Global Query Filter: `FirmaId` + `IsDeleted`
+## Mimari
 
-### Dönüşüm Özeti (Haziran 2026)
-
-| Eski | Yeni |
-|------|------|
-| Master DB + Tenant DB + Holding DB | Tek `MKFiloServis` |
-| `MasterDbContext` | `ApplicationDbContext` (birleşik) |
-| `TenantDbContextFactory` | `IDbContextFactory<ApplicationDbContext>` |
-| `ITenantConnectionStringProvider` | Tek connection string |
-| FirmId opsiyonel (`int?`) | FirmId zorunlu (`NOT NULL`) — 18 entity |
-| MAX() tabanlı numara | `NumaraSerisiService` (atomik) — 11 metod |
-| Tenant bazlı audit | FirmaId'li `AktiviteLog` |
-
-## 📌 Genel Bakış
-
-**MKFiloServis**, personel taşımacılığı firmaları için tasarlanmış kurumsal bir **Blazor Interactive Server** uygulamasıdır. Araç, şoför, güzergâh ve müşteri verilerinden başlayan operasyonel zinciri **puantaj → hakediş → fatura → muhasebe** akışıyla tek platformda yönetir.
-
-> 🏢 Çok-firmalı altyapı, FirmId bazlı veri izolasyonu, rol bazlı yetkilendirme ve AI destekli servislerle kurumsal ölçeğe hazırdır.
-
-### 🎯 Hedef Kullanıcılar
-
-- Personel taşımacılığı işletmeleri (kurumsal servis filoları)
-- Karma filo işleten lojistik firmaları (özmal + kiralık + tedarikçi araç)
-- Çok-firmalı holding yapılarındaki taşımacılık birimleri
-
----
-
-## ✨ Öne Çıkan Modüller
-
-| Modül | Yetenekler |
-|-------|-----------|
-| 🚐 **Filo & Araç** | Tekil araç kartı, plaka geçmişi, özmal/kiralık/tedarikçi tipleri, evrak arşivi |
-| 👥 **Personel & Şoför** | Özlük dosyası, ehliyet/MYK/psikoteknik takibi, araç atama, izin yönetimi |
-| 🛣️ **Güzergâh & Puantaj** | Kurum/Cari ayrımı, günlük puantaj, toplu onay, otomatik şablon, Excel import/export |
-| 💰 **Hakediş & Fatura** | Operasyonel hakediş, fatura kalemleri, tahsilat, banka/kasa, masraf, mali analiz |
-| 🗂️ **EBYS** | Gelen/giden/özlük/araç evrak, AI destekli arama, şifreli depolama |
-| 🔔 **Uyarı Sistemi** | Evrak/plaka/sözleşme süre takibi, merkezi uyarı paneli |
-| 🤖 **AI / Otomasyon** | Araç değerleme, belge sınıflandırma, semantik arama (Ollama / OpenAI) |
-| 🛡️ **Kurumsal** | FirmId bazlı veri izolasyonu, rol & yetki, JWT API, audit log |
-
----
-
-## 🏢 Tek Veritabanı + FirmId İzolasyonu
-
-```
-PostgreSQL: MKFiloServis (tek veritabanı)
-        ↓
-Organizasyon → Firma → Şube hiyerarşisi
-        ↓
-Global Query Filter: HasQueryFilter(x => x.FirmaId == CurrentFirmaId)
-        ↓
-Tüm CRUD işlemleri FirmaId filtreli
+```mermaid
+flowchart TB
+    UI[Blazor Interactive Server UI] --> APP[Uygulama ve Servis Katmanı]
+    API[REST API / JWT] --> APP
+    JOBS[Quartz Arka Plan İşleri] --> APP
+    APP --> EF[EF Core 10 / ApplicationDbContext]
+    APP --> FILES[Şifreli Dosya ve Belge Servisleri]
+    APP --> AI[Ollama / Harici AI Sağlayıcıları]
+    EF --> DB[(Tek Veritabanı)]
+    DB --> TENANT[FirmaId + IsDeleted İzolasyonu]
 ```
 
-### Temel Bileşenler
+### Temel Tasarım Kararları
 
-| Bileşen | Görev |
-|---------|-------|
-| `ApplicationDbContext` | Tek operasyonel DbContext (tüm entity'ler) |
-| `IAktifFirmaProvider` | Per-circuit firma context (Scoped) |
-| `NumaraSerisiService` | Atomik, FirmaId bazlı belge numaraları |
-| `FirmaBaseEntity` | Tüm iş tabloları için ortak temel sınıf |
-| `Organizasyon` / `Firma` / `Sube` | Organizasyon hiyerarşisi entity'leri |
+- **Tek operasyonel bağlam:** Tüm iş verisi `ApplicationDbContext` üzerinden yönetilir.
+- **Firma izolasyonu:** Global query filter'lar `FirmaId` ve `IsDeleted` kurallarını uygular.
+- **Katmanlı yapı:** UI, servisler, ortak entity/DTO'lar ve veri erişimi ayrıştırılmıştır.
+- **İzlenebilir süreçler:** Kritik iş akışlarında audit, revizyon ve durum geçmişi korunur.
+- **Çoklu veritabanı sağlayıcısı:** PostgreSQL kanonik üretim hedefidir; SQLite, SQL Server ve MySQL çalışma zamanı seçenekleri mevcuttur.
 
----
+## Teknoloji Yığını
 
-## 🏗️ Mimari
+| Katman | Teknoloji |
+|---|---|
+| Uygulama | .NET 10, ASP.NET Core, Blazor Interactive Server |
+| Veri | Entity Framework Core 10, PostgreSQL, SQLite, SQL Server, MySQL |
+| Arka plan işleri | Quartz.NET |
+| API ve gerçek zamanlı iletişim | REST, JWT, Swagger/OpenAPI, SignalR |
+| Doküman ve çıktı | ClosedXML, EPPlus, QuestPDF |
+| AI | Microsoft.Extensions.AI, Ollama ve yapılandırılabilir sağlayıcılar |
+| Test ve otomasyon | Playwright, Selenium |
+| Dağıtım | Docker, IIS ve Windows kurulum betikleri |
 
-```
-┌─────────────────────────────────────────────────────-─────────┐
-│                     MKFiloServis.Web                         │
-│  ┌─────────────────-┐  ┌──────────────┐  ┌────────────────┐   │
-│  │ Blazor Server    │  │ REST API     │  │ Quartz Jobs    │   │
-│  │ Components/Pages │  │ Controllers  │  │ Backup, Engine │   │
-│  │ SignalR Hubs     │  │ JWT + Swagger│  │ GunlukOzet     │   │
-│  └────────┬─────────┘  └──────┬───────┘  └───────┬────────┘   │
-│           └───────────────────┼──────────────────┘            │
-│                               ▼                               │
-│  ┌──────────────────────────────────────────────────────────┐ │
-│  │ Services Katmanı (100+ servis)                           │ │
-│  │ Filo · Puantaj · Hakedis · Fatura · Muhasebe · Bordro    │ │
-│  │ EBYS · AI · Cache · SecureFile · AuditLog                │ │
-│  └──────────────────────────────────────────────────────────┘ │
-│                               ▼                               │
-│  ┌──────────────────────────────────────────────────────────┐ │
-│  │ EF Core 10                                               │ │
-│  │ ApplicationDbContext (Tek DbContext)                     │ │
-│  │ Global Query Filter (FirmaId + IsDeleted)                │ │
-│  └──────────────────────────────────────────────────────────┘ │
-└───────────────────────────────────────────────────────────-───┘
-                                ▼
-┌──────────────────────────────────────────────────────────────┐
-│ PostgreSQL 14+ (varsayılan) · SQLite · SQL Server · MySQL    │
-└──────────────────────────────────────────────────────────────┘
-```
+## Hızlı Başlangıç
 
----
+### Gereksinimler
 
-## 🚀 Hızlı Başlangıç
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
+- Git
+- İsteğe bağlı: PostgreSQL 14+ ve Ollama
 
-### Önkoşullar
-
-| Bileşen | Versiyon |
-|---------|----------|
-| .NET SDK | 10.0 |
-| PostgreSQL | 14+ |
-| `dotnet-ef` | 9.x+ |
-
-### Geliştirme
+### Yerel geliştirme
 
 ```bash
 git clone https://github.com/karamur/MKFiloServis-MultiDb.git
 cd MKFiloServis-MultiDb
-dotnet build && dotnet test
-dotnet run --project MKFiloServis.Web
+dotnet restore MKFiloServis.slnx
+dotnet run --project MKFiloServis.Web --launch-profile http
 ```
 
-Uygulama **`https://localhost:5001`** adresinde başlar.
+Uygulama varsayılan geliştirme profilinde `http://localhost:5190` adresinden açılır. Yerel başlangıç yapılandırması SQLite kullanır; gerekli veritabanı hazırlıkları uygulama açılışında gerçekleştirilir.
 
-### Varsayılan Giriş
+> [!IMPORTANT]
+> Geliştirme seed kullanıcısı `admin / admin123` değerleriyle oluşturulabilir. Bu hesabı yalnızca yerel geliştirmede kullanın ve gerçek bir ortamda ilk girişten hemen sonra parolayı değiştirin.
 
-| Kullanıcı | Şifre | Rol |
-|-----------|-------|-----|
-| `admin` | `admin123` | Admin |
+### PostgreSQL ile çalıştırma
 
-> ⚠️ Production ortamında şifreyi değiştirin.
+PowerShell örneği:
 
----
-
-## ⚙️ Yapılandırma
-
-### Temel Ayarlar
-
-```json
-{
-  "DatabaseProvider": "PostgreSQL",
-  "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Database=MKFiloServis;Username=postgres;Password=***"
-  },
-  "Jwt": {
-    "Secret": "<min-32-char-secret>",
-    "Issuer": "MKFiloServis",
-    "Audience": "MKFiloServis-API",
-    "ExpirationHours": 8
-  },
-  "GpsApi": { "ApiKey": "<gps-device-api-key>" },
-  "Cache": { "Provider": "Memory" },
-  "Backup": { "Enabled": true, "Path": "/var/koa/backups", "RetentionDays": 30 }
-}
+```powershell
+$env:DatabaseProvider = "PostgreSQL"
+$env:ConnectionStrings__DefaultConnection = "Host=localhost;Port=5432;Database=MKFiloServis;Username=postgres;Password=<PAROLA>"
+dotnet run --project MKFiloServis.Web --launch-profile http
 ```
 
-> 🔐 Production'da environment variable veya secret manager kullanın.
+Kalıcı ortam ayarları için `appsettings.json`, environment variable veya uygulamanın oluşturduğu `dbsettings.json` kullanılabilir. Hassas değerleri repoya eklemeyin.
 
-### Veritabanı Bağlantısı (`dbsettings.json`)
+## Yapılandırma
 
-İlk kurulumda hedef veritabanı:
+En sık kullanılan ayarlar:
 
-```json
-{
-  "Provider": 2,
-  "Host": "localhost",
-  "Port": 5432,
-  "DatabaseName": "MKFiloServis",
-  "Username": "postgres",
-  "Password": "***"
-}
-```
+| Anahtar | Açıklama |
+|---|---|
+| `DatabaseProvider` | `SQLite`, `PostgreSQL`, `SQLServer` veya `MySQL` |
+| `ConnectionStrings:DefaultConnection` | Seçilen sağlayıcının bağlantı dizesi |
+| `Jwt:Secret` | En az 32 karakterli, ortama özel JWT anahtarı |
+| `Ollama:BaseUrl` | İsteğe bağlı yerel AI servis adresi |
+| `Ollama:Model` | Kullanılacak Ollama modeli |
+| `Backup:*` | Otomatik yedekleme durumu, dizini ve saklama süresi |
 
-| Provider | Değer |
-|----------|-------|
-| PostgreSQL | 2 |
-| SQLite | 1 |
-| SQL Server | 3 |
-| MySQL | 4 |
+Environment variable karşılıklarında .NET'in çift alt çizgi biçimini kullanın; örneğin `Jwt__Secret` veya `Ollama__BaseUrl`.
 
----
+> [!WARNING]
+> Üretim ortamında örnek parolaları ve JWT anahtarlarını kullanmayın. HTTPS, güçlü veritabanı kimlik bilgileri, kalıcı Data Protection anahtarları ve düzenli yedekleme yapılandırın.
 
-## 📦 Kurulum & Deploy
-
-### Setup Paketi (Inno Setup)
+## Derleme ve Doğrulama
 
 ```bash
-iscc setup/Setup.iss          # Tam: Web + Lisans + DataSync (129 MB)
-iscc setup/MusteriSetup.iss   # Müşteri: Web + DataSync (95 MB)
+# Ana web uygulamasını derle
+dotnet build MKFiloServis.Web/MKFiloServis.Web.csproj
+
+# Çözümdeki projeleri derle
+dotnet build MKFiloServis.slnx
+
+# E2E smoke runner (çalışan uygulama adresini ortam değişkeniyle alır)
+dotnet run --project MKFiloServis.Web/Tests/PlaywrightSmoke
 ```
 
-Çıktı: `setup/output/v1.0.24/MKFiloServisKurulum-1.0.24.exe`
+Önemli bir değişikliği göndermeden önce ilgili iş akışını uygulama üzerinden doğrulayın ve mevcut analiz/uyarıları gözden geçirin.
 
-### Kurulum
+## Proje Yapısı
 
-1. Setup exe'sini **yönetici olarak** çalıştır
-2. IIS + .NET Hosting Bundle otomatik kurulum (opsiyonel)
-3. IIS Site + AppPool otomatik yapılandırma (`localhost:5190`)
-4. Firewall kuralı (opsiyonel)
-
-Kurulum dizini: `C:\MKFiloServis`
-
-### Güncelleme
-
-Setup mevcut kurulumu otomatik algılar → IIS durdurulur → DB yedeklenir → dosyalar güncellenir (konfigürasyon korunur) → IIS başlatılır.
-
-### Manual Deploy
-
-```bash
-dotnet publish MKFiloServis.Web -c Release -o ./publish-prod
-# publish-prod dizinini sunucuya kopyala
-```
-
----
-
-## 🗄️ Veritabanı & Migration
-
-- **EF Core migration'ları** → Shared DB şema evrimi
-- **MigrationHelper sınıfları** → Idempotent raw SQL (tek veritabanı)
-- **Startup pipeline** → MasterDatabase → DbInitializer → ApplyMigrations
-
-### Yedekleme
-
-```bash
-pg_dump -h <host> -U <user> -d MKFiloServis_Master -F c -f master-$(date +%Y%m%d-%H%M).dump
-```
-
-> ⚠️ Yıkıcı migration'lardan önce backup zorunludur.
-
----
-
-## 🔐 Güvenlik
-
-- ASP.NET Core Identity + cookie/JWT dual auth
-- `AuthorizeRouteView` → tüm sayfalar varsayılan olarak korumalı
-- Rol bazlı yetkilendirme (Admin, Operasyon, Muhasebeci, HoldingYoneticisi)
-- `IFirmaTenant` global query filter → otomatik tenant izolasyonu
-- `BordroService`, `CariService` → servis katmanı FirmaId kontrolü
-- `SecureFileService` → AES-256-GCM disk şifreleme
-- `AuditLogService` → tüm CRUD işlemlerinin kaydı
-- GPS API key doğrulaması (`GpsApi:ApiKey`)
-- SignalR hub `[Authorize]` koruması
-- Soft-delete ile kalıcı veri kaybı önleme
-
----
-
-## 🔄 Veri Aktarımı
-
-### Veritabanı Geçiş ve İlk Kurulum
-
-İlk kurulumda `dbsettings.json` hedef veritabanını gösterir. Web uygulaması başlangıcında gerekli migration/helper akışları çalıştırılarak şema güncellemeleri uygulanır.
-
-### DestekCRMServisBlazorDb → MKFiloServis
-
-İlk kurulumda `dbsettings.json` hedef veritabanını gösterir. `DbInitializer` otomatik olarak bağlanır, EF Core migration'larını uygular, rolleri ve admin kullanıcısını seed eder. Mevcut veriler korunur.
-
----
-
-## 🧪 Test
-
-```bash
-dotnet test  # 363 test, < 1 saniye
-```
-
-| Tür | Çatı |
-|-----|------|
-| Birim | xUnit + Moq + FluentAssertions |
-| E2E | Playwright + Selenium |
-
----
-
-## 🧰 Teknoloji Yığını
-
-| Katman | Teknoloji |
-|--------|-----------|
-| Runtime | .NET 10.0 / .NET 8.0 |
-| UI | Blazor Interactive Server, Bootstrap 5 |
-| ORM | EF Core 10 (Npgsql odaklı, çoklu sağlayıcı uyarlamaları ile) |
-| Cache | Redis + InMemory |
-| Jobs | Quartz.NET 3.x |
-| Doküman | ClosedXML, EPPlus, QuestPDF |
-| AI | Microsoft.Extensions.AI |
-| Auth | ASP.NET Core Identity + JWT |
-| Test | Playwright, Selenium |
-| Setup | Deploy scriptleri + Inno Setup bileşenleri |
-| Lisans | WinForms (.NET 8 Windows) |
-
----
-
-## 📂 Proje Yapısı
-
-```
+```text
 MKFiloServis-MultiDb/
-├── MKFiloServis.Web/             # Ana Blazor uygulaması
-│   ├── Components/Pages/          # Modül sayfaları
-│   ├── Controllers/               # REST API (JWT)
-│   ├── Services/                  # İş katmanı
-│   ├── Data/                      # DbContext, migration, helper'lar
-│   ├── Docs/                      # Ürün ve süreç dokümantasyonu
-│   ├── Deploy/                    # Kurulum/deploy scriptleri
-│   └── wwwroot/                   # Statik içerikler
-├── MKFiloServis.Shared/          # Entity, DTO ve ortak modeller
-├── MKFiloServis.LisansDesktop/   # Windows lisans yardımcı uygulaması
-├── MKFiloServis.slnx             # Çözüm dosyası
-└── README.md                      # Ana proje dokümantasyonu
+├── MKFiloServis.Web/              # Blazor uygulaması, API, servisler ve veri erişimi
+│   ├── Components/Pages/          # İş modüllerinin kullanıcı arayüzleri
+│   ├── Controllers/               # REST API uçları
+│   ├── Data/                      # DbContext, migration ve başlangıç verileri
+│   ├── Services/                  # Uygulama ve entegrasyon servisleri
+│   ├── Tests/PlaywrightSmoke/     # Uçtan uca smoke test runner'ı
+│   └── wwwroot/                   # Statik dosyalar
+├── MKFiloServis.Shared/           # Ortak entity, enum ve veri modelleri
+├── MKFiloServis.DataSync/         # Veri aktarım/uyumluluk masaüstü aracı
+├── MKFiloServis.LisansDesktop/    # Windows lisans yönetim aracı
+├── docs/                          # Alan dokümanları ve mimari karar kayıtları
+├── setup/                         # Kurulum paketi tanımları
+├── docker-compose.yml             # Konteyner servis tanımları
+└── MKFiloServis.slnx              # Çözüm tanımı
 ```
 
----
+## Dokümantasyon
 
-## 🗺️ Yol Haritası
+| Kaynak | İçerik |
+|---|---|
+| [Kurulum kılavuzu](INSTALL.md) | Sunucu, veritabanı ve dağıtım adımları |
+| [Geliştirme notları](DEVELOPMENT.md) | Aktif geliştirme kayıtları ve teknik handoff bilgileri |
+| [Kullanıcı kılavuzu](docs/KULLANICI-KILAVUZU.md) | Son kullanıcı iş akışları |
+| [Mimari karar kayıtları](docs/adr/README.md) | Önemli teknik kararların gerekçeleri |
+| [Katkı rehberi](CONTRIBUTING.md) | Branch, commit, kod ve PR standartları |
+| [Güvenlik politikası](SECURITY.md) | Güvenlik açığı bildirim süreci |
+| [Değişiklik günlüğü](CHANGELOG.md) | Sürüm ve özellik geçmişi |
 
-- [x] MAUI şoför uygulaması ✅ (Android+iOS+Windows, JWT auth, Login/Dashboard/Güzergah)
-- [x] e-Fatura / e-Arşiv entegrasyonu ✅ (UBL-TR 1.2 XML + Luca Portal + auto-sync)
-- [x] AI puantaj anomali tespiti ✅ (10 tip + kural-tabanlı + Ollama AI + haftalık job)
-- [x] Çoklu dil desteği (i18n) ✅ (TR/EN .resx + CultureSelector + SharedLocalizer)
-- [x] Faz 4 — IFirmaTenant temizliği ✅ (Haziran 2026: 10/10 kritik risk kapatıldı)
-- [x] Faz 5 — Holding konsolidasyon ✅ (BUTCE + FK + Quartz job)
+## Güvenlik
 
----
+Güvenlik açıklarını herkese açık issue olarak paylaşmayın. GitHub'ın özel güvenlik bildirimi kanalını veya depo sahibiyle özel iletişimi kullanın. Ayrıntılar için [SECURITY.md](SECURITY.md) dosyasına bakın.
 
----
+## Katkı
 
-## 🔐 Dosya Şifreleme & DPAPI Kurtarma
+1. Değişiklik için kısa ömürlü bir branch oluşturun.
+2. Kod stiline ve mevcut mimari sınırlara uyun.
+3. Derleme ve ilgili senaryoları doğrulayın.
+4. Conventional Commits biçiminde commit oluşturun.
+5. Kapsamı ve doğrulama sonuçlarını açıklayan bir pull request açın.
 
-### Mimari
+Ayrıntılı süreç ve örnekler [CONTRIBUTING.md](CONTRIBUTING.md) içinde yer alır.
 
-MKFiloServis **Windows DPAPI (Data Protection API)** ile AES-256-GCM formatında dosyaları şifreler.
+## Lisans
 
-```
-SecureFileService → [AES-256-GCM | Legacy IDataProtector] → Master Key (32 bytes, DPAPI protected)
-```
-
-### Master Key Sorunları
-
-Yeni ortamda başlatıldığında master key decrypt başarısız olabilir. Çözüm:
-
-1. **Eski key'i restore et**: `Copy-Item <backup>/master.key C:\MKFiloServis_yedekleme\keys\master.key`
-2. **Uygulamayı yeniden başlat**
-3. **Dashboard'dan kontrol et**: `/api/system/decryption-recovery-status`
-
-Detaylı rehber: `MKFiloServis.Web/Tools/MasterKeyRecoveryGuide.ps1`
-
----
-
-## 🔧 Yardımcı Araçlar
-
-| Araç | Amaç |
-|------|------|
-| `MasterKeyRecovery.ps1` | Master key ortamını tanı |
-| `MasterKeyRecoveryGuide.ps1` | DPAPI recovery prosedürü ve best practices |
-
----
-
-## 🤝 Katk
-
-```bash
-git checkout -b feature/yeni-ozellik
-dotnet build && dotnet test
-git commit -m "feat(modul): kisa aciklama"
-git push origin feature/yeni-ozellik
-```
-
-Commit konvansiyonu: `<tip>(<modul>): <aciklama>` — `feat`, `fix`, `refactor`, `tenant`, `docs`, `chore`, `test`
-
----
-
-## 📄 Lisans
-
-© **Karamur Yazılım**. Tüm hakları saklıdır. İzinsiz kopyalama, dağıtma veya türev çalışma üretilmesi yasaktır.
+Bu proje açık kaynak lisansıyla dağıtılmamaktadır. Kaynak kod Allbatros Global Teknoloji'ye aittir ve kullanımı [LICENSE](LICENSE) koşullarına tabidir.
 
 ---
 
 <div align="center">
-
-**MK Filo Servis** — Operasyondan muhasebeye, filodan hakedişe tek panel.
-
-<sub>.NET 10 · Blazor · PostgreSQL · Quartz · SignalR · DPAPI Encryption</sub>
-
+  <strong>MK Filo Servis</strong><br />
+  <sub>Operasyondan finansa, filonun tüm yaşam döngüsü tek platformda.</sub>
 </div>
-
