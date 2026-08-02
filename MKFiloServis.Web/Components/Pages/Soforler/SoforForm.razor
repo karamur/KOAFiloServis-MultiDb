@@ -796,7 +796,7 @@
                                         </td>
                                         <td class="text-end">
                                             <div class="btn-group btn-group-sm">
-                                                @if (evrak.Tamamlandi && !string.IsNullOrWhiteSpace(evrak.DosyaYolu))
+                                                @if (!string.IsNullOrWhiteSpace(evrak.DosyaYolu))
                                                 {
                                                     <button class="btn btn-outline-primary" @onclick="() => EvrakOnizle(evrak)" title="Önizle">
                                                         <i class="bi bi-eye"></i>
@@ -811,7 +811,7 @@
                                                 <button class="btn btn-outline-info" @onclick="() => EvrakDetayAc(evrak)" title="Detay">
                                                     <i class="bi bi-search"></i>
                                                 </button>
-                                                @if (evrak.Tamamlandi && !string.IsNullOrWhiteSpace(evrak.DosyaYolu))
+                                                @if (!string.IsNullOrWhiteSpace(evrak.DosyaYolu))
                                                 {
                                                     <button class="btn btn-outline-secondary" @onclick="() => EvrakDosyaIndir(evrak)" title="İndir">
                                                         <i class="bi bi-download"></i>
@@ -2097,17 +2097,23 @@
 
             // Re-upload sonrası eski dosyanın önizleme state'i kalmasın.
             OnizlemeKapat();
+            EvrakYukleModalKapat();
 
+            // Araç belgeleriyle aynı çalışma şekli: liste yenilenir, satırdaki
+            // önizle/yazdır/gönder/indir butonları dosya varlığına göre hemen görünür.
             await EvrakDurumuYukle();
-            seciliDetayEvrak = evrakDurumu?.Evraklar.FirstOrDefault(e => e.EvrakTanimId == yuklenenEvrakTanimId);
-            if (seciliDetayEvrak != null)
+
+            // Detay modalı zaten açıksa içeriğini güncelle; kapalıysa zorla açma.
+            if (showEvrakDetayModal)
             {
-                await DetayDosyalariYukle(seciliDetayEvrak);
-                showEvrakDetayModal = true;
+                seciliDetayEvrak = evrakDurumu?.Evraklar.FirstOrDefault(e => e.EvrakTanimId == yuklenenEvrakTanimId) ?? seciliDetayEvrak;
+                if (seciliDetayEvrak != null)
+                {
+                    await DetayDosyalariYukle(seciliDetayEvrak);
+                }
             }
 
             ToastService.ShowSuccess($"{yuklenenEvrakAdi} başarıyla yüklendi.");
-            EvrakYukleModalKapat();
             await InvokeAsync(StateHasChanged);
         }
         catch (Exception ex)

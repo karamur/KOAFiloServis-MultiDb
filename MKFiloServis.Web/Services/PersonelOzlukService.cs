@@ -255,15 +255,26 @@ public class PersonelOzlukService : IPersonelOzlukService
         var evrakTanimlari = await GetGecerliEvrakTanimlariAsync(context, personel.Gorev);
         var personelEvraklari = await GetPersonelEvraklariAsync(soforId);
 
-        // Aynı EvrakTanimId için birden fazla aktif kayıt oluşmuş olabilir (eski veri/bug kalıntısı).
-        // Rastgele FirstOrDefault yerine en güncel kaydı seçerek UI'ın eski dosyaya dönmesini engelle.
+        // Araç belgeleriyle aynı çalışma şekli:
+        // - Durum bilgisi için en güncel kayıt seçilir.
+        // - Dosya bilgisi için (araçlardaki GetOncelikliDosya gibi) dosyası olan en güncel kayıt seçilir.
+        //   Böylece dosya varsa önizleme/yazdır/gönder butonları her zaman görünür.
         var personelEvrakMap = personelEvraklari
             .GroupBy(e => e.EvrakTanimId)
             .ToDictionary(
                 g => g.Key,
                 g => g
                     .OrderByDescending(e => e.UpdatedAt ?? e.CreatedAt)
-                    .ThenByDescending(e => e.TamamlanmaTarihi ?? DateTime.MinValue)
+                    .ThenByDescending(e => e.Id)
+                    .First());
+
+        var personelDosyaMap = personelEvraklari
+            .Where(e => !string.IsNullOrWhiteSpace(e.DosyaYolu))
+            .GroupBy(e => e.EvrakTanimId)
+            .ToDictionary(
+                g => g.Key,
+                g => g
+                    .OrderByDescending(e => e.UpdatedAt ?? e.CreatedAt)
                     .ThenByDescending(e => e.Id)
                     .First());
 
@@ -280,6 +291,7 @@ public class PersonelOzlukService : IPersonelOzlukService
         foreach (var tanim in evrakTanimlari)
         {
             personelEvrakMap.TryGetValue(tanim.Id, out var personelEvrak);
+            personelDosyaMap.TryGetValue(tanim.Id, out var dosyaliEvrak);
 
             durum.Evraklar.Add(new OzlukEvrakDetay
             {
@@ -287,10 +299,17 @@ public class PersonelOzlukService : IPersonelOzlukService
                 EvrakAdi = tanim.EvrakAdi,
                 Kategori = tanim.Kategori,
                 Zorunlu = tanim.Zorunlu,
-                Tamamlandi = personelEvrak?.Tamamlandi ?? false,
-                TamamlanmaTarihi = personelEvrak?.TamamlanmaTarihi,
+                // Dosyası olan evrak, Tamamlandi bayrağı eski kayıtlardan false kalmış olsa bile tamam kabul edilir.
+                Tamamlandi = (personelEvrak?.Tamamlandi ?? false) || dosyaliEvrak != null,
+                TamamlanmaTarihi = personelEvrak?.TamamlanmaTarihi ?? dosyaliEvrak?.TamamlanmaTarihi,
                 GecerlilikBitisTarihi = personelEvrak?.GecerlilikBitisTarihi,
-                DosyaYolu = personelEvrak?.DosyaYolu,
+                // Araçlardaki "öncelikli dosya" mantığı: dosyası olan en güncel kayıttan al.
+                DosyaYolu = dosyaliEvrak?.DosyaYolu,
+                DosyaAdi = dosyaliEvrak?.DosyaAdi,
+                DosyaTipi = dosyaliEvrak?.DosyaTipi,
+                DosyaBoyutu = dosyaliEvrak?.DosyaBoyutu ?? 0,
+                VersiyonNo = dosyaliEvrak?.VersiyonNo ?? personelEvrak?.VersiyonNo ?? 1,
+                SonDegisiklikNotu = personelEvrak?.SonDegisiklikNotu,
                 Aciklama = personelEvrak?.Aciklama ?? tanim.Aciklama
             });
         }
@@ -396,7 +415,10 @@ public class PersonelOzlukService : IPersonelOzlukService
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         var existing = await context.PersonelOzlukEvraklar
-            .FirstOrDefaultAsync(e => e.SoforId == soforId && e.EvrakTanimId == evrakTanimId && !e.IsDeleted);
+            .Where(e => e.SoforId == soforId && e.EvrakTanimId == evrakTanimId && !e.IsDeleted)
+            .OrderByDescending(e => e.UpdatedAt ?? e.CreatedAt)
+            .ThenByDescending(e => e.Id)
+            .FirstOrDefaultAsync();
 
         if (existing != null)
         {
@@ -427,8 +449,12 @@ public class PersonelOzlukService : IPersonelOzlukService
         string? dosyaAdi = null, string? dosyaTipi = null, long? dosyaBoyutu = null)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
+        // Araç belgeleriyle aynı çalışma şekli: en güncel aktif kaydı seç ve güncelle.
         var existing = await context.PersonelOzlukEvraklar
-            .FirstOrDefaultAsync(e => e.SoforId == soforId && e.EvrakTanimId == evrakTanimId && !e.IsDeleted);
+            .Where(e => e.SoforId == soforId && e.EvrakTanimId == evrakTanimId && !e.IsDeleted)
+            .OrderByDescending(e => e.UpdatedAt ?? e.CreatedAt)
+            .ThenByDescending(e => e.Id)
+            .FirstOrDefaultAsync();
 
         if (existing != null)
         {
@@ -481,7 +507,10 @@ public class PersonelOzlukService : IPersonelOzlukService
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         var evrak = await context.PersonelOzlukEvraklar
-            .FirstOrDefaultAsync(e => e.SoforId == soforId && e.EvrakTanimId == evrakTanimId && !e.IsDeleted);
+            .Where(e => e.SoforId == soforId && e.EvrakTanimId == evrakTanimId && !e.IsDeleted)
+            .OrderByDescending(e => e.UpdatedAt ?? e.CreatedAt)
+            .ThenByDescending(e => e.Id)
+            .FirstOrDefaultAsync();
 
         if (evrak == null)
             throw new InvalidOperationException("Evrak kaydı bulunamadı.");
