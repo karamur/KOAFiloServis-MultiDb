@@ -278,6 +278,37 @@ public class PersonelOzlukService : IPersonelOzlukService
                     .ThenByDescending(e => e.Id)
                     .First());
 
+        // Kalıcı düzeltme: aktif kayıtta dosya yoksa versiyon geçmişindeki dosyaya düş.
+        // Detay modalındaki dosya listesi versiyonları da gösterdiği için, satırdaki
+        // önizle/yazdır/gönder/indir butonları da aynı kaynağı görmeli.
+        var versiyonDosyaMap = (await context.PersonelOzlukEvrakVersiyonlar
+            .Where(v =>
+                !v.IsDeleted &&
+                !string.IsNullOrWhiteSpace(v.DosyaYolu) &&
+                v.PersonelOzlukEvrak != null &&
+                !v.PersonelOzlukEvrak.IsDeleted &&
+                v.PersonelOzlukEvrak.SoforId == soforId)
+            .Select(v => new
+            {
+                v.PersonelOzlukEvrak!.EvrakTanimId,
+                v.DosyaYolu,
+                v.DosyaAdi,
+                v.DosyaTipi,
+                v.DosyaBoyutu,
+                v.VersiyonNo,
+                v.OlusturmaTarihi,
+                v.Id
+            })
+            .ToListAsync())
+            .GroupBy(v => v.EvrakTanimId)
+            .ToDictionary(
+                g => g.Key,
+                g => g
+                    .OrderByDescending(v => v.OlusturmaTarihi)
+                    .ThenByDescending(v => v.VersiyonNo)
+                    .ThenByDescending(v => v.Id)
+                    .First());
+
         var durum = new PersonelOzlukEvrakDurum
         {
             SoforId = soforId,
@@ -292,6 +323,14 @@ public class PersonelOzlukService : IPersonelOzlukService
         {
             personelEvrakMap.TryGetValue(tanim.Id, out var personelEvrak);
             personelDosyaMap.TryGetValue(tanim.Id, out var dosyaliEvrak);
+            versiyonDosyaMap.TryGetValue(tanim.Id, out var versiyonDosya);
+
+            // Aktif kayıtta dosya yoksa versiyon arşivindeki dosyayı kullan.
+            var dosyaYolu = dosyaliEvrak?.DosyaYolu ?? versiyonDosya?.DosyaYolu;
+            var dosyaAdi = dosyaliEvrak?.DosyaAdi ?? versiyonDosya?.DosyaAdi;
+            var dosyaTipi = dosyaliEvrak?.DosyaTipi ?? versiyonDosya?.DosyaTipi;
+            var dosyaBoyutu = dosyaliEvrak?.DosyaBoyutu ?? versiyonDosya?.DosyaBoyutu ?? 0;
+            var dosyaVar = !string.IsNullOrWhiteSpace(dosyaYolu);
 
             durum.Evraklar.Add(new OzlukEvrakDetay
             {
@@ -300,15 +339,16 @@ public class PersonelOzlukService : IPersonelOzlukService
                 Kategori = tanim.Kategori,
                 Zorunlu = tanim.Zorunlu,
                 // Dosyası olan evrak, Tamamlandi bayrağı eski kayıtlardan false kalmış olsa bile tamam kabul edilir.
-                Tamamlandi = (personelEvrak?.Tamamlandi ?? false) || dosyaliEvrak != null,
+                Tamamlandi = (personelEvrak?.Tamamlandi ?? false) || dosyaVar,
                 TamamlanmaTarihi = personelEvrak?.TamamlanmaTarihi ?? dosyaliEvrak?.TamamlanmaTarihi,
                 GecerlilikBitisTarihi = personelEvrak?.GecerlilikBitisTarihi,
-                // Araçlardaki "öncelikli dosya" mantığı: dosyası olan en güncel kayıttan al.
-                DosyaYolu = dosyaliEvrak?.DosyaYolu,
-                DosyaAdi = dosyaliEvrak?.DosyaAdi,
-                DosyaTipi = dosyaliEvrak?.DosyaTipi,
-                DosyaBoyutu = dosyaliEvrak?.DosyaBoyutu ?? 0,
-                VersiyonNo = dosyaliEvrak?.VersiyonNo ?? personelEvrak?.VersiyonNo ?? 1,
+                // Araçlardaki "öncelikli dosya" mantığı: dosyası olan en güncel kayıttan al;
+                // aktif kayıtta yoksa versiyon geçmişindeki son dosyaya düş.
+                DosyaYolu = dosyaYolu,
+                DosyaAdi = dosyaAdi,
+                DosyaTipi = dosyaTipi,
+                DosyaBoyutu = dosyaBoyutu,
+                VersiyonNo = dosyaliEvrak?.VersiyonNo ?? versiyonDosya?.VersiyonNo ?? personelEvrak?.VersiyonNo ?? 1,
                 SonDegisiklikNotu = personelEvrak?.SonDegisiklikNotu,
                 Aciklama = personelEvrak?.Aciklama ?? tanim.Aciklama
             });
@@ -578,6 +618,43 @@ public class PersonelOzlukService : IPersonelOzlukService
             return new PersonelEvrakDosyaIcerik
             {
                 EvrakTanimId = evrak.EvrakTanimId,
+                DosyaAdi = dosyaAdi,
+                ContentType = contentType,
+                Icerik = content
+            };
+        }
+
+        // Kalıcı düzeltme: aktif kayıtta okunabilir dosya yoksa versiyon geçmişine düş.
+        var versiyonKayitlari = await context.PersonelOzlukEvrakVersiyonlar
+            .Where(v =>
+                !v.IsDeleted &&
+                !string.IsNullOrWhiteSpace(v.DosyaYolu) &&
+                v.PersonelOzlukEvrak != null &&
+                !v.PersonelOzlukEvrak.IsDeleted &&
+                v.PersonelOzlukEvrak.SoforId == soforId &&
+                v.PersonelOzlukEvrak.EvrakTanimId == evrakTanimId)
+            .OrderByDescending(v => v.OlusturmaTarihi)
+            .ThenByDescending(v => v.VersiyonNo)
+            .ThenByDescending(v => v.Id)
+            .ToListAsync();
+
+        foreach (var v in versiyonKayitlari)
+        {
+            var content = await TryReadDecryptedWithFallbackAsync(v.DosyaYolu);
+            if (content == null || content.Length == 0)
+                continue;
+
+            var dosyaAdi = !string.IsNullOrWhiteSpace(v.DosyaAdi)
+                ? v.DosyaAdi!
+                : EncExtensionTemizle(Path.GetFileName(v.DosyaYolu!));
+
+            var contentType = !string.IsNullOrWhiteSpace(v.DosyaTipi)
+                ? v.DosyaTipi!
+                : GetContentTypeFromName(dosyaAdi);
+
+            return new PersonelEvrakDosyaIcerik
+            {
+                EvrakTanimId = evrakTanimId,
                 DosyaAdi = dosyaAdi,
                 ContentType = contentType,
                 Icerik = content
