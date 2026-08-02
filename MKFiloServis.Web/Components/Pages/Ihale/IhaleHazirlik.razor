@@ -1045,9 +1045,12 @@ else
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">@(editKalem.Id == 0 ? "Yeni Hat/Güzergah" : "Hat Düzenle")</h5>
-                    <button type="button" class="btn-close" @onclick="() => kalemModalGoster = false"></button>
+                    <button type="button" class="btn-close" @onclick="() => kalemModalGoster = false" disabled="@yukleniyor"></button>
                 </div>
-                <div class="modal-body">
+                <EditForm Model="@editKalem" OnValidSubmit="KaydetKalemAsync">
+                    <DataAnnotationsValidator />
+                    <div class="modal-body">
+                    <ValidationSummary class="alert alert-danger py-2" />
                     <!-- Güzergah & Mesafe -->
                     <h6 class="border-bottom pb-1 mb-3"><i class="bi bi-signpost me-1"></i>Güzergah Bilgileri</h6>
                     <div class="row g-3 mb-3">
@@ -1259,15 +1262,15 @@ else
                     <div class="row g-3 mb-3">
                         <div class="col-md-3">
                             <label class="form-label">Brüt Maaş (TL)</label>
-                            <input type="number" step="0.01" class="form-control" @bind="editKalem.SoforBrutMaas" />
+                            <input type="text" inputmode="decimal" class="form-control" @bind="soforBrutMaasGiris" @bind:event="oninput" />
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Net Maaş (TL)</label>
-                            <input type="number" step="0.01" class="form-control" @bind="editKalem.SoforNetMaas" />
+                            <input type="text" inputmode="decimal" class="form-control" @bind="soforNetMaasGiris" @bind:event="oninput" />
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">SGK İşveren Payı</label>
-                            <input type="number" step="0.01" class="form-control" @bind="editKalem.SoforSGKIsverenPay" />
+                            <input type="text" inputmode="decimal" class="form-control" @bind="soforSgkIsverenPayGiris" @bind:event="oninput" />
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Kâr Marjı (%)</label>
@@ -1281,13 +1284,14 @@ else
                             <i class="bi bi-robot me-2"></i>@aiMaasTahminMesaj
                         </div>
                     }
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" @onclick="() => kalemModalGoster = false">İptal</button>
-                    <button class="btn btn-primary" @onclick="KaydetKalemAsync" disabled="@yukleniyor">
-                        <i class="bi bi-check me-1"></i>Kaydet
-                    </button>
-                </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="() => kalemModalGoster = false" disabled="@yukleniyor">İptal</button>
+                        <button type="button" class="btn btn-primary" @onclick="KaydetKalemAsync" disabled="@yukleniyor">
+                            <i class="bi bi-check me-1"></i>Kaydet
+                        </button>
+                    </div>
+                </EditForm>
             </div>
         </div>
     </div>
@@ -1398,6 +1402,9 @@ else
     private string? kalemOneriMesaji;
     private string? yakitFiyatMesaji;
     private string? editKalemBolge;
+    private string soforBrutMaasGiris = "0";
+    private string soforNetMaasGiris = "0";
+    private string soforSgkIsverenPayGiris = "0";
     private string? revizyonNotu;
     private string kararNotu = string.Empty;
     private int? seciliTeklifVersiyonId;
@@ -1918,6 +1925,7 @@ else
         kalemOneriMesaji = null;
         yakitFiyatMesaji = null;
         editKalemBolge = null;
+        SoforMaasGirisleriniYenile();
         kalemModalGoster = true;
     }
 
@@ -1929,6 +1937,7 @@ else
         kalemOneriMesaji = null;
         yakitFiyatMesaji = null;
         editKalemBolge = BolgeMetniGetir(kalem);
+        SoforMaasGirisleriniYenile();
         kalemModalGoster = true;
     }
 
@@ -2058,8 +2067,38 @@ else
 
     private async Task KaydetKalemAsync()
     {
-        if (string.IsNullOrWhiteSpace(editKalem.HatAdi) || secilenProje == null) return;
+        if (yukleniyor)
+            return;
+
+        if (secilenProje == null)
+        {
+            ToastService.ShowError("Kayıt için proje bilgisi bulunamadı. Sayfayı yenileyip tekrar deneyin.");
+            return;
+        }
+
+        editKalem.HatAdi = editKalem.HatAdi?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(editKalem.HatAdi))
+        {
+            ToastService.ShowWarning("Hat adı zorunludur.");
+            return;
+        }
+
+        if (!TryParseParaGiris(soforBrutMaasGiris, out var brutMaas) ||
+            !TryParseParaGiris(soforNetMaasGiris, out var netMaas) ||
+            !TryParseParaGiris(soforSgkIsverenPayGiris, out var sgkIsverenPayi))
+        {
+            ToastService.ShowWarning("Şoför maaş alanlarına geçerli bir tutar girin.");
+            return;
+        }
+
+        editKalem.SoforBrutMaas = brutMaas;
+        editKalem.SoforNetMaas = netMaas;
+        editKalem.SoforSGKIsverenPay = sgkIsverenPayi;
+
+        // Yeni ve mevcut kayıtlarda proje bağını formdan gelen nesneye bırakma.
+        editKalem.IhaleProjeId = secilenProje.Id;
         yukleniyor = true;
+        StateHasChanged();
 
         try
         {
@@ -2074,7 +2113,7 @@ else
             kalemModalGoster = false;
             ToastService.ShowSuccess("Hat kaydedildi.");
         }
-        catch (Exception ex) { ToastService.ShowError(ex.Message); }
+        catch (Exception ex) { ToastService.ShowError($"Hat kaydedilemedi: {ex.Message}"); }
         finally { yukleniyor = false; }
     }
 
@@ -2156,6 +2195,7 @@ else
                 editKalem.SoforNetMaas = sonuc.TahminiNetMaas;
                 editKalem.SoforSGKIsverenPay = sonuc.TahminiSGKIsverenPay;
                 editKalem.SoforToplamMaliyet = sonuc.TahminiToplamMaliyet;
+                SoforMaasGirisleriniYenile();
                 aiMaasTahminMesaj = $"✅ AI maaş tahmini uygulandı. Sözleşme sonu tahmini brüt: {sonuc.EnflasyonluBrutMaas:N0} TL. {sonuc.AIAciklama}";
             }
             else
@@ -2538,6 +2578,24 @@ else
         if (!string.IsNullOrWhiteSpace(kalem.BitisNoktasi))
             return kalem.BitisNoktasi;
         return null;
+    }
+
+    private void SoforMaasGirisleriniYenile()
+    {
+        soforBrutMaasGiris = editKalem.SoforBrutMaas.ToString("0.##", CultureInfo.CurrentCulture);
+        soforNetMaasGiris = editKalem.SoforNetMaas.ToString("0.##", CultureInfo.CurrentCulture);
+        soforSgkIsverenPayGiris = editKalem.SoforSGKIsverenPay.ToString("0.##", CultureInfo.CurrentCulture);
+    }
+
+    private static bool TryParseParaGiris(string? metin, out decimal tutar)
+    {
+        tutar = 0;
+        if (string.IsNullOrWhiteSpace(metin))
+            return true;
+
+        var temizMetin = metin.Trim();
+        return decimal.TryParse(temizMetin, NumberStyles.Number, CultureInfo.CurrentCulture, out tutar) ||
+               decimal.TryParse(temizMetin, NumberStyles.Number, CultureInfo.InvariantCulture, out tutar);
     }
 
     private static decimal AracTipineGoreVarsayilanYakit(AracTipi aracTipi, decimal mevcut)
