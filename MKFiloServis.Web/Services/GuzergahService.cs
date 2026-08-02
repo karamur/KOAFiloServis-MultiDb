@@ -177,6 +177,7 @@ public class GuzergahService : IGuzergahService
                 .SetProperty(x => x.KurumId, hedefKurumId ?? existing.KurumId)
                 .SetProperty(x => x.BirimFiyat, guzergah.GelirFiyat)
                 .SetProperty(x => x.GiderFiyat, guzergah.GiderFiyat)
+                .SetProperty(x => x.KdvOrani, guzergah.KdvOrani)
                 .SetProperty(x => x.UpdatedAt, DateTime.UtcNow));
 
         if (updated != 1)
@@ -206,6 +207,11 @@ public class GuzergahService : IGuzergahService
                 $"Güzergah fiyatları DB'ye yazılamadı. GuzergahId={guzergah.Id}, " +
                 $"Beklenen Gelir={guzergah.GelirFiyat} Gider={guzergah.GiderFiyat}, " +
                 $"DB Gelir={kontrol.BirimFiyat} Gider={kontrol.GiderFiyat}");
+
+        if (kontrol.KdvOrani != guzergah.KdvOrani)
+            throw new InvalidOperationException(
+                $"Güzergah KDV oranı DB'ye yazılamadı. GuzergahId={guzergah.Id}, " +
+                $"Beklenen={guzergah.KdvOrani}, DB={kontrol.KdvOrani}");
 
         await InvalidateGuzergahCacheAsync();
         return kontrol;
@@ -276,6 +282,7 @@ public class GuzergahService : IGuzergahService
                         .SetProperty(x => x.KurumId, hedefKurumId ?? existing.KurumId)
                         .SetProperty(x => x.BirimFiyat, guzergah.GelirFiyat)
                         .SetProperty(x => x.GiderFiyat, guzergah.GiderFiyat)
+                        .SetProperty(x => x.KdvOrani, guzergah.KdvOrani)
                         .SetProperty(x => x.UpdatedAt, now));
 
                 // 2. Replace seferler (aynı context + transaction içinde)
