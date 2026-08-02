@@ -282,6 +282,13 @@
                             <small class="text-muted">1.0 = tam, 0.5 = yarım, max 10</small>
                         </div>
                     </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label text-primary fw-semibold">KDV Oranı (%)</label>
+                            <InputNumber @bind-Value="guzergah.KdvOrani" class="form-control" min="0" max="100" step="1" />
+                            <small class="text-muted">Puantaj tablosunda KDV hesabında kullanılır (örn. 20)</small>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="row">
@@ -895,6 +902,7 @@
             (guzergah.VarsayilanSoforId?.ToString() ?? string.Empty),
             guzergah.Notlar ?? string.Empty,
             guzergah.PuantajCarpani.ToString(),
+            guzergah.KdvOrani.ToString(),
             guzergah.Aktif.ToString(),
             guzergah.IsDeleted.ToString(),
             guzergah.CariId.ToString(),

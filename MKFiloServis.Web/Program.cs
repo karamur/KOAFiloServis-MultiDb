@@ -960,6 +960,7 @@ await RunScopedSafeAsync(app, "ApplyMigrations", async services =>
     await MKFiloServis.Web.Data.Migrations.GuzergahSeferFirmaIdConstraintHelper.ApplyAsync(ctx, logger);
     await MKFiloServis.Web.Data.Migrations.SyncPuantajSchemaMigrationHelper.ApplyAsync(ctx, logger);
     await MKFiloServis.Web.Data.Migrations.PuantajCarpaniMigrationHelper.ApplyAsync(ctx, logger);
+    await MKFiloServis.Web.Data.Migrations.GuzergahKdvOraniMigrationHelper.ApplyAsync(ctx, logger);
     await MKFiloServis.Web.Data.Migrations.PuantajSyncMigrationHelper.ApplyAsync(ctx, logger);
     await MKFiloServis.Web.Data.Migrations.BudgetOdemeKalanMigrationHelper.EnsureBudgetOdemeKalanColumnAsync(ctx);
     await MKFiloServis.Web.Data.Migrations.BudgetHedefMigrationHelper.EnsureBudgetHedefTableAsync(ctx);

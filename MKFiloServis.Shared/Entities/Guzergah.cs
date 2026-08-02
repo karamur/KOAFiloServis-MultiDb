@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MKFiloServis.Shared.Entities;
 
@@ -38,6 +38,9 @@ public class Guzergah : BaseEntity, IKopyalanabilirTenant, IFirmaTenant
     public decimal BirimFiyat { get; set; }
     public decimal GiderFiyat { get; set; }
     public decimal PuantajCarpani { get; set; } = 1.0m;
+
+    // KDV oranı (%) - puantaj tablosunda KDV hesabında kullanılır
+    public decimal KdvOrani { get; set; } = 20m;
 
     // UI uyumluluğu: Gelir fiyatı, mevcut BirimFiyat alanını kullanır.
     [NotMapped]

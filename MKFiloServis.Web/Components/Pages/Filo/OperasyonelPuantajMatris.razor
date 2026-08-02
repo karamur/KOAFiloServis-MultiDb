@@ -124,8 +124,8 @@
                                 <th class="text-center">SEFER</th>
                                 <th class="text-end">TOPLAM GELİR</th>
                                 <th class="text-end">TOPLAM GİDER</th>
-                                <th class="text-end">KDV/20</th>
-                                <th class="text-end">KDV/10</th>
+                                <th class="text-center">KDV ORANI</th>
+                                <th class="text-end">KDV MİKTAR</th>
                                 <th class="text-end">KESİNTİ</th>
                                 <th class="text-end">ÖDENECEK</th>
                             </tr>
@@ -165,8 +165,8 @@
                                         <td class="text-center fw-semibold">@satir.SeferSayisi.ToString("0.#")</td>
                                         <td class="text-end fw-semibold">@satir.ToplamGelir.ToString("N2")</td>
                                         <td class="text-end fw-semibold">@satir.ToplamGider.ToString("N2")</td>
-                                        <td class="text-end">@satir.Kdv20.ToString("N2")</td>
-                                        <td class="text-end">@satir.Kdv10.ToString("N2")</td>
+                                        <td class="text-center">%@satir.KdvOrani.ToString("0.##")</td>
+                                        <td class="text-end">@satir.KdvMiktar.ToString("N2")</td>
                                         <td class="text-end">@(satir.Kesinti != 0 ? satir.Kesinti.ToString("N2") : "")</td>
                                         <td class="text-end fw-bold">@satir.Odenecek.ToString("N2")</td>
                                     </tr>
@@ -186,8 +186,8 @@
                                     <td class="text-center">@filtreli.Sum(x => x.SeferSayisi).ToString("0.#")</td>
                                     <td class="text-end">@filtreli.Sum(x => x.ToplamGelir).ToString("N2")</td>
                                     <td class="text-end">@filtreli.Sum(x => x.ToplamGider).ToString("N2")</td>
-                                    <td class="text-end">@filtreli.Sum(x => x.Kdv20).ToString("N2")</td>
-                                    <td class="text-end">@filtreli.Sum(x => x.Kdv10).ToString("N2")</td>
+                                    <td></td>
+                                    <td class="text-end">@filtreli.Sum(x => x.KdvMiktar).ToString("N2")</td>
                                     <td class="text-end">@filtreli.Sum(x => x.Kesinti).ToString("N2")</td>
                                     <td class="text-end">@filtreli.Sum(x => x.Odenecek).ToString("N2")</td>
                                 </tr>
@@ -303,8 +303,9 @@
                     var seferSayisi = grp.Sum(x => x.Puantaj.SeferSayisi);
                     var toplamGelir = Math.Round(seferSayisi * gelirBirim, 2, MidpointRounding.AwayFromZero);
                     var toplamGider = Math.Round(seferSayisi * giderBirim, 2, MidpointRounding.AwayFromZero);
-                    var kdv20 = Math.Round(toplamGider * 0.20m, 2, MidpointRounding.AwayFromZero);
-                    var kdv10 = Math.Round(toplamGider * 0.10m, 2, MidpointRounding.AwayFromZero);
+                    // KDV oranı güzergah kartından gelir
+                    var kdvOrani = ilk.Puantaj.Guzergah?.KdvOrani ?? 20m;
+                    var kdvMiktar = Math.Round(toplamGelir * kdvOrani / 100m, 2, MidpointRounding.AwayFromZero);
                     var kesinti = 0m;
 
                     return new MatrisSatir
@@ -326,11 +327,11 @@
                         SeferSayisi = seferSayisi,
                         ToplamGelir = toplamGelir,
                         ToplamGider = toplamGider,
-                        Kdv20 = kdv20,
-                        Kdv10 = kdv10,
+                        KdvOrani = kdvOrani,
+                        KdvMiktar = kdvMiktar,
                         Kesinti = kesinti,
-                        // ÖDENECEK = TOPLAM GİDER + KDV/20 + KDV/10 - KESİNTİ
-                        Odenecek = toplamGider + kdv20 + kdv10 - kesinti
+                        // ÖDENECEK = TOPLAM GELİR + KDV MİKTAR - KESİNTİ
+                        Odenecek = toplamGelir + kdvMiktar - kesinti
                     };
                 })
                 .OrderBy(x => x.Kurum)
@@ -410,7 +411,7 @@
 
             var gunSayisi = AyGunSayisi;
             var sabitBasliklar = new[] { "S.NO", "KURUM", "GÜZERGAH", "GELİR", "GİDER", "YÖN", "PLAKA", "tedarikçi/personel ŞOFÖR", "tedarikçi/firma FATURA" };
-            var sonBasliklar = new[] { "GÜN", "SEFER", "TOPLAM GELİR", "TOPLAM GİDER", "KDV/20", "KDV/10", "KESİNTİ", "ÖDENECEK" };
+            var sonBasliklar = new[] { "GÜN", "SEFER", "TOPLAM GELİR", "TOPLAM GİDER", "KDV ORANI", "KDV MİKTAR", "KESİNTİ", "ÖDENECEK" };
 
             var kolon = 1;
             foreach (var b in sabitBasliklar)
@@ -466,8 +467,9 @@
                 ws.Cell(satirNo, c++).Value = satir.SeferSayisi;
                 ws.Cell(satirNo, c++).Value = satir.ToplamGelir;
                 ws.Cell(satirNo, c++).Value = satir.ToplamGider;
-                ws.Cell(satirNo, c++).Value = satir.Kdv20;
-                ws.Cell(satirNo, c++).Value = satir.Kdv10;
+                ws.Cell(satirNo, c++).Value = satir.KdvOrani / 100m;
+                ws.Cell(satirNo, c - 1).Style.NumberFormat.Format = "0.##%";
+                ws.Cell(satirNo, c++).Value = satir.KdvMiktar;
                 if (satir.Kesinti != 0) ws.Cell(satirNo, c).Value = satir.Kesinti;
                 c++;
                 ws.Cell(satirNo, c).Value = satir.Odenecek;
@@ -482,7 +484,10 @@
                 toplamKolonlar.Add(sabitBasliklar.Length + g);
             var sonBaslangic = sabitBasliklar.Length + gunSayisi;
             for (var i = 1; i <= sonBasliklar.Length; i++)
+            {
+                if (i == 5) continue; // KDV ORANI kolonu toplanmaz
                 toplamKolonlar.Add(sonBaslangic + i);
+            }
 
             foreach (var col in toplamKolonlar)
             {
@@ -494,7 +499,9 @@
 
             // Sayı formatları
             ws.Range(2, 4, satirNo, 5).Style.NumberFormat.Format = "#,##0.00";
-            ws.Range(2, sonBaslangic + 3, satirNo, sonKolon).Style.NumberFormat.Format = "#,##0.00";
+            ws.Range(2, sonBaslangic + 3, satirNo, sonBaslangic + 4).Style.NumberFormat.Format = "#,##0.00"; // TOPLAM GELİR/GİDER
+            ws.Range(2, sonBaslangic + 5, satirNo - 1, sonBaslangic + 5).Style.NumberFormat.Format = "0.##%"; // KDV ORANI
+            ws.Range(2, sonBaslangic + 6, satirNo, sonKolon).Style.NumberFormat.Format = "#,##0.00"; // KDV MİKTAR..ÖDENECEK
 
             ws.Columns().AdjustToContents();
             ws.SheetView.FreezeRows(1);
@@ -659,8 +666,8 @@
         public decimal SeferSayisi { get; set; }
         public decimal ToplamGelir { get; set; }
         public decimal ToplamGider { get; set; }
-        public decimal Kdv20 { get; set; }
-        public decimal Kdv10 { get; set; }
+        public decimal KdvOrani { get; set; }
+        public decimal KdvMiktar { get; set; }
         public decimal Kesinti { get; set; }
         public decimal Odenecek { get; set; }
     }
