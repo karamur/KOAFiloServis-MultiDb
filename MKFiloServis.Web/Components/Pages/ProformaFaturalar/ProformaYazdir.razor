@@ -5,6 +5,7 @@
 
 @inject IProformaFaturaService ProformaService
 @inject IFirmaService FirmaService
+@inject IAktifFirmaProvider AktifFirmaProvider
 @inject IJSRuntime JS
 @rendermode InteractiveServer
 
@@ -791,27 +792,32 @@ else
         }
     }
 
-    protected override async Task OnInitializedAsync()
-    {
-        proforma = await ProformaService.GetByIdWithKalemlerAsync(Id);
-
-        if (proforma?.FirmaId.HasValue == true)
-        {
-            firma = await FirmaService.GetByIdAsync(proforma.FirmaId.Value);
-        }
-        firma ??= await FirmaService.GetVarsayilanFirmaAsync();
-
-        isLoading = false;
-    }
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && !isLoading && proforma != null)
+        if (!firstRender)
         {
-            // Sayfa yüklenince otomatik yazdır dialogu açma — kullanıcı butonla açacak
-            // İstersen aşağıdaki satırı açarak otomatik da tetikleyebilirsin:
-            // await JS.InvokeVoidAsync("window.print");
+            return;
         }
+
+        if (!AktifFirmaProvider.HasAktifFirma)
+        {
+            await AktifFirmaProvider.TryRestoreAsync();
+        }
+
+        if (AktifFirmaProvider.HasAktifFirma)
+        {
+            proforma = await ProformaService.GetByIdWithKalemlerAsync(Id);
+
+            if (proforma?.FirmaId.HasValue == true)
+            {
+                firma = await FirmaService.GetByIdAsync(proforma.FirmaId.Value);
+            }
+
+            firma ??= await FirmaService.GetVarsayilanFirmaAsync();
+        }
+
+        isLoading = false;
+        StateHasChanged();
     }
 }
 

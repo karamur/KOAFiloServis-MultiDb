@@ -53,6 +53,11 @@ if (-not $IsccExe) {
     throw "Inno Setup (ISCC.exe) bulunamadi. 'winget install JRSoftware.InnoSetup' ile kurun."
 }
 
+# ASP.NET Core Hosting Bundle (pakete gomulur; hedef makinede internet gerekmez)
+$HostingBundleUrl  = 'https://aka.ms/dotnet/10.0/dotnet-hosting-win.exe'
+$RedistDir         = Join-Path $Root 'redist'
+$HostingBundleExe  = Join-Path $RedistDir 'dotnet-hosting-10.0-win.exe'
+
 Write-Host "==================================================" -ForegroundColor Cyan
 Write-Host "MKFiloServis-MultiDb Paket Uretim - v$Version" -ForegroundColor Cyan
 Write-Host "==================================================" -ForegroundColor Cyan
@@ -92,6 +97,21 @@ if (-not $SkipPublish) {
             Copy-Item $dbSettingsSrc "$Payload\Web\dbsettings.json" -Force
             Write-Host "       dbsettings.json payload'a kopyalandi" -ForegroundColor DarkGray
         }
+
+        # Jwt:Secret placeholder'ini guclu rastgele bir degerle degistir;
+        # aksi halde uygulama Production ortaminda 500.30 ile aciliyor.
+        $prodSettingsPath = Join-Path $Payload 'Web\appsettings.Production.json'
+        if (Test-Path $prodSettingsPath) {
+            $ps = Get-Content $prodSettingsPath -Raw
+            if ($ps -match 'REPLACE_WITH_STRONG_SECRET') {
+                $bytes = New-Object byte[] 48
+                [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+                $secret = [Convert]::ToBase64String($bytes)
+                $ps = $ps -replace 'REPLACE_WITH_STRONG_SECRET_MIN_32_CHARS', $secret
+                Set-Content -Path $prodSettingsPath -Value $ps -Encoding UTF8 -NoNewline
+                Write-Host "       appsettings.Production.json: Jwt:Secret otomatik uretildi" -ForegroundColor DarkGray
+            }
+        }
     }
 
     Write-Host "[2/5] LisansDesktop publish..." -ForegroundColor Green
@@ -109,6 +129,22 @@ if (-not $SkipPublish) {
     }
 } else {
     Write-Host "[PUBLISH ATLANDI] -SkipPublish" -ForegroundColor Yellow
+}
+
+if (-not $LisansOnly) {
+    # Hosting Bundle'i bir kez indir (redist icinde onbellekte tutulur), payload'a kopyala.
+    if (-not (Test-Path $HostingBundleExe)) {
+        New-Item -ItemType Directory -Force $RedistDir | Out-Null
+        Write-Host "Hosting Bundle indiriliyor: $HostingBundleUrl" -ForegroundColor Green
+        Invoke-WebRequest -Uri $HostingBundleUrl -OutFile $HostingBundleExe -UseBasicParsing
+    } else {
+        Write-Host "Hosting Bundle onbellekten kullaniliyor: $HostingBundleExe" -ForegroundColor DarkGray
+    }
+
+    $payloadRedist = Join-Path $Payload 'redist'
+    New-Item -ItemType Directory -Force $payloadRedist | Out-Null
+    Copy-Item $HostingBundleExe (Join-Path $payloadRedist 'dotnet-hosting-win.exe') -Force
+    Write-Host "Hosting Bundle payload'a eklendi." -ForegroundColor DarkGray
 }
 
 New-Item -ItemType Directory -Force $Output | Out-Null

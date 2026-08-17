@@ -1,6 +1,6 @@
 ﻿; ============================================================
-; MKFiloServis — Simplified Direct-EXE Installer
-; No IIS, no firewall, just run the self-contained EXE.
+; MKFiloServis — Tam Kurulum (IIS + Hosting Bundle gomulu)
+; Harici indirme/kurulum gerektirmez; IIS otomatik etkinlestirilir.
 ; ============================================================
 
 #define MyAppName        "MKFiloServis"
@@ -11,6 +11,9 @@
 #define MyBackupDirBase  "C:\MKFiloServis_yedekleme"
 #define MyLisansExe      "MKFiloServisLisans.exe"
 #define MyDataSyncExe    "MKFiloServis.DataSync.exe"
+#define MyIisSiteName    "MKFiloServis"
+#define MyIisAppPool     "MKFiloServis"
+#define MyIisPort        "5050"
 
 #ifndef MyAppVersion
 #define MyAppVersion "1.0.26"
@@ -23,7 +26,7 @@
 #define MyShortcutName MyAppName + " Ustun"
 
 [Setup]
-AppId={{#MyAppId}
+AppId={#MyAppId}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppVerName={#MyAppName} {#MyAppVersion}
@@ -67,6 +70,9 @@ Source: "payload\LisansDesktop\*"; DestDir: "{app}\tools\lisans"; Flags: ignorev
 ; Veri Aktarim Araci
 Source: "payload\DataSync\*"; DestDir: "{app}\tools\datasync"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+; ASP.NET Core Hosting Bundle (gomulu; hedef makinede internet gerekmez)
+Source: "payload\redist\dotnet-hosting-win.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
+
 [Dirs]
 Name: "{app}\data"; Permissions: users-modify
 Name: "{app}\uploads"; Permissions: users-modify
@@ -96,6 +102,73 @@ begin
   WizardForm.Caption := '{#MyAppName} {#MyAppVersion} Kurulum Sihirbazi';
 end;
 
+function IsIISInstalled(): Boolean;
+begin
+  Result := FileExists(ExpandConstant('{sys}\inetsrv\appcmd.exe'));
+end;
+
+function IsHostingBundleInstalled(): Boolean;
+var
+  FindRec: TFindRec;
+begin
+  // .NET 10 ASP.NET Core runtime kurulu mu?
+  Result := FindFirst(ExpandConstant('{commonpf64}\dotnet\shared\Microsoft.AspNetCore.App\10.*'), FindRec);
+  if Result then
+    FindClose(FindRec);
+end;
+
+procedure RunHidden(const FileName, Params, StatusMsg: String);
+var
+  ResultCode: Integer;
+begin
+  WizardForm.StatusLabel.Caption := StatusMsg;
+  Exec(FileName, Params, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Log(Format('RunHidden: %s %s -> %d', [FileName, Params, ResultCode]));
+end;
+
+procedure ConfigureIIS();
+var
+  AppCmd: String;
+begin
+  // 1) IIS ozelliklerini etkinlestir (kuruluysa hizli gecer)
+  if not IsIISInstalled() then
+    RunHidden(ExpandConstant('{sys}\dism.exe'),
+      '/online /enable-feature /featurename:IIS-WebServerRole /featurename:IIS-WebServer' +
+      ' /featurename:IIS-CommonHttpFeatures /featurename:IIS-StaticContent /featurename:IIS-DefaultDocument' +
+      ' /featurename:IIS-HttpErrors /featurename:IIS-HttpLogging /featurename:IIS-RequestFiltering' +
+      ' /featurename:IIS-ApplicationInit /featurename:IIS-WebSockets /featurename:IIS-ManagementConsole' +
+      ' /all /norestart',
+      'IIS etkinlestiriliyor (birkac dakika surebilir)...');
+
+  // 2) Hosting Bundle'i gomulu paketten sessiz kur (kuruluysa atla)
+  if not IsHostingBundleInstalled() then
+    RunHidden(ExpandConstant('{tmp}\dotnet-hosting-win.exe'),
+      '/install /quiet /norestart',
+      '.NET Hosting Bundle kuruluyor...');
+
+  // 3) AppPool + Site olustur/guncelle (varsa hatalar yoksayilir)
+  AppCmd := ExpandConstant('{sys}\inetsrv\appcmd.exe');
+  if FileExists(AppCmd) then
+  begin
+    RunHidden(AppCmd, 'add apppool /name:"{#MyIisAppPool}" /managedRuntimeVersion:"" /startMode:AlwaysRunning',
+      'IIS uygulama havuzu olusturuluyor...');
+    RunHidden(AppCmd, ExpandConstant('add site /name:"{#MyIisSiteName}" /physicalPath:"{app}\app" /bindings:http/*:{#MyIisPort}:'),
+      'IIS sitesi olusturuluyor...');
+    RunHidden(AppCmd, 'set site /site.name:"{#MyIisSiteName}" /[path=''/''].applicationPool:"{#MyIisAppPool}"',
+      'IIS sitesi yapilandiriliyor...');
+    RunHidden(AppCmd, ExpandConstant('set vdir "{#MyIisSiteName}/" /physicalPath:"{app}\app"'),
+      'IIS fiziksel yol guncelleniyor...');
+    RunHidden(AppCmd, 'start apppool /apppool.name:"{#MyIisAppPool}"', 'Uygulama havuzu baslatiliyor...');
+    RunHidden(AppCmd, 'start site /site.name:"{#MyIisSiteName}"', 'Site baslatiliyor...');
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+    ConfigureIIS();
+end;
+
 function InitializeSetup(): Boolean;
 var
   Msg: String;
@@ -103,6 +176,7 @@ begin
   Result := True;
   Msg := '{#MyAppName} {#MyAppVersion} ayri bir klasore kurulacaktir:' + #13#10 +
          '{#MyInstallDir}' + #13#10#13#10 +
+         'IIS ve .NET Hosting Bundle otomatik kurulur; harici indirme gerekmez.' + #13#10 +
          'Bu kurulum mevcut versiyonlara dokunmaz ve yan yana calisabilir.' + #13#10 +
          'Devam etmek istiyor musunuz?';
   if MsgBox(Msg, mbConfirmation, MB_YESNO) = IDNO then

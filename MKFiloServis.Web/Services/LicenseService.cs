@@ -668,12 +668,29 @@ public class LicenseService
 
         if (varsayilanFirma != null)
         {
-            _logger.LogWarning("Lisans firma esi bulunamadi. Fallback firma secildi. LisansDegeri={LicenseFirmaValue}, FirmaId={FirmaId}, FirmaKodu={FirmaKodu}",
+            // Fallback firma seçildi, ancak bu sistem tarafından desteklenen bir durum
+            _logger.LogWarning("Lisans firma kodu doğrudan eşleşme bulunamadı, varsayılan firmaya atandı. LisansDegeri={LicenseFirmaValue}, FirmaId={FirmaId}, FirmaKodu={FirmaKodu}",
                 licenseFirmaValue, varsayilanFirma.Id, varsayilanFirma.FirmaKodu);
             return varsayilanFirma;
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Fallback firma seçildiğinde, LicenseInfo'nın FirmaKodu'nu günceller.
+    /// Böylece sonraki sefer doğrudan eşleştirme yapılabilir.
+    /// </summary>
+    private async Task UpdateLicenseFirmaCodeAsync(ApplicationDbContext db, LicenseInfo lic, Firma firma, string? originalFirmaCode)
+    {
+        if (lic.FirmaKodu != firma.FirmaKodu)
+        {
+            lic.FirmaKodu = firma.FirmaKodu;
+            lic.FirmaId = firma.Id;
+            await db.SaveChangesAsync();
+            _logger.LogInformation("Lisans FirmaKodu güncellendi. Eski={OldCode}, Yeni={NewCode}, FirmaId={FirmaId}",
+                originalFirmaCode, firma.FirmaKodu, firma.Id);
+        }
     }
 
     private async Task<Firma> CreateFirmaFromLicenseAsync(ApplicationDbContext db, LicenseInfo lic)

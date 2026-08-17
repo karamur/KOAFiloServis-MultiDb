@@ -259,6 +259,21 @@
                                                 <i class="bi bi-card-text me-2 text-primary"></i> Plaka Takip
                                             </NavLink>
                                         </div>
+                                        <div class="nav-item px-3">
+                                            <NavLink class="nav-link" href="arac-takip">
+                                                <i class="bi bi-geo-alt-fill me-2 text-success"></i> Canlı Araç Takip
+                                            </NavLink>
+                                        </div>
+                                        <div class="nav-item px-3">
+                                            <NavLink class="nav-link" href="ayarlar/arac-takip-cihaz">
+                                                <i class="bi bi-broadcast-pin me-2 text-danger"></i> Araç Takip Cihazları
+                                            </NavLink>
+                                        </div>
+                                        <div class="nav-item px-3">
+                                            <NavLink class="nav-link" href="ayarlar/gps-simulasyon">
+                                                <i class="bi bi-broadcast me-2 text-warning"></i> GPS Simülasyon
+                                            </NavLink>
+                                        </div>
 
                                         <div class="nav-subsection mt-2 pt-2 border-top">
                                             <div class="nav-subsection-header" @onclick="() => ToggleSection(NavSection.LastikTakip)" style="cursor: pointer;">
@@ -1028,7 +1043,7 @@
                                 </NavLink>
                             </div>
                             <div class="nav-item px-3">
-                                <NavLink class="nav-link" href="ayarlar/-cihaz">
+                                <NavLink class="nav-link" href="ayarlar/arac-takip-cihaz">
                                     <i class="bi bi-broadcast-pin me-2 text-danger"></i> Araç Takip Cihazları
                                 </NavLink>
                             </div>
@@ -1369,7 +1384,7 @@
     {
         ["menu.crm"] = new() { "bildirim", "mesaj", "email", "hatirlatici" },
         ["menu.cari"] = new() { "cari", "cariler", "kesilenfatura", "gelenfatura" },
-        ["menu.filoservis"] = new() { "arac", "araclar", "guzergah", "guzergahlar", "serviscalisma", "toplucalisma", "aracmasraf", "filo", "hakedis", "operasyonel-hakedis", "arac-maliyet-snapshot", "tedarikciservis", "tedarikciarac", "tedarikcipersonel", "tedarikciaracevrak" },
+        ["menu.filoservis"] = new() { "arac", "araclar", "aractakip", "arac-takip", "guzergah", "guzergahlar", "serviscalisma", "toplucalisma", "aracmasraf", "filo", "hakedis", "operasyonel-hakedis", "arac-maliyet-snapshot", "tedarikciservis", "tedarikciarac", "tedarikcipersonel", "tedarikciaracevrak" },
         ["menu.muhasebe"] = new() { "muhasebe", "hesapplani", "muhasebefis", "muhaseberapor" },
         ["menu.personel"] = new() { "personel", "maas", "izin" },
         ["menu.fatura"] = new() { "fatura", "faturalar", "faturahazirlik", "kesilenfatura", "gelenfatura" },

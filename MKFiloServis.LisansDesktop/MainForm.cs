@@ -1093,7 +1093,10 @@ public class MainForm : Form
             txtUpdateSourceFolder.Text = sourceFolder;
             txtUpdateOutputFolder.Text = outputRoot;
 
-            CreateUpdateZipPackage();
+            // Kurulum paketlerini (Inno Setup) build.ps1 ile uret ve MK adlariyla version klasorune yerlestir.
+            if (!BuildInstallerPackages(cleanVersion, versionFolder, key))
+                return;
+
             ShowKeyAndRefresh(key);
 
             MessageBox.Show(
@@ -1104,6 +1107,196 @@ public class MainForm : Form
         {
             MessageBox.Show($"Musteri kurulum paketleme hatasi: {ex.Message}", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
+
+    /// <summary>
+    /// setup\build.ps1 dosyasini bulur; girilen versiyonla kurulum paketlerini uretir,
+    /// license.auto.key'i payload'a gomup paketleri yeniden derler ve ciktilari
+    /// v1.0.28 formatindaki gibi (MKFiloServis... adlari, version.txt, README.md) hazirlar.
+    /// </summary>
+    private bool BuildInstallerPackages(string version, string versionFolder, string licenseKey)
+    {
+        var setupDir = TryFindSetupDirectory();
+        if (setupDir == null)
+        {
+            MessageBox.Show("setup\\build.ps1 bulunamadi. Kurulum paketleri uretilemedi.", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return false;
+        }
+
+        var buildScript = Path.Combine(setupDir, "build.ps1");
+
+        // 1) Tam build: publish + Inno Setup paketleri
+        if (!RunPowerShellScript(buildScript, $"-Version {version}", setupDir, "Kurulum paketleri uretiliyor (publish + paketleme)..."))
+            return false;
+
+        // 2) Otomatik lisans anahtarini payload'a gom ve paketleri yeniden derle (publish atlanir)
+        var payloadWeb = Path.Combine(setupDir, "payload", "Web");
+        if (Directory.Exists(payloadWeb))
+        {
+            File.WriteAllText(Path.Combine(payloadWeb, "license.auto.key"), licenseKey, Encoding.UTF8);
+            if (!RunPowerShellScript(buildScript, $"-Version {version} -SkipPublish", setupDir, "Lisans anahtari gomulup paketler yeniden derleniyor..."))
+                return false;
+        }
+
+        // 3) Ciktilari MK adlariyla version klasorune tasi
+        var buildOutput = Path.Combine(setupDir, "output", $"v{version}");
+        var renames = new (string Source, string Target)[]
+        {
+            ($"MKFiloServisKurulum-{version}.exe", $"MKFiloServisKurulum-{version}.exe"),
+            ($"MKFiloServisGuncelle-{version}.exe", $"MKFiloServisGuncelle-{version}.exe"),
+            ($"MKFiloServisKurulumMusteri-{version}.exe", $"MKFiloServisKurulumMusteri-{version}.exe"),
+            ($"MKLisansArac-{version}.exe", $"MKLisansArac-{version}.exe")
+        };
+
+        Directory.CreateDirectory(versionFolder);
+        foreach (var (source, target) in renames)
+        {
+            var sourcePath = Path.Combine(buildOutput, source);
+            if (!File.Exists(sourcePath))
+                continue;
+
+            var targetPath = Path.Combine(versionFolder, target);
+
+            // Kaynak ve hedef ayni dosyaysa dokunma; aksi halde once silinen dosya tasinamiyor
+            // ve MKFiloServisKurulum-*.exe versiyon klasorunde eksik kaliyordu.
+            if (string.Equals(Path.GetFullPath(sourcePath), Path.GetFullPath(targetPath), StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (File.Exists(targetPath))
+                File.Delete(targetPath);
+
+            if (string.Equals(Path.GetFullPath(buildOutput), Path.GetFullPath(versionFolder), StringComparison.OrdinalIgnoreCase))
+                File.Move(sourcePath, targetPath);
+            else
+                File.Copy(sourcePath, targetPath, true);
+        }
+
+        File.WriteAllText(Path.Combine(versionFolder, "version.txt"), version);
+        File.WriteAllText(
+            Path.Combine(versionFolder, "README.md"),
+            $"# MK FiloServis v{version} Kurulum Paketleri{Environment.NewLine}{Environment.NewLine}Olusturma: {DateTime.Now:yyyy-MM-dd HH:mm:ss}{Environment.NewLine}");
+
+        return true;
+    }
+
+    private static string? TryFindSetupDirectory()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            var candidate = Path.Combine(dir.FullName, "setup");
+            if (File.Exists(Path.Combine(candidate, "build.ps1")))
+                return candidate;
+
+            dir = dir.Parent;
+        }
+
+        return null;
+    }
+
+    private static bool RunPowerShellScript(string scriptPath, string arguments, string workingDirectory, string statusMessage)
+    {
+        var shell = FindPowerShellExecutable();
+
+        var psi = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = shell,
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -File \"{scriptPath}\" {arguments}",
+            WorkingDirectory = workingDirectory,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+
+        using var process = System.Diagnostics.Process.Start(psi);
+        if (process == null)
+        {
+            MessageBox.Show("PowerShell baslatilamadi.", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return false;
+        }
+
+        using var progress = new Form
+        {
+            Text = "Paketleme",
+            Size = new Size(520, 120),
+            StartPosition = FormStartPosition.CenterParent,
+            FormBorderStyle = FormBorderStyle.FixedDialog,
+            MinimizeBox = false,
+            MaximizeBox = false,
+            ControlBox = false
+        };
+        progress.Controls.Add(new Label { Text = statusMessage, Dock = DockStyle.Top, Height = 30, TextAlign = ContentAlignment.MiddleCenter });
+        var bar = new ProgressBar { Style = ProgressBarStyle.Marquee, Dock = DockStyle.Top, Height = 24 };
+        progress.Controls.Add(bar);
+        bar.BringToFront();
+
+        var stdOut = new StringBuilder();
+        var stdErr = new StringBuilder();
+        process.OutputDataReceived += (_, e) => { if (e.Data != null) stdOut.AppendLine(e.Data); };
+        process.ErrorDataReceived += (_, e) => { if (e.Data != null) stdErr.AppendLine(e.Data); };
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+
+        process.EnableRaisingEvents = true;
+        process.Exited += (_, _) =>
+        {
+            try { progress.Invoke(() => progress.Close()); } catch { /* form kapali olabilir */ }
+        };
+
+        if (process.HasExited)
+            progress.Load += (_, _) => progress.Close();
+
+        progress.ShowDialog();
+        process.WaitForExit();
+
+        if (process.ExitCode != 0)
+        {
+            var tail = stdOut.ToString();
+            if (tail.Length > 2000) tail = tail[^2000..];
+            MessageBox.Show(
+                $"Paketleme betigi hata verdi (exit code {process.ExitCode}).\n\n{stdErr}\n{tail}",
+                "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return false;
+        }
+
+        return true;
+    }
+
+    private static string FindPowerShellExecutable()
+    {
+        var candidates = new[]
+        {
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "PowerShell", "7", "pwsh.exe"),
+            "pwsh.exe"
+        };
+
+        foreach (var candidate in candidates)
+        {
+            try
+            {
+                if (Path.IsPathRooted(candidate) && File.Exists(candidate))
+                    return candidate;
+            }
+            catch { /* yoksay */ }
+        }
+
+        // PATH uzerinden pwsh dene, yoksa Windows PowerShell kullan
+        try
+        {
+            using var probe = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "pwsh.exe",
+                Arguments = "-NoProfile -Command exit",
+                UseShellExecute = false,
+                CreateNoWindow = true
+            });
+            probe?.WaitForExit(5000);
+            if (probe != null) return "pwsh.exe";
+        }
+        catch { /* pwsh yok */ }
+
+        return "powershell.exe";
     }
 
     private void LoadSelectedSaleToForm()

@@ -643,16 +643,34 @@ public class AracService : IAracService
     public async Task<AracEvrak> UpdateAracEvrakAsync(AracEvrak evrak)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        if (evrak.BaslangicTarihi.HasValue)
-            evrak.BaslangicTarihi = DateTime.SpecifyKind(evrak.BaslangicTarihi.Value, DateTimeKind.Utc);
-        if (evrak.BitisTarihi.HasValue)
-            evrak.BitisTarihi = DateTime.SpecifyKind(evrak.BitisTarihi.Value, DateTimeKind.Utc);
 
-        evrak.UpdatedAt = DateTime.UtcNow;
-        context.AracEvraklari.Update(evrak);
+        // Mevcut kaydi yukleyip sadece duzenlenen alanlari aktar;
+        // aksi halde kopya entity'deki bos FirmaId/CreatedAt degerleri
+        // (Kind=Unspecified) veritabanina yazilirken hataya yol acar.
+        var mevcut = await context.AracEvraklari
+            .FirstOrDefaultAsync(e => e.Id == evrak.Id && !e.IsDeleted)
+            ?? throw new InvalidOperationException("Guncellenecek evrak bulunamadi.");
+
+        mevcut.EvrakKategorisi = evrak.EvrakKategorisi;
+        mevcut.EvrakAdi = evrak.EvrakAdi;
+        mevcut.Aciklama = evrak.Aciklama;
+        mevcut.BaslangicTarihi = evrak.BaslangicTarihi.HasValue
+            ? DateTime.SpecifyKind(evrak.BaslangicTarihi.Value, DateTimeKind.Utc)
+            : null;
+        mevcut.BitisTarihi = evrak.BitisTarihi.HasValue
+            ? DateTime.SpecifyKind(evrak.BitisTarihi.Value, DateTimeKind.Utc)
+            : null;
+        mevcut.Tutar = evrak.Tutar;
+        mevcut.SigortaSirketi = evrak.SigortaSirketi;
+        mevcut.PoliceNo = evrak.PoliceNo;
+        mevcut.Durum = evrak.Durum;
+        mevcut.HatirlatmaAktif = evrak.HatirlatmaAktif;
+        mevcut.HatirlatmaGunOnce = evrak.HatirlatmaGunOnce;
+        mevcut.UpdatedAt = DateTime.UtcNow;
+
         await context.SaveChangesAsync();
-        await SenkronizeAracBelgeTarihleriAsync(context, evrak.AracId);
-        return evrak;
+        await SenkronizeAracBelgeTarihleriAsync(context, mevcut.AracId);
+        return mevcut;
     }
 
     public async Task DeleteAracEvrakAsync(int evrakId)

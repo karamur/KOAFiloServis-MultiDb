@@ -20,7 +20,7 @@
 #define MyShortcutName MyAppName + " Musteri Ustun"
 
 [Setup]
-AppId={{#MyAppId}
+AppId={#MyAppId}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppVerName={#MyAppName} {#MyAppVersion}

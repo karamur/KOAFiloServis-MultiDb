@@ -940,7 +940,7 @@ await RunScopedSafeAsync(app, "SeedDefaultEvrakTanimlari", async services =>
     await ozlukService.SeedDefaultEvrakTanimlariAsync();
 });
 
-// Nihai Mimari: Tenant DB oluşturma ve migration blokları kaldırıldı.
+// Nihai Mimari
 // Tüm firmalar tek MKFiloServis veritabanında çalışır.
 // Migration helper'lar tek veritabanında ApplyMigrations ile uygulanır (aşağıya bakın).
 
