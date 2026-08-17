@@ -39,6 +39,20 @@ MKFiloServis; araç filosu işleten firmaların **cari, fatura, bütçe, servis 
 
 ## Mimari
 
+### İşleyiş Akış Şeması
+
+```mermaid
+flowchart TB
+    UI[Blazor Interactive Server UI] --> APP[Uygulama ve Servis Katmanı]
+    API[REST API / JWT] --> APP
+    JOBS[Quartz Arka Plan İşleri] --> APP
+    APP --> EF[EF Core 10 / ApplicationDbContext]
+    APP --> FILES[Şifreli Dosya ve Belge Servisleri]
+    APP --> AI[Ollama / Harici AI Sağlayıcıları]
+    EF --> DB[(Veritabanı)]
+    DB --> TENANT[FirmaId + IsDeleted İzolasyonu]
+```
+
 - **Web**: Blazor Server (.NET 10), Kestrel veya IIS (in-process) barındırma
 - **Veritabanı**: PostgreSQL — firma başına ayrı veritabanı (multi-tenant), EF Core `IDbContextFactory` deseni
 - **Zamanlanmış Görevler**: Quartz.NET (puantaj otomasyonu, e-Fatura senkronizasyonu, veri toplama, anomali tarama)
