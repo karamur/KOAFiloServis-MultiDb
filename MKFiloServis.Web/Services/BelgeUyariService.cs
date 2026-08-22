@@ -157,9 +157,13 @@ public class BelgeUyariService : IBelgeUyariService
         }
 
         // Kiralık C Plaka sözleşme/kira bitiş uyarıları
+        // KiralikPlakaTakip'te FirmaId yok; bagli oldugu Arac uzerinden firma filtresi uygulanir.
+        // Araclar seti global tenant filtresine tabi oldugundan yalnizca aktif firmanin
+        // araclarina bagli plakalar (veya araca bagli olmayanlar) listelenir.
         var kiralikPlakalar = await context.KiralikPlakaTakipler
             .AsNoTracking()
-            .Where(k => !k.IsDeleted && k.BitisTarihi <= limitTarih)
+            .Where(k => !k.IsDeleted && k.BitisTarihi <= limitTarih
+                && (k.AracId == null || context.Araclar.Any(a => a.Id == k.AracId && !a.IsDeleted)))
             .OrderBy(k => k.BitisTarihi)
             .Select(k => new
             {

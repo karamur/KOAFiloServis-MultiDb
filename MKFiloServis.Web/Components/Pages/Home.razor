@@ -1,4 +1,4 @@
-@page "/dashboard"
+﻿@page "/dashboard"
 @attribute [Authorize]
 @using MKFiloServis.Shared.Entities
 @using MKFiloServis.Web.Services
@@ -1327,6 +1327,10 @@ else
         try
         {
             using var scope = ScopeFactory.CreateScope();
+            // Yeni scope'ta IAktifFirmaProvider bos olusur (FirmaId=0) ve tenant filtresi
+            // devre disi kalir; secili firma bilgisi kopyalanmazsa TUM firmalarin verisi gelir.
+            var scopedProvider = scope.ServiceProvider.GetRequiredService<IAktifFirmaProvider>();
+            scopedProvider.Set(AktifFirmaProvider.Mevcut);
             await action(scope.ServiceProvider);
         }
         catch (Exception ex)

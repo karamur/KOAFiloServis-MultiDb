@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Threading;
@@ -17,7 +17,12 @@ public class CacheService : ICacheService
 {
     private readonly IDistributedCache _cache;
     private readonly ILogger<CacheService> _logger;
-    private readonly ConcurrentDictionary<string, bool> _keyTracker = new();
+    // CacheService Scoped kayitli ancak IDistributedCache deposu singleton'dir.
+    // Key takibi instance bazli olursa RemoveByPrefixAsync baska scope'larda
+    // yazilmis anahtarlari goremez ve firma-bazli listeler bayat kalir
+    // (orn. arac firma transferi sonrasi eski firmada gorunme sorunu).
+    // Bu nedenle tracker tum instance'lar arasinda paylasilir (static).
+    private static readonly ConcurrentDictionary<string, bool> _keyTracker = new();
     private static readonly TimeSpan DefaultExpiration = TimeSpan.FromMinutes(5);
     
     private static readonly JsonSerializerOptions JsonOptions = new()
