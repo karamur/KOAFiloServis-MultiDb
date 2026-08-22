@@ -96,9 +96,10 @@ builder.Services.AddPooledDbContextFactory<ApplicationDbContext>((sp, options) =
     var enableSensitiveDataLogging = builder.Environment.IsDevelopment() &&
         builder.Configuration.GetValue<bool>("EntityFramework:EnableSensitiveDataLogging");
 
-    // Production: varsayılan NoTracking — salt-okunur sorgularda change tracker overhead'ini kaldırır.
-    // CRUD işlemleri .AsTracking() ile explicit tracking kullanır.
-    options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+    // Varsayilan: TrackAll — servis katmani update akislarinda entity'yi cekip alanlari
+    // degistirerek SaveChanges cagirir; NoTracking varsayilani bu kayitlarin sessizce
+    // kaybolmasina yol acar. Salt-okunur sorgular .AsNoTracking() ile optimize edilir.
+    options.UseQueryTrackingBehavior(QueryTrackingBehavior.TrackAll);
 
     switch (databaseRuntime.Provider)
     {

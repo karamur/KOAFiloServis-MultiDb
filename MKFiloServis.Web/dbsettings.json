@@ -1,4 +1,4 @@
-{
+﻿{
   "Id": 0,
   "Provider": 2,
   "CanonicalProvider": 2,
@@ -9,8 +9,8 @@
   "Password": "Fast123",
   "UseIntegratedSecurity": false,
   "AdditionalOptions": null,
-  "TransitionManifestPath": "C:\\Users\\muratk\\Desktop\\d yedek\\calisma\\Claude-Code\\MKFiloServis-MultiDb\\MKFiloServis.Web\\App_Data\\db-transitions\\transition-20260817164848.json",
-  "LastTransitionAtUtc": "2026-08-17T16:48:48.611338Z",
-  "LastUpdated": "2026-08-17T16:48:48.6113446Z",
+  "TransitionManifestPath": "C:\\Users\\muratk\\Desktop\\d yedek\\calisma\\Claude-Code\\MKFiloServis-MultiDb\\MKFiloServis.Web\\App_Data\\db-transitions\\transition-20260818083614.json",
+  "LastTransitionAtUtc": "2026-08-18T08:36:14.3915401Z",
+  "LastUpdated": "2026-08-18T08:36:14.3915429Z",
   "IsCanonicalProvider": true
 }

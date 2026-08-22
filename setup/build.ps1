@@ -84,11 +84,16 @@ if (-not $SkipPublish) {
 
         $webConfigPath = Join-Path $Payload 'Web\web.config'
         if (Test-Path $webConfigPath) {
-            $wc = Get-Content $webConfigPath -Raw
-            $wc2 = $wc -replace 'stdoutLogEnabled="false"', 'stdoutLogEnabled="true"'
-            if ($wc -ne $wc2) {
-                Set-Content -Path $webConfigPath -Value $wc2 -Encoding UTF8 -NoNewline
-                Write-Host "       web.config: stdoutLogEnabled=true" -ForegroundColor DarkGray
+            # 500.37 fix: startupTimeLimit=600 + stdout log ayarlarini garanti et
+            [xml]$wcXml = Get-Content $webConfigPath -Raw
+            $ancm = $wcXml.SelectSingleNode('//aspNetCore')
+            if ($ancm) {
+                $ancm.SetAttribute('startupTimeLimit', '600')
+                $ancm.SetAttribute('requestTimeout', '00:10:00')
+                $ancm.SetAttribute('stdoutLogEnabled', 'true')
+                $ancm.SetAttribute('stdoutLogFile', '.\logs\stdout')
+                $wcXml.Save($webConfigPath)
+                Write-Host "       web.config: startupTimeLimit=600, stdoutLogEnabled=true" -ForegroundColor DarkGray
             }
         }
 

@@ -1,4 +1,4 @@
-using MKFiloServis.Shared.Entities;
+﻿using MKFiloServis.Shared.Entities;
 using MKFiloServis.Web.Data;
 using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
@@ -48,6 +48,7 @@ public class PuantajService : IPuantajService
         using var context = await _contextFactory.CreateDbContextAsync();
 
         var mevcut = await context.PersonelPuantajlar
+            .AsTracking()
             .FirstOrDefaultAsync(p => p.PersonelId == puantaj.PersonelId && 
                                      p.Yil == puantaj.Yil && 
                                      p.Ay == puantaj.Ay);
@@ -92,7 +93,7 @@ public class PuantajService : IPuantajService
     public async Task<PersonelPuantaj> OnayaGonderAsync(int id, string? not = null)
     {
         using var context = await _contextFactory.CreateDbContextAsync();
-        var puantaj = await context.PersonelPuantajlar.FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+        var puantaj = await context.PersonelPuantajlar.IgnoreQueryFilters().AsTracking().FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
         if (puantaj == null)
             throw new InvalidOperationException("Puantaj bulunamadı.");
 
@@ -111,7 +112,7 @@ public class PuantajService : IPuantajService
     public async Task<PersonelPuantaj> OnaylaAsync(int id, string onaylayanKullanici, string? not = null)
     {
         using var context = await _contextFactory.CreateDbContextAsync();
-        var puantaj = await context.PersonelPuantajlar.FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+        var puantaj = await context.PersonelPuantajlar.IgnoreQueryFilters().AsTracking().FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
         if (puantaj == null)
             throw new InvalidOperationException("Puantaj bulunamadı.");
 
@@ -127,7 +128,7 @@ public class PuantajService : IPuantajService
     public async Task<PersonelPuantaj> ReddetAsync(int id, string onaylayanKullanici, string? not = null)
     {
         using var context = await _contextFactory.CreateDbContextAsync();
-        var puantaj = await context.PersonelPuantajlar.FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+        var puantaj = await context.PersonelPuantajlar.IgnoreQueryFilters().AsTracking().FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
         if (puantaj == null)
             throw new InvalidOperationException("Puantaj bulunamadı.");
 
@@ -143,7 +144,7 @@ public class PuantajService : IPuantajService
     public async Task<PersonelPuantaj> OnayGeriAlAsync(int id, string? not = null)
     {
         using var context = await _contextFactory.CreateDbContextAsync();
-        var puantaj = await context.PersonelPuantajlar.FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+        var puantaj = await context.PersonelPuantajlar.IgnoreQueryFilters().AsTracking().FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
         if (puantaj == null)
             throw new InvalidOperationException("Puantaj bulunamadı.");
 
@@ -160,6 +161,7 @@ public class PuantajService : IPuantajService
     {
         using var context = await _contextFactory.CreateDbContextAsync();
         var puantaj = await context.PersonelPuantajlar
+            .AsTracking()
             .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
 
         if (puantaj == null)
@@ -169,6 +171,7 @@ public class PuantajService : IPuantajService
             throw new InvalidOperationException("Onaylanan puantaj silinemez. Önce onayı geri alın.");
 
         var gunlukler = await context.GunlukPuantajlar
+            .AsTracking()
             .Where(g => g.PersonelPuantajId == id)
             .ToListAsync();
 
@@ -197,10 +200,24 @@ public class PuantajService : IPuantajService
 
         if (gunluk.Id > 0)
         {
-            context.GunlukPuantajlar.Update(gunluk);
+            var mevcut = await context.GunlukPuantajlar.AsTracking().FirstOrDefaultAsync(g => g.Id == gunluk.Id);
+            if (mevcut == null)
+                throw new InvalidOperationException("Günlük puantaj kaydı bulunamadı.");
+
+            mevcut.Durum = gunluk.Durum;
+            mevcut.Calisti = gunluk.Calisti;
+            mevcut.Izinli = gunluk.Izinli;
+            mevcut.Mazeret = gunluk.Mazeret;
+            mevcut.CalismaSaati = gunluk.CalismaSaati;
+            mevcut.FazlaMesaiSaat = gunluk.FazlaMesaiSaat;
+            mevcut.ServisCalismaId = gunluk.ServisCalismaId;
+            mevcut.Notlar = gunluk.Notlar;
+            mevcut.UpdatedAt = DateTime.UtcNow;
         }
         else
         {
+            gunluk.Tarih = DateTime.SpecifyKind(gunluk.Tarih, DateTimeKind.Utc);
+            gunluk.FirmaId ??= puantaj?.FirmaId;
             gunluk.CreatedAt = DateTime.UtcNow;
             context.GunlukPuantajlar.Add(gunluk);
         }
@@ -209,12 +226,19 @@ public class PuantajService : IPuantajService
         return gunluk;
     }
 
-    public async Task OtomatikGunlukPuantajOlusturAsync(int puantajId, int yil, int ay, bool cumartesiCalisir = true, bool pazarCalisir = false, List<DateTime>? resmiTatiller = null)
+    public async Task OtomatikGunlukPuantajOlusturAsync(int puantajId, int yil, int ay, bool cumartesiCalisir = true, bool pazarCalisir = false, List<DateTime>? resmiTatiller = null, List<int>? calisilanGunler = null, decimal? gunlukSaat = null)
     {
+        const decimal StandartGunlukSaat = 7.5m;
+
         using var context = await _contextFactory.CreateDbContextAsync();
 
         var puantaj = await context.PersonelPuantajlar.FindAsync(puantajId);
         if (puantaj == null) return;
+
+        // Personelin çalışma şekline göre varsayılan çalışma saati (saatlik personel için)
+        var personel = await context.Soforler.FindAsync(puantaj.PersonelId);
+        var saatlikPersonel = personel?.BrutMaasHesaplamaTipi == BrutMaasHesaplamaTipi.Saatlik;
+        var secilenSaat = gunlukSaat ?? (saatlikPersonel ? StandartGunlukSaat : 0m);
 
         var gunSayisi = DateTime.DaysInMonth(yil, ay);
 
@@ -227,23 +251,43 @@ public class PuantajService : IPuantajService
 
             if (!mevcut)
             {
-                var isTatil = false;
+                bool isTatil;
 
-                if (tarih.DayOfWeek == DayOfWeek.Sunday && !pazarCalisir)
-                    isTatil = true;
-                else if (tarih.DayOfWeek == DayOfWeek.Saturday && !cumartesiCalisir)
-                    isTatil = true;
-                else if (resmiTatiller != null && resmiTatiller.Any(t => t.Date == tarih.Date))
-                    isTatil = true;
+                if (calisilanGunler != null)
+                {
+                    // Kullanıcı çalışılan günleri açıkça seçti
+                    isTatil = !calisilanGunler.Contains(gun);
+                }
+                else
+                {
+                    isTatil = false;
+                    if (tarih.DayOfWeek == DayOfWeek.Sunday && !pazarCalisir)
+                        isTatil = true;
+                    else if (tarih.DayOfWeek == DayOfWeek.Saturday && !cumartesiCalisir)
+                        isTatil = true;
+                    else if (resmiTatiller != null && resmiTatiller.Any(t => t.Date == tarih.Date))
+                        isTatil = true;
+                }
+
+                // Günlük standart çalışma 7,5 saattir; fazlası fazla mesaidir
+                var calismaSaati = 0m;
+                var fazlaMesai = 0m;
+                if (!isTatil && saatlikPersonel && secilenSaat > 0)
+                {
+                    calismaSaati = Math.Min(secilenSaat, StandartGunlukSaat);
+                    fazlaMesai = Math.Max(0, secilenSaat - StandartGunlukSaat);
+                }
 
                 var gunluk = new GunlukPuantaj
                 {
                     PersonelPuantajId = puantajId,
+                    FirmaId = puantaj.FirmaId,
                     Gun = gun,
-                    Tarih = tarih,
+                    Tarih = DateTime.SpecifyKind(tarih, DateTimeKind.Utc),
                     Durum = isTatil ? 0 : 1,
                     Calisti = !isTatil,
-                    FazlaMesaiSaat = 0,
+                    CalismaSaati = calismaSaati,
+                    FazlaMesaiSaat = fazlaMesai,
                     CreatedAt = DateTime.UtcNow
                 };
                 context.GunlukPuantajlar.Add(gunluk);

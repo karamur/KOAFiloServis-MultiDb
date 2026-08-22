@@ -136,8 +136,31 @@ try {
     Ensure-AppPool -Name $SiteName
     Ensure-Site -Name $SiteName -Path $InstallPath -Port $gerçekPort -AppPool $SiteName
 
+    foreach ($sub in @("$InstallPath\data", "$InstallPath\uploads", "$InstallPath\logs", "$InstallPath\Backups", "$InstallPath\keys")) {
+        if (-not (Test-Path $sub)) { New-Item -ItemType Directory -Force -Path $sub | Out-Null }
+    }
+
     foreach ($sub in @($InstallPath, "$InstallPath\data", "$InstallPath\uploads", "$InstallPath\logs", "$InstallPath\Backups", "$InstallPath\keys")) {
         if (Test-Path $sub) { Grant-Acl -Path $sub -AppPool $SiteName }
+    }
+
+    # 500.37 fix: web.config'te startupTimeLimit=600 ve stdout log ayarlarini garanti et
+    $webConfig = Join-Path $InstallPath 'web.config'
+    if (Test-Path $webConfig) {
+        try {
+            [xml]$wcXml = Get-Content $webConfig -Raw
+            $ancm = $wcXml.SelectSingleNode('//aspNetCore')
+            if ($ancm) {
+                $ancm.SetAttribute('startupTimeLimit', '600')
+                $ancm.SetAttribute('requestTimeout', '00:10:00')
+                $ancm.SetAttribute('stdoutLogEnabled', 'true')
+                $ancm.SetAttribute('stdoutLogFile', '.\logs\stdout')
+                $wcXml.Save($webConfig)
+                Write-Host "web.config: startupTimeLimit=600, stdout log aktif" -ForegroundColor Green
+            }
+        } catch {
+            Write-Host "web.config guncellenemedi: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
     }
 
     # Hosting Bundle yeni yuklendiyse module kaydi icin iisreset gerekli
@@ -150,8 +173,8 @@ try {
     # Kullanilan portu diska yaz (postinstall mesaji icin)
     Set-Content -Path (Join-Path $InstallPath 'active-port.txt') -Value $gerçekPort -Encoding ASCII
 
-    Write-Host "Smoke test baslatiliyor..."
-    $ok = Test-Site -P $gerçekPort -TimeoutSec 20
+    Write-Host "Smoke test baslatiliyor (ilk acilis migration nedeniyle uzun surebilir)..."
+    $ok = Test-Site -P $gerçekPort -TimeoutSec 300
     if (-not $ok) {
         Write-Host "IIS site acildi ama HTTP cevap vermedi. Logs:" -ForegroundColor Yellow
         Get-ChildItem "$InstallPath\logs\stdout*.log" -ErrorAction SilentlyContinue |

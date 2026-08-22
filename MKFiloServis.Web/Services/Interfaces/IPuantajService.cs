@@ -1,4 +1,4 @@
-using MKFiloServis.Shared.Entities;
+﻿using MKFiloServis.Shared.Entities;
 
 namespace MKFiloServis.Web.Services.Interfaces;
 
@@ -18,7 +18,7 @@ public interface IPuantajService
     // Günlük Puantaj
     Task<List<GunlukPuantaj>> GetGunlukPuantajlarAsync(int puantajId);
     Task<GunlukPuantaj> SaveGunlukPuantajAsync(GunlukPuantaj gunluk);
-    Task OtomatikGunlukPuantajOlusturAsync(int puantajId, int yil, int ay, bool cumartesiCalisir = true, bool pazarCalisir = false, List<DateTime>? resmiTatiller = null);
+    Task OtomatikGunlukPuantajOlusturAsync(int puantajId, int yil, int ay, bool cumartesiCalisir = true, bool pazarCalisir = false, List<DateTime>? resmiTatiller = null, List<int>? calisilanGunler = null, decimal? gunlukSaat = null);
 
     // Hesaplamalar
     Task<PersonelPuantaj> HesaplaAsync(int puantajId);

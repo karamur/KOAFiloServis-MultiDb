@@ -420,7 +420,6 @@
     private string? secilenAracTedarikci;
     private string? secilenAracTedarikciTelefon;
     private string? secilenAracPlakaBilgi;
-    private bool seferTipiDegistiUyarisi;
     private int secilenKurumId;
     private List<SeferKalem> seferKalemleri = new();
     private bool secilenKurumCariYok;
@@ -1213,9 +1212,7 @@
 
     private Task SeferTipiDegistiAsync()
     {
-        // SeferTipi bilgi mesaji (fiyat otomatik guncellenmez, kullanici manuel girer)
-        seferTipiDegistiUyarisi = true;
-        // SeferTipi değişince slot dağılımını yeniden hesapla
+        // SeferTipi değişince slot dağılımını yeniden hesapla (fiyat otomatik guncellenmez, kullanici manuel girer)
         SeferSlotlariGuncelle();
         return Task.CompletedTask;
     }

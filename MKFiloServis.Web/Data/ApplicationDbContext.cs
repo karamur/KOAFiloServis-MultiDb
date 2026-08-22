@@ -3340,14 +3340,24 @@ public class ApplicationDbContext : DbContext
                 Database.ExecuteSqlRaw("SELECT 1 FROM \"AktiviteLoglar\" LIMIT 0");
                 _auditLogTableExists = true;
             }
-            catch (PostgresException)
+            catch
             {
+                // PostgresException disindaki hatalar (farkli provider, baglanti sorunu vb.)
+                // SaveChanges'i kirmamali; audit log sessizce atlanir.
                 _auditLogTableExists = false;
             }
         }
 
-        if (_auditLogTableExists == true)
+        if (_auditLogTableExists != true) return;
+
+        try
+        {
             GenerateAuditLogs();
+        }
+        catch
+        {
+            // Audit log uretimi asla asil kaydi engellememeli.
+        }
     }
 
     private void GenerateAuditLogs()

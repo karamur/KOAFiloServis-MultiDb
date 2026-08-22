@@ -1,4 +1,4 @@
-using MKFiloServis.Shared.Entities;
+﻿using MKFiloServis.Shared.Entities;
 using MKFiloServis.Web.Data;
 using Microsoft.EntityFrameworkCore;
 using MKFiloServis.Web.Services.Interfaces;
@@ -361,7 +361,7 @@ public sealed class FirmaKopyalamaService : IFirmaKopyalamaService
             .Select(a => a.SaseNo)
             .ToListAsync()).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var kaynak = await ctx.Araclar.IgnoreQueryFilters()
+        var kaynak = await ctx.Araclar.IgnoreQueryFilters().AsTracking()
             .Where(a => !a.IsDeleted && a.FirmaId == kaynakFirmaId && ids.Contains(a.Id))
             .ToListAsync();
 
@@ -371,47 +371,18 @@ public sealed class FirmaKopyalamaService : IFirmaKopyalamaService
         {
             if (hedefSetContains(hedefSet, src.SaseNo, sonuc, src.SaseNo)) continue;
 
-            var clone = new Arac
-            {
-                SaseNo = src.SaseNo,
-                AktifPlaka = src.AktifPlaka,
-                Marka = src.Marka,
-                Model = src.Model,
-                ModelYili = src.ModelYili,
-                MotorNo = src.MotorNo,
-                Renk = src.Renk,
-                KoltukSayisi = src.KoltukSayisi,
-                AracTipi = src.AracTipi,
-                AracSinifi = src.AracSinifi,
-                SahiplikTipi = src.SahiplikTipi,
-                // Cari/tedarikçi referansları null'lanır (hedef firmanın kendi carileri olacak)
-                KiralikCariId = null,
-                GunlukKiraBedeli = src.GunlukKiraBedeli,
-                AylikKiraBedeli = src.AylikKiraBedeli,
-                SeferBasinaKiraBedeli = src.SeferBasinaKiraBedeli,
-                KiraHesaplamaTipi = src.KiraHesaplamaTipi,
-                KomisyonVar = src.KomisyonVar,
-                KomisyoncuCariId = null,
-                KomisyonOrani = src.KomisyonOrani,
-                SabitKomisyonTutari = src.SabitKomisyonTutari,
-                KomisyonHesaplamaTipi = src.KomisyonHesaplamaTipi,
-                TasimaTedarikciId = null,
-                TrafikSigortaBitisTarihi = src.TrafikSigortaBitisTarihi,
-                KaskoBitisTarihi = src.KaskoBitisTarihi,
-                MuayeneBitisTarihi = src.MuayeneBitisTarihi,
-                KoltukSigortasiBaslangiçTarihi = src.KoltukSigortasiBaslangiçTarihi,
-                KoltukSigortasiBitisTarihi = src.KoltukSigortasiBitisTarihi,
-                KmDurumu = src.KmDurumu,
-                Durumu = src.Durumu,
-                Aktif = src.Aktif,
-                Notlar = src.Notlar,
-                FirmaId = hedefFirmaId,
-                KaynakFirmaId = kaynakFirmaId,
-                KaynakKayitId = src.Id,
-                CreatedAt = DateTime.UtcNow
-                // PlakaGecmisi / AracEvrak / AracMasraf / KiralikPlakaTakip kopyalanmaz (hareketsel)
-            };
-            ctx.Araclar.Add(clone);
+            // TASIMA: Arac yeni firmaya tasinir — eski firmada gorunmez.
+            // KaynakFirmaId/KaynakKayitId ile hangi firmadan tasindigi izlenir.
+            src.KaynakFirmaId = kaynakFirmaId;
+            src.KaynakKayitId = src.Id;
+            src.FirmaId = hedefFirmaId;
+            // Cari/tedarikçi referansları null'lanır (hedef firmanın kendi carileri olacak)
+            src.KiralikCariId = null;
+            src.KomisyoncuCariId = null;
+            src.TasimaTedarikciId = null;
+            src.UpdatedAt = DateTime.UtcNow;
+            // PlakaGecmisi / AracEvrak / AracMasraf / KiralikPlakaTakip arac ile birlikte tasinir (AracId ayni kalir)
+
             hedefSet.Add(src.SaseNo);
             kopyalanan++;
         }

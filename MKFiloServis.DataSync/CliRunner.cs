@@ -1,4 +1,4 @@
-using MKFiloServis.DataSync.Exporters;
+﻿using MKFiloServis.DataSync.Exporters;
 using System;
 using System.Threading.Tasks;
 
@@ -25,6 +25,7 @@ internal static class CliRunner
             return command switch
             {
                 "export" => await ExportAsync(source, target),
+                "import" => await ImportAsync(source, target),
                 _ => Fail($"Bilinmeyen komut: {command}")
             };
         }
@@ -53,6 +54,23 @@ internal static class CliRunner
         return 0;
     }
 
+    private static async Task<int> ImportAsync(string? source, string? target)
+    {
+        if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(target))
+        {
+            return Fail("--source ve --target gerekli.");
+        }
+
+        var importer = new SqliteToPostgresImporter(
+            source!,
+            target!,
+            progress: msg => Console.WriteLine(msg));
+
+        await importer.RunAsync();
+        Console.WriteLine("✔ Aktarim tamamlandi.");
+        return 0;
+    }
+
     private static string? GetArg(string[] args, string name)
     {
         for (int i = 0; i < args.Length - 1; i++)
@@ -76,6 +94,7 @@ MKFiloServis.DataSync — PostgreSQL -> SQLite veri aktarim araci
 KULLANIM:
   MKFiloServis.DataSync.exe                                  (UI modu)
   MKFiloServis.DataSync.exe export --source "<PG>" --target "<sqlite.db>"
+  MKFiloServis.DataSync.exe import --source "<sqlite.db>" --target "<PG>"
 
 ORNEK:
   MKFiloServis.DataSync.exe export ^

@@ -1,4 +1,4 @@
-using MKFiloServis.DataSync.Exporters;
+﻿using MKFiloServis.DataSync.Exporters;
 using System;
 using System.Drawing;
 using System.Threading.Tasks;
@@ -8,6 +8,10 @@ namespace MKFiloServis.DataSync.UI;
 
 public sealed class MainForm : Form
 {
+    private readonly RadioButton _rbPgToSqlite;
+    private readonly RadioButton _rbSqliteToPg;
+    private readonly Label _lblPgBaslik;
+    private readonly Label _lblSqliteBaslik;
     private readonly TextBox _txtHost;
     private readonly TextBox _txtPort;
     private readonly TextBox _txtDb;
@@ -20,45 +24,57 @@ public sealed class MainForm : Form
     private readonly ProgressBar _progress;
     private readonly TextBox _log;
 
+    private bool PgKaynak => _rbPgToSqlite.Checked;
+
     public MainForm()
     {
-        Text = "MKFiloServis — Veri Aktarim (PostgreSQL ➜ SQLite)";
+        Text = "MKFiloServis — Veri Aktarim";
         Width = 780;
-        Height = 640;
+        Height = 700;
         StartPosition = FormStartPosition.CenterScreen;
         Font = new Font("Segoe UI", 9F);
 
-        var lblKaynak = new Label { Text = "KAYNAK (PostgreSQL)", Left = 20, Top = 15, Width = 400, Font = new Font("Segoe UI", 10F, FontStyle.Bold) };
-        Controls.Add(lblKaynak);
+        var lblYon = new Label { Text = "AKTARIM YONU", Left = 20, Top = 15, Width = 400, Font = new Font("Segoe UI", 10F, FontStyle.Bold) };
+        Controls.Add(lblYon);
 
-        Controls.Add(new Label { Text = "Host:", Left = 20, Top = 45, Width = 80 });
-        _txtHost = new TextBox { Left = 110, Top = 42, Width = 250, Text = "localhost" };
+        _rbPgToSqlite = new RadioButton { Text = "PostgreSQL ➜ SQLite", Left = 20, Top = 42, Width = 220, Checked = true };
+        _rbPgToSqlite.CheckedChanged += (_, _) => YonGuncelle();
+        Controls.Add(_rbPgToSqlite);
+
+        _rbSqliteToPg = new RadioButton { Text = "SQLite ➜ PostgreSQL", Left = 260, Top = 42, Width = 220 };
+        Controls.Add(_rbSqliteToPg);
+
+        _lblPgBaslik = new Label { Text = "KAYNAK (PostgreSQL)", Left = 20, Top = 80, Width = 400, Font = new Font("Segoe UI", 10F, FontStyle.Bold) };
+        Controls.Add(_lblPgBaslik);
+
+        Controls.Add(new Label { Text = "Host:", Left = 20, Top = 110, Width = 80 });
+        _txtHost = new TextBox { Left = 110, Top = 107, Width = 250, Text = "localhost" };
         Controls.Add(_txtHost);
 
-        Controls.Add(new Label { Text = "Port:", Left = 380, Top = 45, Width = 40 });
-        _txtPort = new TextBox { Left = 430, Top = 42, Width = 80, Text = "5432" };
+        Controls.Add(new Label { Text = "Port:", Left = 380, Top = 110, Width = 40 });
+        _txtPort = new TextBox { Left = 430, Top = 107, Width = 80, Text = "5432" };
         Controls.Add(_txtPort);
 
-        Controls.Add(new Label { Text = "Veritabani:", Left = 20, Top = 75, Width = 80 });
-        _txtDb = new TextBox { Left = 110, Top = 72, Width = 400, Text = "DestekCRMServisBlazorDb" };
+        Controls.Add(new Label { Text = "Veritabani:", Left = 20, Top = 140, Width = 80 });
+        _txtDb = new TextBox { Left = 110, Top = 137, Width = 400, Text = "MKFiloServis" };
         Controls.Add(_txtDb);
 
-        Controls.Add(new Label { Text = "Kullanici:", Left = 20, Top = 105, Width = 80 });
-        _txtUser = new TextBox { Left = 110, Top = 102, Width = 180, Text = "postgres" };
+        Controls.Add(new Label { Text = "Kullanici:", Left = 20, Top = 170, Width = 80 });
+        _txtUser = new TextBox { Left = 110, Top = 167, Width = 180, Text = "postgres" };
         Controls.Add(_txtUser);
 
-        Controls.Add(new Label { Text = "Parola:", Left = 310, Top = 105, Width = 60 });
-        _txtPass = new TextBox { Left = 380, Top = 102, Width = 180, UseSystemPasswordChar = true };
+        Controls.Add(new Label { Text = "Parola:", Left = 310, Top = 170, Width = 60 });
+        _txtPass = new TextBox { Left = 380, Top = 167, Width = 180, UseSystemPasswordChar = true };
         Controls.Add(_txtPass);
 
-        var lblHedef = new Label { Text = "HEDEF (SQLite dosyasi)", Left = 20, Top = 150, Width = 400, Font = new Font("Segoe UI", 10F, FontStyle.Bold) };
-        Controls.Add(lblHedef);
+        _lblSqliteBaslik = new Label { Text = "HEDEF (SQLite dosyasi)", Left = 20, Top = 215, Width = 400, Font = new Font("Segoe UI", 10F, FontStyle.Bold) };
+        Controls.Add(_lblSqliteBaslik);
 
-        Controls.Add(new Label { Text = "Dosya:", Left = 20, Top = 180, Width = 80 });
-        _txtSqlitePath = new TextBox { Left = 110, Top = 177, Width = 500, Text = @"C:\MKFiloServis\koa.db" };
+        Controls.Add(new Label { Text = "Dosya:", Left = 20, Top = 245, Width = 80 });
+        _txtSqlitePath = new TextBox { Left = 110, Top = 242, Width = 500, Text = @"C:\MKFiloServis\MKFiloServis.db" };
         Controls.Add(_txtSqlitePath);
 
-        _btnBrowse = new Button { Text = "Gozat", Left = 620, Top = 175, Width = 100 };
+        _btnBrowse = new Button { Text = "Gozat", Left = 620, Top = 240, Width = 100 };
         _btnBrowse.Click += (_, _) =>
         {
             using var ofd = new OpenFileDialog { Filter = "SQLite (*.db)|*.db|Tum dosyalar|*.*" };
@@ -66,21 +82,21 @@ public sealed class MainForm : Form
         };
         Controls.Add(_btnBrowse);
 
-        _btnTest = new Button { Text = "Baglantiyi Test Et", Left = 20, Top = 220, Width = 180, Height = 32 };
+        _btnTest = new Button { Text = "Baglantiyi Test Et", Left = 20, Top = 285, Width = 180, Height = 32 };
         _btnTest.Click += async (_, _) => await TestConnectionAsync();
         Controls.Add(_btnTest);
 
-        _btnStart = new Button { Text = "AKTARIMI BASLAT", Left = 560, Top = 220, Width = 180, Height = 32, BackColor = Color.FromArgb(0, 120, 215), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+        _btnStart = new Button { Text = "AKTARIMI BASLAT", Left = 560, Top = 285, Width = 180, Height = 32, BackColor = Color.FromArgb(0, 120, 215), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
         _btnStart.Click += async (_, _) => await StartAsync();
         Controls.Add(_btnStart);
 
-        _progress = new ProgressBar { Left = 20, Top = 265, Width = 720, Height = 18, Style = ProgressBarStyle.Marquee, MarqueeAnimationSpeed = 0 };
+        _progress = new ProgressBar { Left = 20, Top = 330, Width = 720, Height = 18, Style = ProgressBarStyle.Marquee, MarqueeAnimationSpeed = 0 };
         Controls.Add(_progress);
 
         _log = new TextBox
         {
             Left = 20,
-            Top = 295,
+            Top = 360,
             Width = 720,
             Height = 280,
             Multiline = true,
@@ -91,6 +107,20 @@ public sealed class MainForm : Form
             ForeColor = Color.LightGreen
         };
         Controls.Add(_log);
+    }
+
+    private void YonGuncelle()
+    {
+        if (PgKaynak)
+        {
+            _lblPgBaslik.Text = "KAYNAK (PostgreSQL)";
+            _lblSqliteBaslik.Text = "HEDEF (SQLite dosyasi)";
+        }
+        else
+        {
+            _lblPgBaslik.Text = "HEDEF (PostgreSQL)";
+            _lblSqliteBaslik.Text = "KAYNAK (SQLite dosyasi)";
+        }
     }
 
     private string BuildConnStr() =>
@@ -128,22 +158,35 @@ public sealed class MainForm : Form
         if (string.IsNullOrWhiteSpace(_txtSqlitePath.Text) || !System.IO.File.Exists(_txtSqlitePath.Text))
         {
             MessageBox.Show(this,
-                "Hedef SQLite dosyasi bulunamadi.\n\n" +
-                "Once MKFiloServis uygulamasini bir kere calistirin ki sema olussun.",
+                PgKaynak
+                    ? "Hedef SQLite dosyasi bulunamadi.\n\nOnce MKFiloServis uygulamasini bir kere calistirin ki sema olussun."
+                    : "Kaynak SQLite dosyasi bulunamadi.",
                 "Dosya yok", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
 
+        var hedefAdi = PgKaynak
+            ? _txtSqlitePath.Text
+            : $"PostgreSQL: {_txtHost.Text}:{_txtPort.Text}/{_txtDb.Text}";
+
         if (MessageBox.Show(this,
-                $"Asagidaki hedef veritabanindaki VERILER silinip yenileri yuklenecek:\n\n{_txtSqlitePath.Text}\n\nDevam edilsin mi?",
+                $"Asagidaki hedef veritabanindaki VERILER silinip yenileri yuklenecek:\n\n{hedefAdi}\n\nDevam edilsin mi?",
                 "Onay", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
             return;
 
         try
         {
             SetBusy(true);
-            var exporter = new PostgresToSqliteExporter(BuildConnStr(), _txtSqlitePath.Text, AppendLog);
-            await Task.Run(exporter.RunAsync);
+            if (PgKaynak)
+            {
+                var exporter = new PostgresToSqliteExporter(BuildConnStr(), _txtSqlitePath.Text, AppendLog);
+                await Task.Run(exporter.RunAsync);
+            }
+            else
+            {
+                var importer = new SqliteToPostgresImporter(_txtSqlitePath.Text, BuildConnStr(), AppendLog);
+                await Task.Run(importer.RunAsync);
+            }
             MessageBox.Show(this, "Aktarim tamamlandi.", "Bilgi", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         catch (Exception ex)

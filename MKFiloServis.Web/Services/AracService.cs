@@ -158,7 +158,9 @@ public class AracService : IAracService
     public async Task<bool> SaseNoMevcutMu(string saseNo, int? haricAracId = null)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
+        // Sase no tum firmalarda tekildir; tenant filtresinden bagimsiz kontrol edilir.
         return await context.Araclar
+            .IgnoreQueryFilters()
             .AnyAsync(a => a.SaseNo == saseNo && 
                           !a.IsDeleted &&
                           (!haricAracId.HasValue || a.Id != haricAracId.Value));
@@ -260,7 +262,10 @@ public class AracService : IAracService
         try
         {
             // Mevcut kaydı veritabanından al
-            var existing = await context.Araclar.FirstOrDefaultAsync(a => a.Id == arac.Id && !a.IsDeleted);
+            // Id-bazli islem: firma degisikligi (tasima) sonrasi arac baska firmada olabilir,
+            // tenant filtresi atlanir — aksi halde "Arac bulunamadi" hatasi olusur.
+            var existing = await context.Araclar.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(a => a.Id == arac.Id && !a.IsDeleted);
             if (existing == null)
                 throw new InvalidOperationException("Araç bulunamadı.");
 
@@ -302,7 +307,7 @@ public class AracService : IAracService
             // Tenant (Firma) güncellemesi: sadece açıkça seçilmiş ve mevcut DB'de var ise değiştir
             if (arac.FirmaId.HasValue && arac.FirmaId.Value > 0)
             {
-                var firmaVar = await context.Firmalar.AnyAsync(f => f.Id == arac.FirmaId.Value);
+                var firmaVar = await context.Firmalar.IgnoreQueryFilters().AnyAsync(f => f.Id == arac.FirmaId.Value && !f.IsDeleted);
                 existing.FirmaId = firmaVar ? arac.FirmaId : existing.FirmaId;
             }
             existing.UpdatedAt = DateTime.UtcNow;
