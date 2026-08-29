@@ -40,7 +40,7 @@ Write-Host ""
 Write-Host "2️⃣  HIZLI ÇÖZÜM: ESKİ KEY RESTORE" -ForegroundColor Green
 Write-Host "=" * 80
 Write-Host ""
-Write-Host "Eğer eski master.key yedeklemesi varsa:"
+Write-Host "Aynı makineden alınmış eski master.key yedeklemesi varsa:"
 Write-Host ""
 Write-Host "  a) Mevcut (bozuk) master key'i yedekle:"
 Write-Host "     > Copy-Item 'C:\MKFiloServis_yedekleme\keys\master.key' " +
@@ -52,7 +52,9 @@ Write-Host ""
 Write-Host "  c) Uygulamayı yeniden başlat:"
 Write-Host "     > iisreset  (veya Blazor uygulaması restart)"
 Write-Host ""
-Write-Host "✅ Sonuç: Eski dosyalar yeniden açılabilir olacak"
+Write-Host "✅ Sonuç: Aynı Windows makinesinde eski dosyalar yeniden açılabilir olacak"
+Write-Host "⚠️  Farklı sunucuya master.key doğrudan kopyalanamaz. Kaynak makinede"
+Write-Host "   Deploy\Migrate\02-dosya-aktar.ps1 çalıştırılarak master.key.import üretilmelidir."
 Write-Host ""
 
 # ============================================================================
@@ -83,8 +85,8 @@ Write-Host ""
 Write-Host "Master key sorunlarından kaçınmak için:"
 Write-Host ""
 Write-Host "✅ MASTER KEY YEDEĞI:"
-Write-Host "   • Haftada 1x: Copy-Item 'C:\MKFiloServis_yedekleme\keys\master.key' " +
-            "'\\BACKUP_SERVER\MK_Backups\keys\master.key.$(Get-Date -f yyyyMMdd)'"
+Write-Host "   • Aynı makine geri yüklemesi için master.key dosyasını düzenli yedekle"
+Write-Host "   • Sunucu göçü için kaynak makinede 02-dosya-aktar.ps1 kullan"
 Write-Host "   • Secure offline storage'da sakla (şifreli USB, vault)"
 Write-Host ""
 Write-Host "✅ MASTER KEY ROTASİON (Yıllık):"

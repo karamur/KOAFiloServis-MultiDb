@@ -153,7 +153,8 @@ Write-Host "  1. PostgreSQL 16 kur (henüz kurulu değilse)" -ForegroundColor Wh
 Write-Host "  2. .NET 10 Hosting Bundle kur (aka.ms/dotnet/download)" -ForegroundColor White
 Write-Host "  3. Paketi C:\MKFiloServis\IIS klasörüne çıkar" -ForegroundColor White
 Write-Host "  4. Şifreli evrakları C:\MKFiloServis_yedekleme\uploads klasörüne kopyala" -ForegroundColor White
-Write-Host "  5. Data protection key'leri C:\MKFiloServis_yedekleme\keys klasörüne kopyala" -ForegroundColor White
+Write-Host "  5. Anahtar ve evrak aktarımı için kaynak makinede 02-dosya-aktar.ps1 çalıştır" -ForegroundColor White
+Write-Host "     (master.key dosyasını başka makineye doğrudan kopyalama)" -ForegroundColor Yellow
 Write-Host "  6. DB restore: 01-db-restore.ps1 ile PostgreSQL'e aktar" -ForegroundColor White
 Write-Host "  7. appsettings.PC2.json içeriğini appsettings.Production.json olarak kaydet" -ForegroundColor White
 Write-Host "  8. IIS'de site ekle → kur.bat ile kur (Mode=Install)" -ForegroundColor White

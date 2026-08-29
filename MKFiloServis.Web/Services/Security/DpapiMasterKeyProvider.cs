@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 
 namespace MKFiloServis.Web.Services.Security;
 
@@ -14,6 +14,7 @@ public sealed class DpapiMasterKeyProvider : IMasterKeyProvider
     private const int KeyLength = 32; // AES-256
     private static readonly byte[] Entropy = "MKFiloServis.MasterKey.v1"u8.ToArray();
     private static readonly string[] LegacyRawKeyFileNames = [
+        "master.key.import",
         "raw-key.txt",
         "raw-key.txt.bak",
         "master.key.raw",
@@ -75,6 +76,34 @@ public sealed class DpapiMasterKeyProvider : IMasterKeyProvider
             Directory.CreateDirectory(dir);
         }
 
+        // Sunucu göçünde eski makineye bağlı DPAPI blob'u master.key olarak kalmış
+        // olabilir. Açıkça hazırlanmış tek kullanımlık import dosyası varsa önce onu
+        // kullanıp hedef makinenin LocalMachine DPAPI kapsamına dönüştür.
+        var importPath = string.IsNullOrWhiteSpace(dir)
+            ? "master.key.import"
+            : Path.Combine(dir, "master.key.import");
+        if (File.Exists(importPath))
+        {
+            var importContent = File.ReadAllText(importPath).Trim();
+            if (!TryParseRawKey(importContent, out var importedKey))
+            {
+                throw new InvalidOperationException(
+                    $"KRİTİK: master.key.import geçersiz veya 32 byte anahtar içermiyor. Path={importPath}");
+            }
+
+            if (File.Exists(_keyFilePath))
+            {
+                var backupPath = _keyFilePath + ".foreign." + DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+                File.Move(_keyFilePath, backupPath);
+                _logger.LogWarning("Mevcut master.key sunucu göçü yedeğine taşındı: {Path}", backupPath);
+            }
+
+            PersistWithLocalMachineDpapi(importedKey);
+            DeleteOneTimeImportFile(importPath);
+            _logger.LogInformation("Master key hedef makine DPAPI kapsamına başarıyla aktarıldı.");
+            return importedKey;
+        }
+
         if (File.Exists(_keyFilePath))
         {
             var protectedBytes = File.ReadAllBytes(_keyFilePath);
@@ -133,6 +162,7 @@ public sealed class DpapiMasterKeyProvider : IMasterKeyProvider
                         source);
 
                     PersistWithLocalMachineDpapi(legacyRawKey);
+                    DeleteOneTimeImportFile(source);
                     return legacyRawKey;
                 }
 
@@ -156,6 +186,15 @@ public sealed class DpapiMasterKeyProvider : IMasterKeyProvider
                 var backup = _keyFilePath + ".corrupt." + DateTime.UtcNow.ToString("yyyyMMddHHmmss");
                 try { File.Move(_keyFilePath, backup); } catch { /* yoksay */ }
             }
+        }
+        else if (TryLoadLegacyRawKey(out var importedKey, out var importSource))
+        {
+            _logger.LogWarning(
+                "Master key bulunamadi; tasinabilir anahtar ({Source}) bu makinenin DPAPI(LocalMachine) kapsamina aktariliyor.",
+                importSource);
+            PersistWithLocalMachineDpapi(importedKey);
+            DeleteOneTimeImportFile(importSource);
+            return importedKey;
         }
         else if (_throwOnMissing)
         {
@@ -209,6 +248,23 @@ public sealed class DpapiMasterKeyProvider : IMasterKeyProvider
         }
 
         return false;
+    }
+
+    private void DeleteOneTimeImportFile(string source)
+    {
+        if (!string.Equals(Path.GetFileName(source), "master.key.import", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        try
+        {
+            File.Delete(source);
+            _logger.LogInformation("Tek kullanimlik master key aktarim dosyasi silindi: {Path}", source);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Tek kullanimlik master key aktarim dosyasi silinemedi. Dosyayi elle silin: {Path}", source);
+        }
     }
 
     private static bool TryParseRawKey(string content, out byte[] key)

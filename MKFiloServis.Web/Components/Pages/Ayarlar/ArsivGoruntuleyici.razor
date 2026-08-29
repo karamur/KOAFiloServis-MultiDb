@@ -1,9 +1,10 @@
 ﻿@page "/ayarlar/arsiv-goruntuleyici"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
 @using MKFiloServis.Web.Helpers
 @using MKFiloServis.Web.Services
 @using MKFiloServis.Web.Services.Interfaces
 @inject ISecureFileService SecureFileService
-@inject IWebHostEnvironment Environment
+@inject ArchiveBrowserService ArchiveBrowser
 @inject IToastService ToastService
 @inject IJSRuntime JS
 @rendermode InteractiveServer
@@ -28,22 +29,24 @@
 
     <div class="alert alert-info py-2">
         <i class="bi bi-shield-lock me-1"></i>
-        Arşivdeki şifreli (<code>.enc</code>) dosyalar burada listelenir. Seçtiğiniz dosyanın şifresi çözülerek
-        ön izleme, yazdırma veya kopyalama (indirme) yapabilirsiniz. Dosyalar diskte şifreli kalmaya devam eder.
+        Yalnız sunucudaki <code>Depo</code> alanı ve alt dizinleri görüntülenir. Yeni dosyalar uygulama anahtarlarıyla
+        korunur. Anahtarı bulunmayan eski şifreli dosyalar listelenir ancak açılamaz.
     </div>
 
     <div class="card mb-3">
         <div class="card-body py-2">
             <div class="row g-2 align-items-end">
-                <div class="col-md-3">
-                    <label class="form-label small mb-1">Arşiv Bölümü</label>
-                    <select class="form-select form-select-sm" @bind="filtreBolum" @bind:after="FiltreUygula">
-                        <option value="">Tümü</option>
-                        <option value="Personeller">Personel Evrakları</option>
-                        <option value="Araclar">Araç Evrakları</option>
+                <div class="col-md-4">
+                    <label class="form-label small mb-1">Depo Dizini</label>
+                    <select class="form-select form-select-sm" @bind="seciliDizin" @bind:after="YenileAsync">
+                        <option value="">Depo (Tümü)</option>
+                        @foreach (var dizin in depoDizinleri)
+                        {
+                            <option value="@dizin.RelativePath">@dizin.Name</option>
+                        }
                     </select>
                 </div>
-                <div class="col-md-5">
+                <div class="col-md-4">
                     <label class="form-label small mb-1">Dosya Ara</label>
                     <input type="text" class="form-control form-control-sm" @bind="filtreArama" @bind:after="FiltreUygula"
                            placeholder="Dosya adı veya klasör..." />
@@ -65,7 +68,7 @@
     else if (!filtrelenmisDosyalar.Any())
     {
         <div class="alert alert-warning">
-            <i class="bi bi-info-circle me-1"></i>Arşivde görüntülenecek şifreli dosya bulunamadı.
+            <i class="bi bi-info-circle me-1"></i>Seçilen Depo dizininde görüntülenecek dosya bulunamadı.
         </div>
     }
     else
@@ -78,6 +81,7 @@
                             <th style="width:36px;"></th>
                             <th>Dosya Adı</th>
                             <th>Klasör</th>
+                            <th>Format</th>
                             <th class="text-end">Boyut</th>
                             <th>Tarih</th>
                             <th class="text-end" style="width:200px;">İşlemler</th>
@@ -90,6 +94,7 @@
                                 <td><i class="bi @GetDosyaIcon(dosya.Uzanti)"></i></td>
                                 <td class="text-break">@dosya.GorunenAd</td>
                                 <td class="small text-muted text-break">@dosya.Klasor</td>
+                                <td><span class="badge @GetFormatBadge(dosya.Format)">@GetFormatText(dosya.Format)</span></td>
                                 <td class="text-end small">@FormatDosyaBoyutu(dosya.Boyut)</td>
                                 <td class="small">@dosya.Tarih.ToString("dd.MM.yyyy HH:mm")</td>
                                 <td class="text-end">
@@ -174,13 +179,15 @@
         public string Uzanti { get; set; } = string.Empty;
         public long Boyut { get; set; }
         public DateTime Tarih { get; set; }
+        public ArchiveFileFormat Format { get; set; }
     }
 
     private List<ArsivDosya> tumDosyalar = new();
     private List<ArsivDosya> filtrelenmisDosyalar = new();
     private bool isLoading = true;
 
-    private string filtreBolum = string.Empty;
+    private List<ArchiveDirectoryItem> depoDizinleri = new();
+    private string seciliDizin = string.Empty;
     private string filtreArama = string.Empty;
 
     private bool showPreviewModal = false;
@@ -193,6 +200,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        depoDizinleri = ArchiveBrowser.GetDirectories().ToList();
         await YenileAsync();
     }
 
@@ -202,7 +210,18 @@
         StateHasChanged();
         try
         {
-            tumDosyalar = await Task.Run(ArsivTara);
+            tumDosyalar = await Task.Run(() => ArchiveBrowser.GetFiles(seciliDizin)
+                .Select(d => new ArsivDosya
+                {
+                    RelativePath = d.StorageRelativePath,
+                    GorunenAd = d.DisplayName,
+                    Klasor = d.Directory,
+                    Uzanti = d.Extension,
+                    Boyut = d.Size,
+                    Tarih = d.ModifiedAt,
+                    Format = d.Format
+                })
+                .ToList());
             FiltreUygula();
         }
         catch (Exception ex)
@@ -216,41 +235,9 @@
         }
     }
 
-    private List<ArsivDosya> ArsivTara()
-    {
-        var sonuc = new List<ArsivDosya>();
-        var storageRoot = AppStoragePaths.GetStorageRoot(Environment.ContentRootPath);
-        var arsivRoot = Path.Combine(storageRoot, "Arsiv", "Sifreli");
-
-        if (!Directory.Exists(arsivRoot))
-            return sonuc;
-
-        foreach (var fullPath in Directory.EnumerateFiles(arsivRoot, "*.enc", SearchOption.AllDirectories))
-        {
-            var info = new FileInfo(fullPath);
-            var relative = Path.GetRelativePath(storageRoot, fullPath).Replace('\\', '/');
-            var gorunenAd = EncExtensionTemizle(info.Name);
-
-            sonuc.Add(new ArsivDosya
-            {
-                RelativePath = relative,
-                GorunenAd = gorunenAd,
-                Klasor = Path.GetRelativePath(arsivRoot, info.DirectoryName ?? arsivRoot).Replace('\\', '/'),
-                Uzanti = Path.GetExtension(gorunenAd).ToLowerInvariant(),
-                Boyut = info.Length,
-                Tarih = info.LastWriteTime
-            });
-        }
-
-        return sonuc.OrderByDescending(d => d.Tarih).ToList();
-    }
-
     private void FiltreUygula()
     {
         IEnumerable<ArsivDosya> liste = tumDosyalar;
-
-        if (!string.IsNullOrEmpty(filtreBolum))
-            liste = liste.Where(d => d.Klasor.StartsWith(filtreBolum, StringComparison.OrdinalIgnoreCase));
 
         if (!string.IsNullOrWhiteSpace(filtreArama))
         {
@@ -266,10 +253,15 @@
 
     private async Task<byte[]?> DosyaCoz(ArsivDosya dosya)
     {
+        if (dosya.Format == ArchiveFileFormat.Plain)
+            return await File.ReadAllBytesAsync(ArchiveBrowser.ValidateStorageRelativePath(dosya.RelativePath));
+
         var bytes = await SecureFileService.ReadDecryptedAsync(dosya.RelativePath);
         if (bytes == null || bytes.Length == 0)
         {
-            ToastService.ShowWarning("Dosya okunamadı veya şifresi çözülemedi.");
+            ToastService.ShowWarning(dosya.Format is ArchiveFileFormat.LegacyAes or ArchiveFileFormat.LegacyEncrypted
+                ? "Eski şifreli dosya açılamadı. Orijinal anahtar gereklidir."
+                : "Dosya okunamadı veya uygulama anahtarı bulunamadı.");
             return null;
         }
         return bytes;
@@ -288,10 +280,12 @@
 
         try
         {
-            var bytes = await SecureFileService.ReadDecryptedAsync(dosya.RelativePath);
+            var bytes = await DosyaCoz(dosya);
             if (bytes == null || bytes.Length == 0)
             {
-                previewError = "Dosya okunamadı veya şifresi çözülemedi.";
+                previewError = dosya.Format is ArchiveFileFormat.LegacyAes or ArchiveFileFormat.LegacyEncrypted
+                    ? "Bu eski şifreli dosyayı açmak için orijinal anahtar gereklidir."
+                    : "Dosya okunamadı veya uygulama anahtarı bulunamadı.";
                 return;
             }
 
@@ -373,12 +367,21 @@
         }
     }
 
-    private static string EncExtensionTemizle(string dosyaAdi)
+    private static string GetFormatText(ArchiveFileFormat format) => format switch
     {
-        while (dosyaAdi.EndsWith(".enc", StringComparison.OrdinalIgnoreCase))
-            dosyaAdi = dosyaAdi[..^4];
-        return dosyaAdi;
-    }
+        ArchiveFileFormat.DataProtection => "Yeni / Korumalı",
+        ArchiveFileFormat.LegacyAes => "Eski / AES",
+        ArchiveFileFormat.LegacyEncrypted => "Eski / Şifreli",
+        _ => "Düz Dosya"
+    };
+
+    private static string GetFormatBadge(ArchiveFileFormat format) => format switch
+    {
+        ArchiveFileFormat.DataProtection => "bg-success",
+        ArchiveFileFormat.LegacyAes => "bg-warning text-dark",
+        ArchiveFileFormat.LegacyEncrypted => "bg-danger",
+        _ => "bg-secondary"
+    };
 
     private static string GetMimeType(string? extension)
     {

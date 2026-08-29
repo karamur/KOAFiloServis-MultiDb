@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MKFiloServis.Web.Services;
 using MKFiloServis.Web.Services.Interfaces;
@@ -16,14 +16,49 @@ namespace MKFiloServis.Web.Controllers;
 public class DosyaController : ControllerBase
 {
     private readonly ISecureFileService _secureFileService;
+    private readonly ArchiveBrowserService _archiveBrowser;
     private readonly ILogger<DosyaController> _logger;
 
     public DosyaController(
         ISecureFileService secureFileService,
+        ArchiveBrowserService archiveBrowser,
         ILogger<DosyaController> logger)
     {
         _secureFileService = secureFileService;
+        _archiveBrowser = archiveBrowser;
         _logger = logger;
+    }
+
+    [HttpGet("archive")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> DownloadArchiveAsync([FromQuery] string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return BadRequest("Dosya yolu belirtilmedi.");
+
+        try
+        {
+            var fullPath = _archiveBrowser.ValidateStorageRelativePath(path);
+            var raw = await System.IO.File.ReadAllBytesAsync(fullPath, HttpContext.RequestAborted);
+            var isEncrypted = fullPath.EndsWith(".enc", StringComparison.OrdinalIgnoreCase);
+            var content = isEncrypted ? await _secureFileService.ReadDecryptedAsync(path, HttpContext.RequestAborted) : raw;
+            if (content == null)
+                return UnprocessableEntity("Eski şifreli dosya açılamadı. Orijinal anahtar gereklidir.");
+
+            var fileName = Path.GetFileName(fullPath);
+            if (fileName.EndsWith(".enc", StringComparison.OrdinalIgnoreCase))
+                fileName = fileName[..^4];
+
+            return File(content, GetMimeType(Path.GetExtension(fileName)), fileName);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (FileNotFoundException)
+        {
+            return NotFound("Depo dosyası bulunamadı.");
+        }
     }
 
     /// <summary>

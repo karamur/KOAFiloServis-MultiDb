@@ -1,4 +1,4 @@
-@page "/soforler"
+﻿@page "/soforler"
 @page "/personel"
 @using MKFiloServis.Shared.Entities
 @using MKFiloServis.Web.Services
@@ -174,7 +174,7 @@
                                     <td>@personel.IseBaslamaTarihi?.ToString("dd.MM.yyyy")</td>
                                      <td>@personel.IstenAyrilmaTarihi?.ToString("dd.MM.yyyy")</td>
                                      <td>@personel.SgkCikisTarihi?.ToString("dd.MM.yyyy")</td>
-                                    <td class="text-end">@personel.NetMaas.ToString("C0", System.Globalization.CultureInfo.GetCultureInfo("tr-TR"))</td>
+                                    <td class="text-end">@personel.NetMaas.ToString("C2", System.Globalization.CultureInfo.GetCultureInfo("tr-TR"))</td>
                                     <td class="text-center">
                                         @if (personel.IsSofor)
                                         {

@@ -46,6 +46,19 @@ pwsh .\\setup.ps1 -Configuration Release -Runtime win-x64 -OutputRoot .\\artifac
 Paket klasorune varsa mevcut IIS kurulum scriptleri (`kur.ps1`, `kur.bat`) da kopyalanir.
 Ayrica `version.txt` dosyasi paket klasorune eklenir ve kurulum bilgilerini iceri.
 
+## Sunucuya Evrak ve Anahtar Aktarımı
+
+Yeni yüklenen evraklar ASP.NET Core Data Protection ile korunur; kullanıcı
+tarafından yönetilen `master.key` gerekmez. `keys` klasöründeki otomatik Data
+Protection anahtarları düzenli yedeklenmelidir.
+
+Eski KOA1/AES şifreli evraklar açılacaksa, yalnız bu eski dosyalar için kaynak
+makinede `Deploy\Migrate\02-dosya-aktar.ps1` çalıştırılabilir. Orijinal anahtarı
+olmayan eski şifreli dosyalar listelenir ancak kriptografik olarak açılamaz.
+
+Admin arşiv görüntüleyicinin taradığı depo kökü:
+`C:\MKFiloServis_yedekleme\Depo`
+
 ## Versiyon Bilgisi
 
 Her kurulum setup paketi asagidaki bilgileri iceren bir `version.txt` dosyasi olusturur:

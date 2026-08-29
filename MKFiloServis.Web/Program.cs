@@ -212,6 +212,7 @@ builder.Services.AddSingleton<IPortalProjectCatalogService, PortalProjectCatalog
 builder.Services.AddSingleton<ISecureFileService, SecureFileService>();
 builder.Services.AddScoped<DosyaMigrasyonService>();
 builder.Services.AddScoped<ArchiveMigrationService>();
+builder.Services.AddScoped<ArchiveBrowserService>();
 
 // Distributed Cache - Redis veya Memory
 var cacheProvider = builder.Configuration.GetValue<string>("Cache:Provider") ?? "Memory";
@@ -290,18 +291,17 @@ builder.Services.AddScoped<IOllamaAIChatService, OllamaAIChatService>();
 // DeepSeek AI Integration (DeepSeek V3)
 builder.Services.AddHttpClient<IDeepSeekService, DeepSeekService>();
 
-// Guvenlik: Master key (DPAPI) + AES-GCM dosya koruyucu
-// Production'da key eksik/bozuk ise sessizce yeniden uretmez, kritik hata verir.
+// Eski KOA1/AES dosyalari icin geriye uyumluluk saglayicisi.
+// Yeni dosyalar DataProtectionFileProtector ile yazilir; master.key zorunlu degildir.
 builder.Services.AddSingleton<IMasterKeyProvider>(sp =>
 {
     var env = sp.GetRequiredService<IWebHostEnvironment>();
     var storageRoot = MKFiloServis.Web.Helpers.AppStoragePaths.GetDataProtectionKeysRoot(env.ContentRootPath);
     var keyPath = Path.Combine(storageRoot, "master.key");
     var logger = sp.GetRequiredService<ILogger<DpapiMasterKeyProvider>>();
-    var isProduction = env.IsProduction();
-    return new DpapiMasterKeyProvider(keyPath, logger, throwOnMissing: isProduction);
+    return new DpapiMasterKeyProvider(keyPath, logger, throwOnMissing: true);
 });
-builder.Services.AddSingleton<IFileProtector, AesGcmFileProtector>();
+builder.Services.AddSingleton<IFileProtector, DataProtectionFileProtector>();
 builder.Services.AddSingleton<IDecryptionRecoveryTracker, InMemoryDecryptionRecoveryTracker>();
 builder.Services.AddScoped<FileRecoveryService>(); // YENI: Eski anahtarla dosya kurtarma (recovery mode)
 builder.Services.AddScoped<IEvrakArsivService, EvrakArsivService>();

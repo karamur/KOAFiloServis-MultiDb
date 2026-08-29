@@ -19,6 +19,31 @@ function Write-OK([string]$msg)   { Write-Host "[OK] $msg"    -ForegroundColor G
 function Write-Warn([string]$msg) { Write-Host "[UYARI] $msg" -ForegroundColor Yellow }
 function Write-Err([string]$msg)  { Write-Host "[HATA] $msg"  -ForegroundColor Red }
 
+function Export-PortableMasterKey([string]$sourcePath, [string]$targetPath) {
+    Add-Type -AssemblyName System.Security.Cryptography.ProtectedData
+    $entropy = [System.Text.Encoding]::UTF8.GetBytes("MKFiloServis.MasterKey.v1")
+    $protected = [System.IO.File]::ReadAllBytes($sourcePath)
+
+    foreach ($scope in @(
+        [System.Security.Cryptography.DataProtectionScope]::LocalMachine,
+        [System.Security.Cryptography.DataProtectionScope]::CurrentUser)) {
+        try {
+            $plain = [System.Security.Cryptography.ProtectedData]::Unprotect($protected, $entropy, $scope)
+            if ($plain.Length -ne 32) { throw "Anahtar uzunluğu 32 byte değil." }
+
+            [System.IO.File]::WriteAllText($targetPath, [Convert]::ToBase64String($plain))
+            [Array]::Clear($plain, 0, $plain.Length)
+            Write-OK "master.key $scope kapsamında çözüldü."
+            return $true
+        } catch {
+            Write-Warn "master.key $scope kapsamında çözülemedi: $($_.Exception.Message)"
+        }
+    }
+
+    Write-Err "master.key bu Windows makinesi/kullanıcısı ile çözülemedi."
+    return $false
+}
+
 # ---------------------------------------------------------------------------
 # 1. Kaynak doğrulama
 # ---------------------------------------------------------------------------
@@ -69,27 +94,36 @@ if (Test-Path $eskiKeys) {
 
     $keyFiles = Get-ChildItem $eskiKeys -File -Filter "key-*.xml" -ErrorAction SilentlyContinue
     if ($keyFiles.Count -eq 0) {
-        Write-Warn "key-*.xml dosyası bulunamadı. Keys klasörü atlanıyor."
+        Write-Warn "key-*.xml dosyası bulunamadı. Data Protection XML anahtarları atlanıyor."
     } else {
         foreach ($kf in $keyFiles) {
             $dest = Join-Path $yeniKeys $kf.Name
             Copy-Item $kf.FullName $dest -Force
             Write-OK "Key kopyalandı: $($kf.Name)"
         }
+    }
 
-        # master.key varsa kopyala
-        $masterKey = Join-Path $eskiKeys "master.key"
-        if (Test-Path $masterKey) {
-            Copy-Item $masterKey (Join-Path $yeniKeys "master.key") -Force
-            Write-OK "master.key kopyalandı."
+    # DPAPI master.key makineye bağlıdır; başka sunucuya doğrudan kopyalanamaz.
+    # Kaynak makinede çözülüp tek kullanımlık import dosyası olarak aktarılır.
+    $masterKey = Join-Path $eskiKeys "master.key"
+    if (Test-Path $masterKey) {
+        $portableKey = Join-Path $yeniKeys "master.key.import"
+        if (Export-PortableMasterKey $masterKey $portableKey) {
+            Write-OK "Master key taşınabilir import dosyasına dönüştürüldü."
+            Write-Warn "Uygulama ilk açılışta anahtarı sunucu DPAPI'si ile koruyup import dosyasını silecek."
+        } else {
+            Write-Err "Anahtar aktarılmadan evraklar hedef sunucuda açılamaz. İşlem durduruldu."
+            exit 1
         }
+    } else {
+        Write-Warn "Kaynak master.key bulunamadı: $masterKey"
+    }
 
-        # raw-key.txt'yi referans olarak sakla (uygulama kullanmaz, sadece yedek)
-        $rawKeyTxt = Join-Path $eskiKeys "raw-key.txt"
-        if (Test-Path $rawKeyTxt) {
-            Copy-Item $rawKeyTxt (Join-Path $yeniKeys "raw-key.txt.bak") -Force
-            Write-OK "raw-key.txt referans kopyası alındı (raw-key.txt.bak)."
-        }
+    # Legacy raw key yalnızca kurtarma yedeği olarak aktarılır.
+    $rawKeyTxt = Join-Path $eskiKeys "raw-key.txt"
+    if (Test-Path $rawKeyTxt) {
+        Copy-Item $rawKeyTxt (Join-Path $yeniKeys "raw-key.txt.bak") -Force
+        Write-OK "raw-key.txt referans kopyası alındı (raw-key.txt.bak)."
     }
 }
 

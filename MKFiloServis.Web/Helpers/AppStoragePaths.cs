@@ -34,6 +34,9 @@ public static class AppStoragePaths
     public static string GetDatabaseBackupRoot(string contentRootPath)
         => Path.Combine(GetStorageRoot(contentRootPath), "database");
 
+    public static string GetArchiveRepositoryRoot(string contentRootPath)
+        => Path.Combine(GetStorageRoot(contentRootPath), "Depo");
+
     public static string GetDataProtectionKeysRoot(string contentRootPath)
         => Path.Combine(GetStorageRoot(contentRootPath), "keys");
 

@@ -1,4 +1,4 @@
-using MKFiloServis.Web.Helpers;
+﻿using MKFiloServis.Web.Helpers;
 using MKFiloServis.Web.Services.Security;
 using Microsoft.AspNetCore.DataProtection;
 using System.Security.Cryptography;
@@ -9,6 +9,7 @@ namespace MKFiloServis.Web.Services;
 public sealed class SecureFileService : ISecureFileService
 {
     private readonly IFileProtector _fileProtector;
+    private readonly IFileProtector _legacyAesProtector;
     // Eski IDataProtector ile sifrelenmis dosyalar icin fallback (gecis donemi)
     private readonly IDataProtector _legacyProtector;
     private readonly string _storageRoot;        // C:\KOAFiloServis_yedekleme\uploads
@@ -18,12 +19,14 @@ public sealed class SecureFileService : ISecureFileService
 
     public SecureFileService(
         IFileProtector fileProtector,
+        IMasterKeyProvider legacyMasterKeyProvider,
         IDataProtectionProvider dataProtectionProvider,
         IWebHostEnvironment environment,
         ILogger<SecureFileService> logger,
         IDecryptionRecoveryTracker recoveryTracker)
     {
         _fileProtector = fileProtector;
+        _legacyAesProtector = new AesGcmFileProtector(legacyMasterKeyProvider);
         _legacyProtector = dataProtectionProvider.CreateProtector("MKFiloServis.SecureFileStorage.v1");
         _storageRoot = AppStoragePaths.GetUploadsRoot(environment.ContentRootPath);
         _baseStorageRoot = AppStoragePaths.GetStorageRoot(environment.ContentRootPath);
@@ -77,26 +80,44 @@ public sealed class SecureFileService : ISecureFileService
         if (rawContent == null)
             return null;
 
+        var dataProtectionFormat = DataProtectionFileProtector.IsProtectedFormat(rawContent);
         var koa1Format = rawContent.Length >= 5 &&
                          rawContent[0] == (byte)'K' && rawContent[1] == (byte)'O' &&
                          rawContent[2] == (byte)'A' && rawContent[3] == (byte)'1';
 
-        // 1) Yeni format: KOA1 magic ile sifreli (AES-256-GCM)
-        if (koa1Format)
+        // 1) Yeni format: MKD1 + ASP.NET Core Data Protection
+        if (dataProtectionFormat)
         {
             try
             {
                 var result = _fileProtector.Unprotect(rawContent);
-                _logger.LogDebug("Dosya okundu (AES-256-GCM): {RelativePath}", relativePath);
+                _logger.LogDebug("Dosya okundu (Data Protection): {RelativePath}", relativePath);
                 return result;
             }
             catch (CryptographicException ex)
             {
-                _logger.LogWarning(ex, "❌ Yeni format decrypt başarısız, legacy format deneniyor. Path={Path}. İçerik: {ExMsg}", relativePath, ex.Message);
+                _logger.LogWarning(ex,
+                    "Data Protection dosyası çözülemedi. Key ring yedeği gerekli olabilir. Path={Path}",
+                    relativePath);
             }
         }
 
-        // 2) Eski format: IDataProtector ile sifreli (geriye uyumluluk)
+        // 2) Eski format: KOA1 magic ile sifreli (AES-256-GCM)
+        if (koa1Format)
+        {
+            try
+            {
+                var result = _legacyAesProtector.Unprotect(rawContent);
+                _logger.LogDebug("Dosya okundu (AES-256-GCM): {RelativePath}", relativePath);
+                return result;
+            }
+            catch (Exception ex) when (ex is CryptographicException or InvalidOperationException)
+            {
+                _logger.LogWarning(ex, "Eski AES dosyası çözülemedi; orijinal master key gerekli. Path={Path}", relativePath);
+            }
+        }
+
+        // 3) Eski format: IDataProtector ile sifreli (geriye uyumluluk)
         try
         {
             var result = _legacyProtector.Unprotect(rawContent);
@@ -106,7 +127,7 @@ public sealed class SecureFileService : ISecureFileService
         catch (CryptographicException ex)
         {
             _logger.LogError(ex,
-                "❌ DECODE HATA: Dosya dekrypt edilemedi (AES + Legacy). " +
+                "Dosya çözülemedi (Data Protection + AES + Legacy). " +
                 "Muhtemel Sebepler:\n" +
                 "  - Master key değişti (eski key ile şifrelenmiş)\n" +
                 "  - Dosya başka makinede şifrelenmiş\n" +
@@ -115,7 +136,9 @@ public sealed class SecureFileService : ISecureFileService
                 "Detay: {DetailMessage}", relativePath, ex.Message);
 
             // Diagnostic bilgisi ekle (üretim ortamında sensitive değil)
-            _logger.LogInformation("📋 Diagnostic: KOA1Format={IsKoa1}, RawLength={Length}", koa1Format, rawContent.Length);
+            _logger.LogInformation(
+                "Diagnostic: DataProtectionFormat={IsDataProtection}, KOA1Format={IsKoa1}, RawLength={Length}",
+                dataProtectionFormat, koa1Format, rawContent.Length);
 
             // Recovery tracker'a kaydet
             _recoveryTracker.TrackDecryptionFailure(

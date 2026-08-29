@@ -1,4 +1,4 @@
-using MKFiloServis.Shared.Entities;
+﻿using MKFiloServis.Shared.Entities;
 using MKFiloServis.Web.Data;
 using Microsoft.EntityFrameworkCore;
 using MKFiloServis.Web.Services.Interfaces;
@@ -336,11 +336,11 @@ public class PersonelMaasIzinService : IPersonelMaasIzinService
 
     private async Task UpdateIzinHakkiKullanimAsync(ApplicationDbContext context, int soforId, int yil, int gun)
     {
-        var izinHakki = await GetIzinHakkiAsync(soforId, yil);
+        var izinHakki = await context.PersonelIzinHaklari
+            .FirstOrDefaultAsync(h => h.SoforId == soforId && h.Yil == yil);
         if (izinHakki != null)
         {
             izinHakki.KullanilanIzin += gun;
-            await context.SaveChangesAsync();
         }
     }
 
@@ -359,7 +359,8 @@ public class PersonelMaasIzinService : IPersonelMaasIzinService
     public async Task<PersonelIzinHakki> CreateOrUpdateIzinHakkiAsync(PersonelIzinHakki izinHakki)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
-        var mevcut = await GetIzinHakkiAsync(izinHakki.SoforId, izinHakki.Yil);
+        var mevcut = await context.PersonelIzinHaklari
+            .FirstOrDefaultAsync(h => h.SoforId == izinHakki.SoforId && h.Yil == izinHakki.Yil);
         if (mevcut == null)
         {
             context.PersonelIzinHaklari.Add(izinHakki);
@@ -384,12 +385,24 @@ public class PersonelMaasIzinService : IPersonelMaasIzinService
 
         foreach (var sofor in aktifSoforler)
         {
-            var mevcutHak = await GetIzinHakkiAsync(sofor.Id, yil);
+            var mevcutHak = await context.PersonelIzinHaklari
+                .FirstOrDefaultAsync(h => h.SoforId == sofor.Id && h.Yil == yil);
             if (mevcutHak == null)
             {
                 // Önceki yıldan devreden izin
-                var oncekiYilHak = await GetIzinHakkiAsync(sofor.Id, yil - 1);
+                var oncekiYilHak = await context.PersonelIzinHaklari
+                    .FirstOrDefaultAsync(h => h.SoforId == sofor.Id && h.Yil == yil - 1);
                 var devirenIzin = oncekiYilHak?.KalanIzin ?? 0;
+
+                var onayliYillikIzinler = await context.PersonelIzinleri
+                    .Where(i => i.SoforId == sofor.Id
+                        && i.IzinTipi == IzinTipi.YillikIzin
+                        && i.Durum == IzinDurum.Onaylandi
+                        && i.BaslangicTarihi.Year == yil)
+                    .Select(i => new { i.BaslangicTarihi, i.BitisTarihi })
+                    .ToListAsync();
+                var kullanilanIzin = onayliYillikIzinler
+                    .Sum(i => (i.BitisTarihi.Date - i.BaslangicTarihi.Date).Days + 1);
 
                 // Kıdem yılına göre izin hakkı hesapla
                 var kidemYili = sofor.IseBaslamaTarihi.HasValue 
@@ -410,7 +423,7 @@ public class PersonelMaasIzinService : IPersonelMaasIzinService
                     Yil = yil,
                     YillikIzinHakki = yillikHak,
                     DevirenIzin = devirenIzin,
-                    KullanilanIzin = 0
+                    KullanilanIzin = kullanilanIzin
                 };
 
                 context.PersonelIzinHaklari.Add(yeniHak);
@@ -476,6 +489,20 @@ public class PersonelMaasIzinService : IPersonelMaasIzinService
             .Include(i => i.Sofor)
             .Where(i => i.BaslangicTarihi.Year == yil && i.Durum == IzinDurum.Onaylandi)
             .ToListAsync();
+
+        var kullanilanYillikIzinler = izinler
+            .Where(i => i.IzinTipi == IzinTipi.YillikIzin)
+            .GroupBy(i => i.SoforId)
+            .ToDictionary(g => g.Key, g => g.Sum(i => i.ToplamGun));
+
+        foreach (var hak in izinHaklari)
+        {
+            var hesaplananKullanim = kullanilanYillikIzinler.GetValueOrDefault(hak.SoforId);
+            if (hak.KullanilanIzin != hesaplananKullanim)
+                hak.KullanilanIzin = hesaplananKullanim;
+        }
+
+        await context.SaveChangesAsync();
 
         var ozet = new IzinRaporOzet
         {
